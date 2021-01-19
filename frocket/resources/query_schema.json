@@ -1,0 +1,410 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "title": "Funnel Rocket Query Schema",
+    "required": [],
+    "additionalProperties": false,
+    "properties": {
+        "timeframe": {
+            "$ref": "#/definitions/timeframe"
+        },
+        "query": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "relation": {
+                    "type": "string"
+                },
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/conditionItem"
+                    }
+                },
+                "aggregations": {
+                    "$ref": "#/definitions/aggregations"
+                }
+            }
+        },
+        "funnel": {
+            "type": "object",
+            "TODO": "Extend a base ref of 'sequence condition' with aggregations, when moving to schema spec 2019-09",
+            "required": [
+                "sequence"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "sequence": {
+                    "$ref": "#/definitions/sequenceArray"
+                },
+                "maxDuration": {
+                    "type": "integer",
+                    "min": 0
+                },
+                "stepAggregations": {
+                    "$ref": "#/definitions/aggregations"
+                },
+                "endAggregations": {
+                    "$ref": "#/definitions/aggregations"
+                }
+            }
+        }
+    },
+    "definitions": {
+        "timeframe": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "from": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "to": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "singleFilter": {
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/singleShorthandFilter"
+                },
+                {
+                    "$ref": "#/definitions/singleVerboseFilter"
+                }
+            ]
+        },
+        "filterArray": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/definitions/singleVerboseFilter"
+            }
+        },
+        "singleFilterCondition": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "filter"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "filter": {
+                    "$ref": "#/definitions/singleFilter"
+                },
+                "target": {
+                    "$ref": "#/definitions/target"
+                },
+                "includeZero": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "filterArrayCondition": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "filters"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "filters": {
+                    "$ref": "#/definitions/filterArray"
+                },
+                "target": {
+                    "$ref": "#/definitions/target"
+                },
+                "includeZero": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "sequenceCondition": {
+            "type": "object",
+            "required": [
+                "sequence"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "sequence": {
+                    "$ref": "#/definitions/sequenceArray"
+                },
+                "maxDuration": {
+                    "type": "integer",
+                    "min": 0
+                }
+            }
+        },
+        "sequenceArray": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "anyOf": [
+                    {
+                        "$ref": "#/definitions/singleFilterSequenceStep"
+                    },
+                    {
+                        "$ref": "#/definitions/filterArraySequenceStep"
+                    }
+                ]
+            }
+        },
+        "singleFilterSequenceStep": {
+            "type": "object",
+            "TODO": "Extend a base sequence step when moving to schema spec 2019-09",
+            "required": [
+                "filter"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "rowFound": {
+                    "type": "boolean"
+                },
+                "filter": {
+                    "$ref": "#/definitions/singleFilter"
+                }
+            }
+        },
+        "filterArraySequenceStep": {
+            "type": "object",
+            "required": [
+                "filters"
+            ],
+            "TODO": "Extend a base sequence step when moving to schema spec 2019-09",
+            "additionalProperties": false,
+            "properties": {
+                "rowFound": {
+                    "type": "boolean"
+                },
+                "filters": {
+                    "$ref": "#/definitions/filterArray"
+                }
+            }
+        },
+        "conditionItem": {
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/singleFilterCondition"
+                },
+                {
+                    "$ref": "#/definitions/filterArrayCondition"
+                },
+                {
+                    "$ref": "#/definitions/sequenceCondition"
+                }
+            ]
+        },
+        "target": {
+            "anyOf": [
+                {
+                    "type": "array",
+                    "additionalItems": false,
+                    "items": [
+                        {
+                            "enum": [
+                                "count"
+                            ]
+                        },
+                        {
+                            "$ref": "#/definitions/numericOperator"
+                        },
+                        {
+                            "type": "integer",
+                            "minimum": 0
+                        }
+                    ]
+                },
+                {
+                    "type": "array",
+                    "additionalItems": false,
+                    "items": [
+                        {
+                            "enum": [
+                                "sum"
+                            ]
+                        },
+                        {
+                            "$ref": "#/definitions/numericColumnName"
+                        },
+                        {
+                            "$ref": "#/definitions/numericOperator"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ]
+                },
+                {
+                    "type": "object",
+                    "required": ["type", "op", "value"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "enum": ["count"]
+                        },
+                        "op": {
+                            "$ref": "#/definitions/numericOperator"
+                        },
+                        "value": {
+                            "type": "integer",
+                            "minimum": 0
+                        }
+                    }
+                },
+                {
+                    "type": "object",
+                    "required": ["type", "column", "op", "value"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "enum": ["sum"]
+                        },
+                        "column": {
+                            "$ref": "#/definitions/numericColumnName"
+                        },
+                        "op": {
+                            "$ref": "#/definitions/numericOperator"
+                        },
+                        "value": {
+                            "type": "number"
+                        }
+                    }
+                }
+            ]
+        },
+        "singleShorthandFilter": {
+            "type": "array",
+            "additionalItems": false,
+            "items": [
+                {
+                    "$ref": "#/definitions/columnName"
+                },
+                {
+                    "$ref": "#/definitions/anyOperator"
+                },
+                {
+                    " $ref": "#/definitions/anyValue"
+                }
+            ]
+        },
+        "singleVerboseFilter": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "column",
+                "op",
+                "value"
+            ],
+            "properties": {
+                "column": {
+                    "$ref": "#/definitions/columnName"
+                },
+                "op": {
+                    "$ref": "#/definitions/anyOperator"
+                },
+                "value": {
+                    "$ref": "#/definitions/anyValue"
+                }
+            }
+        },
+        "aggregations": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/columnAggregation"
+            }
+        },
+        "columnAggregation": {
+            "TODO": "When upgrading spec version, break to base ref + either 'with otherColumn' type (for 'sumPerValue' aggregation type)  or 'without otherColumn' type",
+            "type": "object",
+            "required": [
+                "column"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "column": {
+                    "$ref": "#/definitions/columnName"
+                },
+                "type": {
+                    "enum": [
+                        "count",
+                        "countPerValue",
+                        "groupsPerValue",
+                        "sumPerValue",
+                        "meanPerValue"
+                    ]
+                },
+                "otherColumn": {
+                    "$ref": "#/definitions/numericColumnName"
+                }
+            }
+        },
+        "numericOperator": {
+            "enum": [
+                "==",
+                "!=",
+                ">",
+                ">=",
+                "<",
+                "<="
+            ]
+        },
+        "stringOperator": {
+            "enum": [
+                "==",
+                "!=",
+                "contains"
+            ]
+        },
+        "booleanOperator": {
+            "enum": [
+                "==",
+                "!="
+            ]
+        },
+        "anyOperator": {
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/numericOperator"
+                },
+                {
+                    "$ref": "#/definitions/stringOperator"
+                },
+                {
+                    "$ref": "#/definitions/booleanOperator"
+                }
+            ]
+        },
+        "anyValue": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "number"
+                },
+                {
+                    "type": "boolean"
+                }
+            ]
+        },
+        "columnName": {
+            "description": "a per-dataset generated schema can inclue only valid column names here, instead of 'type'",
+            "type": "string"
+        },
+        "numericColumnName": {
+            "description": "a per-dataset generated schema can inclue only valid numeric column names here, instead of 'type'",
+            "type": "string"
+        }
+    }
+}

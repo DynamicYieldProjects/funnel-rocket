@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  storage-redis:
+    image: redis:6
+    container_name: storage-redis
+    ports:
+      - 6379:6379
+    volumes:
+      - ./scratch/redisdata:/data
+    entrypoint: [ "redis-server", "--appendonly", "yes" ]
+
+  funnel-rocket-dev:
+    image: python:3.8-slim
+    container_name: python-shell
+    environment:
+      - FROCKET_REDIS_HOST=storage-redis
+    volumes:
+      - type: bind
+        source: $PWD
+        target: /app
+    working_dir: /app
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    depends_on:
+      - storage-redis

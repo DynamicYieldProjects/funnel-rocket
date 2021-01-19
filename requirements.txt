@@ -1,0 +1,6 @@
+# Install everything the package depends on to run queries
+.
+# Currently only for development
+jupyter
+numba
+pytest

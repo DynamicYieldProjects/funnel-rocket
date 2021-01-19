@@ -1,0 +1,21 @@
+**/.DS_Store
+**/.ipynb_checkpoints/
+**/__pycache__
+**/*.pyc
+**/*.zip
+**/*.so
+**/*.parquet
+*.egg-info
+.eggs
+venv
+.idea
+*.iml
+.awsenv
+scratch
+map
+reduce
+build
+dist
+# Coverage report
+htmlcov
+.coverage

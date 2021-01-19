@@ -1,0 +1,116 @@
+{
+    "timeframe": {
+        "from": 1500000000000,
+        "to": 1700000000000
+    },
+    "query": {
+        "relation": "or",
+        "conditions": [
+            {
+                "filter": [
+                    "eventId",
+                    "==",
+                    280953
+                ],
+                "target": [
+                    "count",
+                    ">",
+                    1
+                ]
+            },
+            {
+                "filter": [
+                    "eventId",
+                    "==",
+                    281007
+                ],
+                "target": [
+                    "count",
+                    ">",
+                    1
+                ]
+            },
+            {
+                "filter": [
+                    "rowType",
+                    "==",
+                    "EVENT"
+                ],
+                "target": [
+                    "sum",
+                    "eventValue",
+                    ">",
+                    11139000
+                ]
+            },
+            {
+                "sequence": [
+                    {
+                        "filter": [
+                            "eventId",
+                            "==",
+                            187359
+                        ]
+                    }
+                ]
+            }
+        ],
+        "aggregations": [
+            {
+                "column": "rowType",
+                "type": "countPerValue"
+            },
+            {
+                "column": "goalId"
+            },
+            {
+                "column": "goalId",
+                "type": "sumPerValue",
+                "otherColumn": "goalValue",
+                "name": "goalValues"
+            }
+        ]
+    },
+    "funnel": {
+        "sequence": [
+            {
+                "filter": [
+                    "eventId",
+                    "==",
+                    187359
+                ]
+            },
+            {
+                "filter": [
+                    "eventId",
+                    "==",
+                    225329
+                ]
+            },
+            {
+                "filter": [
+                    "eventId",
+                    "==",
+                    140040
+                ]
+            }
+        ],
+        "stepAggregations": [
+            {
+                "column": "browser",
+                "type": "count",
+                "name": "rowsWithBrowser"
+            }
+        ],
+        "endAggregations": [
+            {
+                "column": "rowType",
+                "type": "countPerValue"
+            },
+            {
+                "column": "browser",
+                "type": "countPerValue"
+            }
+        ]
+    }
+}
