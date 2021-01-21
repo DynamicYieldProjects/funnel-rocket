@@ -1,0 +1,24 @@
+# Basic dependabot.yml file with
+# minimum configuration for 2 package managers
+
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    commit-message:
+      # Prefix all commit messages with "actions"
+      prefix: "actions"
+
+  # Enable version updates for pip
+  - package-ecosystem: "pip"
+    # Look for `requirements.txt` file in the `root` directory
+    directory: "/"
+    # Check the pip registry for updates every day (weekdays)
+    schedule:
+      interval: "daily"
+    commit-message:
+      # Prefix all commit messages with "pip"
+      prefix: "pip"

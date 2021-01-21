@@ -1,5 +1,11 @@
 # Funnel Rocket 🚀 (Provisional Documentation, Break to Parts)
 
+<p align="left">
+  <a href="#">
+    <img src="https://github.com/DynamicYieldProjects/funnel-rocket-oss/workflows/Tests/badge.svg" />
+  </a>
+</p>
+
 ## What's This About?
 
 Funnel Rocket is a cloud-native specialized query engine with flexible deployment options and minimal overhead, 
