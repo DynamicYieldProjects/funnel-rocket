@@ -258,9 +258,10 @@ funnel-rocket % docker-compose up -d
 Starting funnel-rocket_storage-redis_1 ... done
 ```
 ### Containerised dev environment
-1. Run `docker build -f docker/funnel-rocket-dev` to build a local dev image.
-    1. This will build a local docker image with all needed depenedncies for local development. 
-
+* Funnel Rocket can be built as a docker image by running: `docker build -f docker/Dockerfile . -t dynamicyield/frocket`
+* Run `docker-compose up`, to build and start a `frocket` worker service running on docker with needed dependencies, such as redis.
+* Run `docker-compose up --scale funnel-rocket-worker=2` to start multiple workers. 
+ 
 ### Unit tests
 1. Install test dependencies: `pip install -r requirements/test.txt`
 2. Run tests: `pytest`

@@ -9,18 +9,28 @@ services:
       - ./scratch/redisdata:/data
     entrypoint: [ "redis-server", "--appendonly", "yes" ]
 
-  funnel-rocket-dev:
-    image: python:3.8-slim
-    container_name: python-shell
+  funnel-rocket-worker:
+    build:
+      dockerfile: docker/Dockerfile
+      target: prod
+      context: .
+    image: dynamicyield/frocket
     environment:
       - FROCKET_REDIS_HOST=storage-redis
-    volumes:
-      - type: bind
-        source: $PWD
-        target: /app
-    working_dir: /app
-    command: /bin/bash
-    stdin_open: true
     tty: true
     depends_on:
       - storage-redis
+    command: worker
+
+  funnel-rocket-api-server:
+    image: dynamicyield/frocket
+    container_name: frocket-api-server
+    ports:
+      - 5000:5000
+    environment:
+      - FROCKET_REDIS_HOST=storage-redis
+      - FLASK_APP=frocket/apiserver.py
+    tty: true
+    depends_on:
+      - storage-redis
+    command: apiserver
