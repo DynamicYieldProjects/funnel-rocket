@@ -11,7 +11,7 @@ setuptools.setup(
     description="Cloud native distributed funnel queries",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/DynamicYieldProjects/funnel-rocket",
+    url="https://github.com/DynamicYieldProjects/funnel-rocket-oss",
     packages=setuptools.find_packages(),
     package_data={
         "frocket": ["resources/*.*"],
