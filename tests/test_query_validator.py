@@ -1,6 +1,9 @@
 import os
 import json
 import time
+import pytest
+from os import environ
+
 from frocket.common.validation.consts import RELATION_OPS, DEFAULT_AGGREGATIONS
 from frocket.common.validation.query_validator import QueryValidator
 from frocket.common.dataset import DatasetInfo, DatasetId, DatasetColumnType
@@ -116,6 +119,7 @@ def test_multipass():
 
 
 # TODO mark as slow and increase no. of iterations
+@pytest.mark.skipif("GITHUB_WORKFLOW" in os.environ, reason="Don't run slow test on github actions")
 def test_many_runs():
     iterations = 10
     max_avg_iteration_time = 0.02
