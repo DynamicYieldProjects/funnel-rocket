@@ -30,9 +30,7 @@ jobs:
         id: cache-venv
         with:
           path: ./venv/
-          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements.txt', './requirements') }}
-          restore-keys: |
-            ${{ runner.os }}-venv-
+          key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt')}}-${{ hashFiles('./requirements/test.txt') }}
 
       - name: Build virtual environment and install dependencies
         run: |
