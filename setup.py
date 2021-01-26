@@ -28,7 +28,7 @@ setuptools.setup(
                       'redis==3.5',
                       'tabulate==0.8',
                       'prometheus_client==0.9',
-                      'flask==1.1',
+                      'flask==1.1.2',
                       'jsonschema==3.2',
                       'dataclasses-json==0.5',
                       'inflection==0.5',
