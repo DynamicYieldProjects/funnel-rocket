@@ -25,7 +25,7 @@ setuptools.setup(
     install_requires=['pyarrow==2.0',
                       'pandas==1.2',
                       'boto3==1.16',
-                      'redis==3.5',
+                      'redis==3.5.3',
                       'tabulate==0.8',
                       'prometheus_client==0.9',
                       'flask==1.1',
