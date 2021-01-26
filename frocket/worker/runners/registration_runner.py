@@ -46,6 +46,10 @@ class RegistrationTaskRunner(BaseTaskRunner):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug('Schema:', self._schema.to_json(indent=2))
 
+        if self._req.dataset.group_id_column not in self._schema.columns or \
+           self._req.dataset.timestamp_column not in self._schema.columns:
+            raise Exception(f"Group column or timestamp column not included in result schema: {self._schema.to_json()}")
+
         if self._req.return_group_ids:
             self._uniques_blob_id = self.write_uniques_as_blob(df)
             logger.info(f"Wrote unique group IDs to blob ID: {self._uniques_blob_id}")
@@ -57,6 +61,9 @@ class RegistrationTaskRunner(BaseTaskRunner):
 
         if group_id_colname not in col_names:
             raise Exception(f"Column {group_id_colname} not found in file")
+        if not (is_integer_dtype(df[group_id_colname]) or is_string_dtype(df[group_id_colname])):
+            raise Exception(f"Group column {group_id_colname} type must be either integer or string, "
+                            f"but found: {df[group_id_colname].dtype}")
         if df[group_id_colname].isnull().any():
             raise Exception(f"Some values in column {group_id_colname} are null")
         logger.info(f"Column {group_id_colname} was found, and without null values")
@@ -105,24 +112,26 @@ class RegistrationTaskRunner(BaseTaskRunner):
     def _build_column(self, series: Series) -> Optional[DatasetColumn]:
         coltype = None
         colattrs = None
-        dtype = series.dtype
+        if is_categorical_dtype(series.dtype):
+            actual_dtype = series.cat.categories.dtype
+        else:
+            actual_dtype = series.dtype
 
-        if is_bool_dtype(dtype):
+        if is_bool_dtype(actual_dtype):
             coltype = DatasetColumnType.BOOL
             colattrs = DatasetColumnAttributes()
-
-        elif is_numeric_dtype(dtype):
-            if is_integer_dtype(dtype) or is_float_dtype(dtype):
-                coltype = DatasetColumnType.INT if is_integer_dtype(dtype) else DatasetColumnType.FLOAT
+        elif is_numeric_dtype(actual_dtype):
+            if is_integer_dtype(actual_dtype) or is_float_dtype(actual_dtype):
+                coltype = DatasetColumnType.INT if is_integer_dtype(actual_dtype) else DatasetColumnType.FLOAT
                 stats = series.describe()
                 colattrs = DatasetColumnAttributes(numeric_min=stats['min'], numeric_max=stats['max'])
-
         elif self._is_string_series(series):
             coltype = DatasetColumnType.STRING
             colattrs = self._build_string_attributes(series)
 
         if coltype:
-            return DatasetColumn(name=str(series.name), dtype_name=str(dtype), coltype=coltype, colattrs=colattrs)
+            return DatasetColumn(name=str(series.name), dtype_name=str(series.dtype),
+                                 coltype=coltype, colattrs=colattrs)
         else:
             return None
 
@@ -133,10 +142,11 @@ class RegistrationTaskRunner(BaseTaskRunner):
 
         # If the validated file was created with Pandas, it might already have categorical columns -
         # in which case the .apply() call below also returns a categorical type that will need conversion
-        if is_string_dtype(series.dtype) or is_categorical_dtype(series.dtype):
+        if is_string_dtype(series.dtype) or \
+                (is_categorical_dtype(series.dtype) and is_string_dtype(series.cat.categories.dtype)):
             # If the series has a mix of strings and other types, Pandas may think it's a string column -
             # so ensure no non-strings are present.
-            # TODO The type warning in PyCharm seems due to https://youtrack.jetbrains.com/issue/PY-43841 , track it
+            # See: https://youtrack.jetbrains.com/issue/PY-43841 for type warning issue below
             # noinspection PyTypeChecker
             are_all_strings = series.apply(string_or_none).astype('bool').all()
             if are_all_strings:
