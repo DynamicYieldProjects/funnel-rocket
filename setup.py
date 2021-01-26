@@ -23,7 +23,7 @@ setuptools.setup(
     ],
     python_requires='>=3.8',
     install_requires=['pyarrow==2.0',
-                      'pandas==1.2',
+                      'pandas==1.2.1',
                       'boto3==1.16',
                       'redis==3.5',
                       'tabulate==0.8',
