@@ -15,7 +15,7 @@ from frocket.common.tasks.registration import RegistrationTaskRequest, Registrat
 from frocket.datastore.registered_datastores import get_datastore, get_blobstore
 from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 from frocket.worker.runners.base_task_runner import TaskRunnerContext
-from frocket.worker.runners.registration_runner import RegistrationTaskRunner
+from frocket.worker.runners.registration_runner import RegistrationTaskRunner, TOP_GRACE_FACTOR
 
 # noinspection PyProtectedMember
 TEMP_DIR = tempfile._get_default_tempdir()  # + '/' + next(tempfile._get_candidate_names())
@@ -24,6 +24,19 @@ DEFAULT_GROUP_COUNT = 200
 STR_OR_NONE_VALUES = ["1", "2", "3", None]
 BASE_TIME = 1609459200000  # Start of 2021
 TIME_SHIFT = 10000
+CAT_SHORT_TOP = [0.9, 0.07, 0.02, 0.01]
+CAT_LONG_TOP = [0.5, 0.2] + [0.01] * 30
+
+
+def weighted_list(size: int, weights: list) -> list:
+    res = []
+    for idx, w in enumerate(weights):
+        v = str(idx)
+        vlen = size * w
+        print(v, w, vlen)
+        res += [v] * int(vlen)
+    assert len(res) == size
+    return res
 
 
 # noinspection PyProtectedMember
@@ -49,7 +62,7 @@ def datafile(part: int = 0, size: int = DEFAULT_ROW_COUNT, filename: str = None)
     dts = [ts * 1000000 for ts in float_timestamps]
     initial_user_id = 100000000 * part
     int64_user_ids = list(range(DEFAULT_GROUP_COUNT)) + \
-                     [random.randrange(DEFAULT_GROUP_COUNT) for _ in range(size - DEFAULT_GROUP_COUNT)]
+        [random.randrange(DEFAULT_GROUP_COUNT) for _ in range(size - DEFAULT_GROUP_COUNT)]
     int64_user_ids = [initial_user_id + uid for uid in int64_user_ids]
     str_user_ids = [str(uid) for uid in int64_user_ids]
     str_or_none_ids = random.choices(STR_OR_NONE_VALUES, k=size)
@@ -69,6 +82,8 @@ def datafile(part: int = 0, size: int = DEFAULT_ROW_COUNT, filename: str = None)
                'float32': Series(data=[np.nan, *[random.random() for _ in range(size - 2)], np.nan],
                                  index=idx, dtype='float32'),
                'cat_userid_str': Series(data=str_user_ids, index=idx, dtype='category'),
+               'cat_short': Series(data=weighted_list(size, CAT_SHORT_TOP), index=idx),
+               'cat_long': Series(data=weighted_list(size, CAT_LONG_TOP), index=idx, dtype='category'),
                'cat_float': Series(data=float_timestamps, index=idx, dtype='category'),
                'dt': Series(data=dts, index=idx, dtype='datetime64[us]'),
                'lists': Series(data=lists, index=idx)
@@ -173,6 +188,12 @@ def test_col_types(datafile):
     col = sch.columns['cat_userid_str']
     assert col.coltype == DatasetColumnType.STRING and col.colattrs.categorical
 
+    col = sch.columns['cat_short']
+    assert col.coltype == DatasetColumnType.STRING and col.colattrs.categorical
+
+    col = sch.columns['cat_long']
+    assert col.coltype == DatasetColumnType.STRING and col.colattrs.categorical
+
     col = sch.columns['cat_float']
     assert col.coltype == DatasetColumnType.FLOAT and not col.colattrs.categorical and \
            math.floor(col.colattrs.numeric_min) == BASE_TIME - TIME_SHIFT and \
@@ -180,8 +201,8 @@ def test_col_types(datafile):
 
     expected_short_schema = DatasetShortSchema(min_timestamp=float(BASE_TIME - TIME_SHIFT),
                                                max_timestamp=float(BASE_TIME + TIME_SHIFT),
-                                               source_categoricals=['cat_userid_str'],
-                                               potential_categoricals=['str_none_userid'],
+                                               source_categoricals=['cat_userid_str', 'cat_long'],
+                                               potential_categoricals=['str_none_userid', 'cat_short'],
                                                columns={'bool': DatasetColumnType.BOOL,
                                                         'none_float': DatasetColumnType.FLOAT,
                                                         'none_object': DatasetColumnType.STRING,
@@ -194,6 +215,8 @@ def test_col_types(datafile):
                                                         'uint32': DatasetColumnType.INT,
                                                         'float32': DatasetColumnType.FLOAT,
                                                         'cat_userid_str': DatasetColumnType.STRING,
+                                                        'cat_short': DatasetColumnType.STRING,
+                                                        'cat_long': DatasetColumnType.STRING,
                                                         'cat_float': DatasetColumnType.FLOAT}).to_dict()
     short_schema_dict = sch.short().to_dict()
     assert short_schema_dict == expected_short_schema
@@ -244,7 +267,7 @@ def test_missing_file():
 def test_invalid_file():
     tmpname = temp_filename()
     with open(tmpname, 'w') as f:
-        f.write('abc'*10000)
+        f.write('abc' * 10000)
     result = run_task(tmpname)
     assert result.status == TaskStatus.ENDED_FAILED
 
@@ -264,15 +287,13 @@ def test_uniques_blob(datafile):
     assert not get_blobstore().delete_blob(result.group_ids_blob_id)
 
 
+def test_top_list(datafile):
+    result = run_task(datafile)
+    assert result.status == TaskStatus.ENDED_SUCCESS
+    assert result.dataset_schema.columns['cat_short'].colattrs.cat_top_values == \
+           {str(i): w for i, w in enumerate(CAT_SHORT_TOP)}
 
-"""
-# Tests
-
-use Redis with db X (and other prefix?)
-
-## registration_runner
-    getting uniques back, if requested, through blob
-    invalid file
-***        get top values over threshold + factor (must be known distribution)
-
-"""
+    long_top_values = result.dataset_schema.columns['cat_long'].colattrs.cat_top_values
+    assert long_top_values['0'] == CAT_LONG_TOP[0]
+    assert long_top_values['1'] == CAT_LONG_TOP[1]
+    assert len(long_top_values) == math.floor(config.int('dataset.categorical.top.count') * TOP_GRACE_FACTOR)
