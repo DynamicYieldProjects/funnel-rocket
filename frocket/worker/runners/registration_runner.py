@@ -46,9 +46,9 @@ class RegistrationTaskRunner(BaseTaskRunner):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug('Schema:', self._schema.to_json(indent=2))
 
-        if self._req.dataset.group_id_column not in self._schema.columns or \
-           self._req.dataset.timestamp_column not in self._schema.columns:
-            raise Exception(f"Group column or timestamp column not included in result schema: {self._schema.to_json()}")
+        # if self._req.dataset.group_id_column not in self._schema.columns or \
+        #   self._req.dataset.timestamp_column not in self._schema.columns:
+        #    raise Exception(f"Group column or timestamp column not included in result schema: {self._schema.to_json()}")
 
         if self._req.return_group_ids:
             self._uniques_blob_id = self.write_uniques_as_blob(df)
