@@ -32,5 +32,5 @@ setuptools.setup(
                       'jsonschema==3.2',
                       'dataclasses-json==0.5',
                       'inflection==0.5',
-                      'parsimonious==0.8']
+                      'parsimonious==0.8.1']
 )
