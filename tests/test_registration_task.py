@@ -2,101 +2,18 @@ import math
 import time
 from typing import cast
 import numpy as np
-import pytest
-from pandas import Series, RangeIndex, DataFrame
-import random
-import tempfile
 from frocket.common.config import config
 from frocket.common.dataset import DatasetInfo, DatasetId, DatasetPartId, DatasetColumnType, DatasetShortSchema
 from frocket.common.helpers.utils import timestamped_uuid, bytes_to_ndarray
-from frocket.common.metrics import MetricsBag, ComponentLabel
 from frocket.common.tasks.base import TaskStatus
 from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationTaskResult
-from frocket.datastore.registered_datastores import get_datastore, get_blobstore
-from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
-from frocket.worker.runners.base_task_runner import TaskRunnerContext
-from frocket.worker.runners.registration_runner import RegistrationTaskRunner, TOP_GRACE_FACTOR
-
-# noinspection PyProtectedMember
-TEMP_DIR = tempfile._get_default_tempdir()  # + '/' + next(tempfile._get_candidate_names())
-DEFAULT_ROW_COUNT = 1000
-DEFAULT_GROUP_COUNT = 200
-STR_OR_NONE_VALUES = ["1", "2", "3", None]
-BASE_TIME = 1609459200000  # Start of 2021
-TIME_SHIFT = 10000
-CAT_SHORT_TOP = [0.9, 0.07, 0.02, 0.01]
-CAT_LONG_TOP = [0.5, 0.2] + [0.01] * 30
-
-
-def weighted_list(size: int, weights: list) -> list:
-    res = []
-    for idx, w in enumerate(weights):
-        v = str(idx)
-        vlen = size * w
-        print(v, w, vlen)
-        res += [v] * int(vlen)
-    assert len(res) == size
-    return res
-
-
-# noinspection PyProtectedMember
-def temp_filename(suffix=''):
-    return TEMP_DIR + '/' + next(tempfile._get_candidate_names()) + suffix
-
-
-@pytest.fixture(scope="session", autouse=True)
-def init_redis():
-    config['redis.db'] = '15'
-    config['datastore.redis.prefix'] = "frocket:tests:"
-    print(get_datastore(), get_blobstore())
-
-
-@pytest.fixture(scope="module")
-def datafile(part: int = 0, size: int = DEFAULT_ROW_COUNT, filename: str = None) -> str:
-    idx = RangeIndex(size)
-    base_time = 1609459200000  # Start of 2021
-    int_timestamps = [-TIME_SHIFT * (part + 1), TIME_SHIFT * (part + 1)] + \
-                     [random.randint(-TIME_SHIFT, TIME_SHIFT) for _ in range(size - 2)]
-    int_timestamps = [BASE_TIME + ts for ts in int_timestamps]
-    float_timestamps = [ts + random.random() for ts in int_timestamps]
-    dts = [ts * 1000000 for ts in float_timestamps]
-    initial_user_id = 100000000 * part
-    int64_user_ids = list(range(DEFAULT_GROUP_COUNT)) + \
-        [random.randrange(DEFAULT_GROUP_COUNT) for _ in range(size - DEFAULT_GROUP_COUNT)]
-    int64_user_ids = [initial_user_id + uid for uid in int64_user_ids]
-    str_user_ids = [str(uid) for uid in int64_user_ids]
-    str_or_none_ids = random.choices(STR_OR_NONE_VALUES, k=size)
-    lists = [[1, 2, 3]] * size
-
-    columns = {'bool': Series(data=random.choices([True, False], k=size), index=idx, dtype='bool'),
-               'none_float': Series(data=None, index=idx, dtype='float64'),
-               'none_object': Series(data=None, index=idx, dtype='object'),
-               'none_str': Series(data=None, index=idx, dtype='str'),
-               'int64_userid': Series(data=int64_user_ids, index=idx),
-               'str_userid': Series(data=str_user_ids, index=idx),
-               'str_none_userid': Series(data=str_or_none_ids, index=idx),
-               'int64_ts': Series(data=int_timestamps, index=idx),
-               'float64_ts': Series(data=float_timestamps, index=idx),
-               'uint32': Series(data=random.choices(range(100), k=size),
-                                index=idx, dtype='uint32'),
-               'float32': Series(data=[np.nan, *[random.random() for _ in range(size - 2)], np.nan],
-                                 index=idx, dtype='float32'),
-               'cat_userid_str': Series(data=str_user_ids, index=idx, dtype='category'),
-               'cat_short': Series(data=weighted_list(size, CAT_SHORT_TOP), index=idx),
-               'cat_long': Series(data=weighted_list(size, CAT_LONG_TOP), index=idx, dtype='category'),
-               'cat_float': Series(data=float_timestamps, index=idx, dtype='category'),
-               'dt': Series(data=dts, index=idx, dtype='datetime64[us]'),
-               'lists': Series(data=lists, index=idx)
-               }
-
-    df = DataFrame(columns)
-    print(df.dtypes)
-    # print(df)  # Enable if needed
-    if not filename:
-        filename = temp_filename('.parquet')
-    df.to_parquet(filename)
-    print(f"Written DataFrame to {filename}")
-    return filename
+from frocket.datastore.registered_datastores import get_blobstore
+from frocket.worker.runners.registration_runner import TOP_GRACE_FACTOR
+from tests.fixtures_n_helpers import TEMP_DIR, BASE_TIME, TIME_SHIFT, STR_OR_NONE_VALUES, DEFAULT_ROW_COUNT, \
+    DEFAULT_GROUP_COUNT, temp_filename, CAT_LONG_TOP, CAT_SHORT_TOP, simple_run_task
+# Importing fixtures generates a warning, as they are injected "automagically" to functions by pytest
+# noinspection PyUnresolvedReferences
+from tests.fixtures_n_helpers import datafile
 
 
 def run_task(datafile: str,
@@ -116,11 +33,8 @@ def run_task(datafile: str,
                                   request_id=timestamped_uuid(),
                                   return_group_ids=return_uniques,
                                   task_index=0)
-    ctx = TaskRunnerContext(metrics=MetricsBag(component=ComponentLabel.WORKER,
-                                               env_metrics_provider=GenericEnvMetricsProvider()))
-    task_runner = RegistrationTaskRunner(req, ctx)
-    result = task_runner.run()
-    assert type(result) is RegistrationTaskResult
+
+    result = simple_run_task(req, RegistrationTaskResult)
     return cast(RegistrationTaskResult, result)
 
 
@@ -171,12 +85,12 @@ def test_col_types(datafile):
 
     col = sch.columns['int64_ts']
     assert col.coltype == DatasetColumnType.INT and \
-           col.colattrs.numeric_min == BASE_TIME - TIME_SHIFT \
+           col.colattrs.numeric_min == BASE_TIME \
            and col.colattrs.numeric_max == BASE_TIME + TIME_SHIFT
 
     col = sch.columns['float64_ts']
     assert col.coltype == DatasetColumnType.FLOAT and \
-           math.floor(col.colattrs.numeric_min) == BASE_TIME - TIME_SHIFT and \
+           math.floor(col.colattrs.numeric_min) == BASE_TIME and \
            math.floor(col.colattrs.numeric_max) == BASE_TIME + TIME_SHIFT
 
     col = sch.columns['uint32']
@@ -196,10 +110,10 @@ def test_col_types(datafile):
 
     col = sch.columns['cat_float']
     assert col.coltype == DatasetColumnType.FLOAT and not col.colattrs.categorical and \
-           math.floor(col.colattrs.numeric_min) == BASE_TIME - TIME_SHIFT and \
+           math.floor(col.colattrs.numeric_min) == BASE_TIME and \
            math.floor(col.colattrs.numeric_max) == BASE_TIME + TIME_SHIFT
 
-    expected_short_schema = DatasetShortSchema(min_timestamp=float(BASE_TIME - TIME_SHIFT),
+    expected_short_schema = DatasetShortSchema(min_timestamp=float(BASE_TIME),
                                                max_timestamp=float(BASE_TIME + TIME_SHIFT),
                                                source_categoricals=['cat_userid_str', 'cat_long'],
                                                potential_categoricals=['str_none_userid', 'cat_short'],
