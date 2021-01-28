@@ -194,4 +194,5 @@ class RegistrationTaskRunner(BaseTaskRunner):
     def _build_result(self, base_attributes: dict):
         return RegistrationTaskResult(**base_attributes,
                                       dataset_schema=self._schema,
+                                      part_id=self._part_id,
                                       group_ids_blob_id=self._uniques_blob_id)

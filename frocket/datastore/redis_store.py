@@ -110,9 +110,17 @@ class RedisStore(Datastore, Blobstore):
     def dequeue(self, queue=DEFAULT_QUEUE, timeout=DEFAULT_DEQUEUE_WAIT_TIME):
         queue_key = f"{QUEUES_PREFIX}:{queue}"
 
-        res = self._redis.brpop(queue_key, timeout)
-        if res:
-            json_string = res[1].decode("utf-8")
+        json_string = None
+        if timeout > 0:
+            res = self._redis.brpop(queue_key, timeout)
+            if res:
+                json_string = res[1].decode()
+        else:
+            res = self._redis.rpop(queue_key)
+            if res:
+                json_string = res.decode()
+
+        if json_string:
             obj = Envelope.open_from_json(json_string, expected_superclass=BaseTaskRequest)
             return obj
         else:

@@ -10,15 +10,14 @@ from frocket.common.helpers.storage import discover_files
 from frocket.common.metrics import JobTypeLabel, DATASET_LABEL
 from frocket.common.tasks.base import ErrorMessage
 from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationJobResult, \
-    RegistrationTaskResult, DatasetValidationMode
+    RegistrationTaskResult, DatasetValidationMode, RegisterArgs
 from frocket.common.helpers.utils import sample_from_range, bytes_to_ndarray
 from frocket.datastore.registered_datastores import get_blobstore, get_datastore
-from frocket.invoker.invoker_api import RegisterArgs
 from frocket.invoker.jobs.job_builder import JobBuilder
 
 logger = logging.getLogger(__name__)
 
-VALIDATION_SMAPLE_RATIO = config.float('validation.sample.ratio')
+VALIDATION_SAMPLE_RATIO = config.float('validation.sample.ratio')
 VALIDATION_MAX_SAMPLES = config.int('validation.sample.max')
 CATEGORICAL_TOP_COUNT = config.int('dataset.categorical.top.count')
 CATEGORICAL_TOP_MIN_PCT = config.float('dataset.categorical.top.minpct')
@@ -28,7 +27,7 @@ class RegistrationJobBuilder(JobBuilder):
     def __init__(self, args: RegisterArgs):
         self._args = args
         self._dataset = None
-        self._dataset_all_parts = None
+        self._parts_info = None
         self._validate_uniques = None
         self._sampled_parts = None
         self._final_schema = None
@@ -37,31 +36,30 @@ class RegistrationJobBuilder(JobBuilder):
         if async_updater:
             async_updater.update(message=f"Discovering files in {self._args.basepath}")
 
-        dataset_parts = self._discover_parts(self._args.basepath, self._args.pattern)
-        if dataset_parts.total_parts == 0:
+        parts_info = self._discover_parts(self._args.basepath, self._args.pattern)
+        if parts_info.total_parts == 0:
             return f"No files found at {self._args.basepath}"
 
         # If needed, adjust validation mode and whether to validate uniques by actual no. of parts
-        if dataset_parts.total_parts == 1:
+        validate_uniques = self._args.validate_uniques
+        if parts_info.total_parts == 1:
             mode = DatasetValidationMode.SINGLE
             validate_uniques = False
+        elif parts_info.total_parts == 2 and self._args.validation_mode == DatasetValidationMode.SAMPLE:
+            mode = DatasetValidationMode.FIRST_LAST
         else:
-            if dataset_parts.total_parts == 2:
-                mode = DatasetValidationMode.FIRST_LAST
-            else:
-                mode = self._args.validation_mode
-            validate_uniques = self._args.validate_uniques
+            mode = self._args.validation_mode
 
         dataset = DatasetInfo(id=DatasetId.now(self._args.name),
                               basepath=self._args.basepath,
-                              total_parts=dataset_parts.total_parts,
+                              total_parts=parts_info.total_parts,
                               group_id_column=self._args.group_id_column,
                               timestamp_column=self._args.timestamp_column)
 
-        self._sampled_parts = self._choose_sampled_parts(dataset, dataset_parts, mode)
+        self._sampled_parts = self._choose_sampled_parts(dataset, parts_info, mode)
 
         self._dataset = dataset
-        self._dataset_all_parts = dataset_parts
+        self._parts_info = parts_info
         self._validate_uniques = validate_uniques
         self._labels = {
             JobTypeLabel.REGISTER.label_name: JobTypeLabel.REGISTER.label_value,
@@ -89,7 +87,7 @@ class RegistrationJobBuilder(JobBuilder):
         else:
             preselected = [0, parts.total_parts - 1]
             chosen_indexes = sample_from_range(range_max=parts.total_parts,
-                                               sample_ratio=VALIDATION_SMAPLE_RATIO,
+                                               sample_ratio=VALIDATION_SAMPLE_RATIO,
                                                max_samples=VALIDATION_MAX_SAMPLES,
                                                preselected=preselected)
 
@@ -144,7 +142,7 @@ class RegistrationJobBuilder(JobBuilder):
 
             # Register to datastore
             datastore = get_datastore()
-            datastore.write_dataset_info(self._dataset, self._dataset_all_parts, self._final_schema)
+            datastore.write_dataset_info(self._dataset, self._parts_info, self._final_schema)
             logger.info(f"Dataset '{self._dataset.id.name}' successfully registered in {datastore}")
             return job_status
         except Exception as e:
@@ -249,3 +247,15 @@ class RegistrationJobBuilder(JobBuilder):
         return RegistrationJobResult(
             **base_attributes,
             dataset=self._dataset)
+
+    @property
+    def sampled_parts(self) -> Optional[List[DatasetPartId]]:
+        return self._sampled_parts
+
+    @property
+    def dataset(self) -> Optional[DatasetInfo]:
+        return self._dataset
+
+    @property
+    def parts(self) -> Optional[DatasetPartsInfo]:
+        return self._parts_info

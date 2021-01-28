@@ -44,6 +44,7 @@ class RegistrationTaskRequest(BaseTaskRequest):
 @dataclass(frozen=True)
 class RegistrationTaskResult(BaseTaskResult):
     dataset_schema: Optional[DatasetSchema]
+    part_id: DatasetPartId
     group_ids_blob_id: Optional[BlobId]
 
 
