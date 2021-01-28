@@ -228,13 +228,73 @@ def test_schemas_differ():
             assert not result.success
 
 
-"""
-Tests left to do:
-    discovery
-        S3: ok + bad paths
-        S3: file count and sizes
-        S3: non default pattern
+def test_s3_paths():
+    ignore_this_file = temp_filename()
+    with open(ignore_this_file, 'w') as f:
+        f.write("Not really")
 
-# TODO add context manager for invoker_runner
-# TODO Later: categorical merging...
-"""
+    # Simple case - no sub dir, default filename pattern
+    with new_dataset(2) as test_ds:
+        s3path = test_ds.copy_to_s3()
+        job = build_registration_job(s3path, mode=DatasetValidationMode.SAMPLE)
+        job.prerun()
+        assert job.parts == test_ds.expected_parts
+        assert sorted([sp.path for sp in job.sampled_parts]) == \
+               sorted([f"{s3path}{fname}" for fname in test_ds.basename_files])
+
+        # Add a file which shouldn't be picked up
+        test_ds.bucket.upload_file(ignore_this_file, 'ignore.pq')
+        job = build_registration_job(s3path, mode=DatasetValidationMode.SAMPLE)
+        job.prerun()
+        assert job.parts == test_ds.expected_parts
+
+    # Now with non-default patterns
+    with new_dataset(8, prefix="blah-", suffix=".pq") as test_ds:
+        s3path = test_ds.copy_to_s3()
+        # Add files to be ignored
+        test_ds.bucket.upload_file(ignore_this_file, 'ignore.parquet')
+        test_ds.bucket.upload_file(ignore_this_file, 'sub1/ignore.pq')
+        test_ds.bucket.upload_file(ignore_this_file, 'sub2/ignore.parquet')
+        test_ds.bucket.upload_file(ignore_this_file, 'sub1/sub11/ignore.pq')
+
+        # Lookup in bucket root
+        job = build_registration_job(s3path, pattern="blah*pq", mode=DatasetValidationMode.SAMPLE)
+        job.prerun()
+        assert job.parts == test_ds.expected_parts
+
+        # Lookup in nested keys
+        test_ds.copy_to_s3('sub1')
+        test_ds.copy_to_s3('sub1/sub11')
+        job = build_registration_job(s3path + 'sub1', pattern="b*.pq", mode=DatasetValidationMode.SAMPLE)
+        job.prerun()
+        assert job.parts == test_ds.expected_parts
+
+        job = build_registration_job(s3path + 'sub1/sub11/', pattern="b*.pq", mode=DatasetValidationMode.SAMPLE)
+        job.prerun()
+        assert job.parts == test_ds.expected_parts
+
+        # Ensure registration can actually run on the found paths
+        with registration_job_invoker(job) as invoker:
+            job_result = invoker.run_all_stages()  # Asserts success by default
+
+        # Key (dir) exists but no matching files
+        job = build_registration_job(s3path + 'sub2/', pattern="b*.pq", mode=DatasetValidationMode.SAMPLE)
+        job.prerun()
+        assert not job.parts
+
+
+@pytest.mark.xfail
+def test_s3_missing_bucket_failure():
+    job = build_registration_job('s3://whatsthat/', mode=DatasetValidationMode.SAMPLE)
+    job.prerun()
+
+
+@pytest.mark.xfail
+def test_s3_missing_key_failure():
+    with new_dataset(2) as test_ds:
+        s3path = test_ds.copy_to_s3('exists')
+        job = build_registration_job(s3path + '/notreally', mode=DatasetValidationMode.SAMPLE)
+        job.prerun()
+
+
+# TODO Later: categorical column top merging - test in more detail

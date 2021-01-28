@@ -3,14 +3,16 @@ import random
 import shutil
 import tempfile
 import time
-from typing import Type, cast, List, NamedTuple
+from dataclasses import dataclass, field
+from typing import Type, cast, List
 from contextlib import contextmanager
+import boto3
 import pytest
 import numpy as np
 from pandas import Series, RangeIndex, DataFrame
 from frocket.common.config import config
 from frocket.common.dataset import DatasetPartsInfo, DatasetPartId, PartNamingMethod, DatasetId
-from frocket.common.helpers.utils import timestamped_uuid
+from frocket.common.helpers.utils import timestamped_uuid, memoize
 from frocket.common.metrics import MetricsBag, ComponentLabel
 from frocket.common.tasks.base import BaseTaskResult, BaseTaskRequest, TaskStatus, TaskAttemptsInfo, JobStatus, \
     BaseJobResult
@@ -32,6 +34,7 @@ CAT_SHORT_TOP = [0.9, 0.07, 0.02, 0.01]
 CAT_LONG_TOP = [0.5, 0.2] + [0.01] * 30
 # noinspection PyProtectedMember
 TEMP_DIR = tempfile._get_default_tempdir()
+SKIP_LOCALSTACK = os.environ.get('SKIP_LOCALSTACK', False)
 
 
 def weighted_list(size: int, weights: list) -> list:
@@ -55,6 +58,32 @@ def init_redis():
     config['redis.db'] = '15'
     config['datastore.redis.prefix'] = "frocket:tests:"
     print(get_datastore(), get_blobstore())  # Fail on no connection, print connection details
+
+
+@memoize
+def _init_localstack():
+    if SKIP_LOCALSTACK:
+        print(f"Skipping localstack config")
+
+    localstack_url = os.environ.get('LOCALSTACK_URL', 'http://localhost:4566')
+    config['aws.endpoint.url'] = localstack_url
+    config['aws.access.key.id'] = 'test'
+    config['aws.secret.access.key'] = 'test'
+
+
+def new_mock_s3_bucket():
+    if SKIP_LOCALSTACK:
+        return None
+    _init_localstack()
+
+    st = time.time()
+    bucket_name = timestamped_uuid('testbucket-')
+    print(config.aws_access_settings())
+    s3 = boto3.resource('s3', use_ssl=False, **config.aws_access_settings())
+    bucket = s3.Bucket(bucket_name)
+    bucket.create()
+    print(f"Bucket '{bucket_name}' created in {time.time()-st:.2f}")
+    return bucket
 
 
 @pytest.fixture(scope="module")
@@ -188,6 +217,13 @@ class InprocessInvokerAndWorker:
             assert job_result.success
         return job_result
 
+    def run_all_stages(self) -> BaseJobResult:
+        self.prerun()
+        self.enqueue_tasks()
+        self.run_tasks()
+        self.complete()
+        return self.build_result()
+
     def cleanup(self):
         get_datastore().cleanup_request_data(self._job.request_id)
 
@@ -220,12 +256,14 @@ def build_registration_job(basepath: str,
     return job
 
 
-class TestDatasetInfo(NamedTuple):
+@dataclass
+class TestDatasetInfo:
     basepath: str
     basename_files: List[str]
     fullpath_files: List[str]
     expected_parts: DatasetPartsInfo
-    registration_jobs: List[RegistrationJobBuilder] = []
+    registration_jobs: List[RegistrationJobBuilder] = field(default_factory=list)
+    bucket: object = None
 
     def expected_part_ids(self, dsid: DatasetId, parts: List[int] = None) -> List[DatasetPartId]:
         parts = parts or range(len(self.fullpath_files))
@@ -241,12 +279,32 @@ class TestDatasetInfo(NamedTuple):
         self.registration_jobs.append(job)
         return job
 
+    # noinspection PyUnresolvedReferences
+    def copy_to_s3(self, path_in_bucket: str = '') -> str:
+        assert not SKIP_LOCALSTACK
+        if not self.bucket:
+            self.bucket = new_mock_s3_bucket()
+
+        for i, file_fullpath in enumerate(self.fullpath_files):
+            file_basename = self.basename_files[i]
+            if path_in_bucket:
+                file_basename = f"{path_in_bucket}/{file_basename}"
+            self.bucket.upload_file(file_fullpath, file_basename)
+
+        s3path = f"s3://{self.bucket.name}/{path_in_bucket}"
+        return s3path
+
+    # noinspection PyUnresolvedReferences
     def cleanup(self):
         assert self.basepath.startswith(TEMP_DIR)
         shutil.rmtree(self.basepath)
         for rj in self.registration_jobs:
             if rj.dataset:
                 get_datastore().remove_dataset_info(rj.dataset.id.name)
+        if self.bucket:
+            for key in self.bucket.objects.all():
+                key.delete()
+            self.bucket.delete()
 
 
 def _build_test_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') -> TestDatasetInfo:
@@ -261,7 +319,7 @@ def _build_test_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') 
                                       total_parts=parts,
                                       total_size=sum([os.stat(fname).st_size for fname in fullpath_files]),
                                       running_number_pattern=None,
-                                      filenames=basename_files)
+                                      filenames=sorted(basename_files))
     # PyCharm issue?
     # noinspection PyArgumentList
     return TestDatasetInfo(basepath=basepath, basename_files=basename_files,
