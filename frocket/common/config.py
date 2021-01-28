@@ -1,5 +1,6 @@
 import os
 import logging
+import sys
 from typing import Dict
 
 #
@@ -56,7 +57,10 @@ DEFAULTS = {
     "validation.sample.ratio": "0.1",
     "unregister.last.used.interval": "10",  # TODO comment out & doc - default is invoker.run.timeout * 2
     "aggregations.top.default.count": "10",
-    "aggregations.top.grace.factor": "2.0"
+    "aggregations.top.grace.factor": "2.0",
+    "aws.endpoint.url": "",
+    "aws.access.key.id": "",
+    "aws_secret_access_key": ""
 }
 
 
@@ -88,6 +92,13 @@ class ConfigDict(Dict[str, str]):
         else:
             return self.get(fallback_key, default)
 
+    def aws_access_settings(self) -> dict:
+        return {
+            'endpoint_url':  self.get('aws.endpoint.url', None) or None,
+            'aws_access_key_id':  self.get('aws.access.key.id', None) or None,
+            'aws_secret_access_key': self.get('aws.secret.access.key', None) or None
+        }
+
     @property
     def loglevel(self) -> int:
         configured_level_name = self.get('log.level').upper()
@@ -99,22 +110,22 @@ class ConfigDict(Dict[str, str]):
     def init_logging(self,
                      force_level: int = None,
                      force_console_output: bool = False) -> None:
-
         if not self._log_initialized:
             use_level = force_level or self.loglevel
-
             use_filename = None
             if not force_console_output:
                 configured_filename = self.get('log.file')
                 if configured_filename and len(configured_filename) > 0:
                     use_filename = configured_filename
-
+            base_args = {
+                'level': use_level,
+                'format': self.get('log.format')
+            }
             if use_filename:
                 print(f"Logging to file {use_filename}")
-
-            logging.basicConfig(filename=use_filename,
-                                level=use_level,
-                                format=self.get('log.format'))
+                logging.basicConfig(filename=use_filename, **base_args)
+            else:
+                logging.basicConfig(stream=sys.stdout, **base_args)
             self._log_initialized = True
 
 

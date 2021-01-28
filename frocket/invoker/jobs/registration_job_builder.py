@@ -126,14 +126,14 @@ class RegistrationJobBuilder(JobBuilder):
         try:
             # Validation across task results
             task_results = cast(List[RegistrationTaskResult], latest_task_results)
-            message = self._compare_columns(task_results)
-            if message:
-                return job_status.with_error(message=message)
-
             if self._validate_uniques:
                 message = self._check_uniques(task_results)
                 if message:
                     return job_status.with_error(message=message)
+
+            message = self._compare_columns(task_results)
+            if message:
+                return job_status.with_error(message=message)
 
             # All valid, now aggregate the final schema
             self._final_schema = self._aggregate_schema(task_results)
@@ -232,6 +232,7 @@ class RegistrationJobBuilder(JobBuilder):
                 raise Exception(f"Blob not found, ID: {res.group_ids_blob_id}")
             id_array = bytes_to_ndarray(blob)
             id_arrays.append(id_array)
+            get_blobstore().delete_blob(res.group_ids_blob_id)
 
         all_ids = np.concatenate(id_arrays)
         all_unique = np.unique(all_ids)

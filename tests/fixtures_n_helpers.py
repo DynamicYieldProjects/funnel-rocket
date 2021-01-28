@@ -2,6 +2,7 @@ import os
 import random
 import shutil
 import tempfile
+import time
 from typing import Type, cast, List, NamedTuple
 from contextlib import contextmanager
 import pytest
@@ -13,8 +14,11 @@ from frocket.common.helpers.utils import timestamped_uuid
 from frocket.common.metrics import MetricsBag, ComponentLabel
 from frocket.common.tasks.base import BaseTaskResult, BaseTaskRequest, TaskStatus, TaskAttemptsInfo, JobStatus, \
     BaseJobResult
+from frocket.common.tasks.registration import DatasetValidationMode, REGISTER_DEFAULT_FILENAME_PATTERN, RegisterArgs, \
+    RegistrationTaskRequest, RegistrationTaskResult, RegistrationJobResult
 from frocket.datastore.registered_datastores import get_datastore, get_blobstore
 from frocket.invoker.jobs.job_builder import JobBuilder
+from frocket.invoker.jobs.registration_job_builder import RegistrationJobBuilder
 from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 from frocket.worker.runners.base_task_runner import TaskRunnerContext
 from frocket.worker.runners.registered_runners import REGISTERED_RUNNERS
@@ -188,20 +192,61 @@ class InprocessInvokerAndWorker:
         get_datastore().cleanup_request_data(self._job.request_id)
 
 
+@contextmanager
+def registration_job_invoker(job: RegistrationJobBuilder) -> InprocessInvokerAndWorker:
+    invoker_runner = InprocessInvokerAndWorker(
+        job, RegistrationTaskRequest, RegistrationTaskResult, RegistrationJobResult)
+    try:
+        yield invoker_runner
+    finally:
+        invoker_runner.cleanup()
+
+
+def build_registration_job(basepath: str,
+                           mode: DatasetValidationMode,
+                           group_id_column: str = 'int64_userid',
+                           pattern: str = REGISTER_DEFAULT_FILENAME_PATTERN,
+                           uniques: bool = True) -> RegistrationJobBuilder:
+    args = RegisterArgs(
+        name=f"test-{basepath}-{time.time()}",
+        basepath=basepath,
+        group_id_column=group_id_column,
+        timestamp_column="int64_ts",
+        pattern=pattern,
+        validation_mode=mode,
+        validate_uniques=uniques)
+    job = RegistrationJobBuilder(args=args)
+    job.request_id = timestamped_uuid('test-')
+    return job
+
+
 class TestDatasetInfo(NamedTuple):
     basepath: str
     basename_files: List[str]
     fullpath_files: List[str]
     expected_parts: DatasetPartsInfo
-
-    def cleanup(self):
-        assert self.basepath.startswith(TEMP_DIR)
-        shutil.rmtree(self.basepath)
+    registration_jobs: List[RegistrationJobBuilder] = []
 
     def expected_part_ids(self, dsid: DatasetId, parts: List[int] = None) -> List[DatasetPartId]:
         parts = parts or range(len(self.fullpath_files))
         return [DatasetPartId(dataset_id=dsid, path=self.fullpath_files[i], part_idx=i)
                 for i in parts]
+
+    def registration_job(self,
+                         mode: DatasetValidationMode,
+                         group_id_column: str = 'int64_userid',
+                         pattern: str = REGISTER_DEFAULT_FILENAME_PATTERN,
+                         uniques: bool = True) -> RegistrationJobBuilder:
+        job = build_registration_job(self.basepath, mode, group_id_column, pattern, uniques)
+        self.registration_jobs.append(job)
+        return job
+
+    def cleanup(self):
+        assert self.basepath.startswith(TEMP_DIR)
+        shutil.rmtree(self.basepath)
+        for rj in self.registration_jobs:
+            if rj.dataset:
+                get_datastore().remove_dataset_info(rj.dataset.id.name)
 
 
 def _build_test_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') -> TestDatasetInfo:
