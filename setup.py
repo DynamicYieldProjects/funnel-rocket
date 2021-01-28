@@ -23,7 +23,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.8',
-    install_requires=['pyarrow>=2.0.0,<3.0.0',
+    install_requires=['pyarrow>=2.0.0,<4.0.0',
                       'pandas>=1.2.0,<2.0.0',
                       'boto3>=1.16.0,<2.0.0',
                       'redis>=3.5.0,<4.0.0',
