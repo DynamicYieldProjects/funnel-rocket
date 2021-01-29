@@ -4,14 +4,18 @@ import shutil
 from typing import List, cast
 import pytest
 import pandas as pd
-from fixtures_n_helpers import DEFAULT_GROUP_COUNT, CAT_LONG_TOP, new_dataset, \
-    temp_filename, build_registration_job, registration_job_invoker
+from tests.mock_s3_utils import SKIP_MOCK_S3_TESTS
+from tests.task_and_job_utils import registration_job_invoker, build_registration_job
+from tests.dataset_utils import DEFAULT_GROUP_COUNT, CAT_LONG_TOP, new_dataset
+from tests.base_test_utils import temp_filename, SKIP_SLOW_TESTS
 from frocket.common.helpers.utils import bytes_to_ndarray
 from frocket.common.tasks.registration import DatasetValidationMode,  \
     RegistrationTaskResult, RegistrationJobResult
 from frocket.datastore.registered_datastores import get_datastore, get_blobstore
 from frocket.invoker.jobs.registration_job_builder import VALIDATION_MAX_SAMPLES, \
     VALIDATION_SAMPLE_RATIO, CATEGORICAL_TOP_COUNT
+# noinspection PyUnresolvedReferences
+from tests.redis_fixture import init_redis
 
 
 # TODO create dataset and tear it down nicer
@@ -85,7 +89,7 @@ def test_local_two_file_discovery():
 
 
 # TODO what's the right marker
-@pytest.mark.skip()
+@pytest.mark.skipif(SKIP_SLOW_TESTS, reason="Skipping slow tests")
 def test_local_many_file_discovery():
     do_test_multiple_local_files(20)
     do_test_multiple_local_files(120)
@@ -228,6 +232,7 @@ def test_schemas_differ():
             assert not result.success
 
 
+@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
 def test_s3_paths():
     ignore_this_file = temp_filename()
     with open(ignore_this_file, 'w') as f:
@@ -283,18 +288,17 @@ def test_s3_paths():
         assert not job.parts
 
 
+@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
 @pytest.mark.xfail
 def test_s3_missing_bucket_failure():
     job = build_registration_job('s3://whatsthat/', mode=DatasetValidationMode.SAMPLE)
     job.prerun()
 
 
+@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
 @pytest.mark.xfail
 def test_s3_missing_key_failure():
     with new_dataset(2) as test_ds:
         s3path = test_ds.copy_to_s3('exists')
         job = build_registration_job(s3path + '/notreally', mode=DatasetValidationMode.SAMPLE)
         job.prerun()
-
-
-# TODO Later: categorical column top merging - test in more detail
