@@ -1,36 +1,52 @@
 version: '3.8'
 services:
-  storage-redis:
+  redis:
     image: redis:6
-    container_name: storage-redis
+    container_name: redis
     ports:
-      - 6379:6379
-    volumes:
-      - ./scratch/redisdata:/data
-    entrypoint: [ "redis-server", "--appendonly", "yes" ]
+      - 6380:6380
+    entrypoint: [ "redis-server", "--port", "6380" ]
 
-  funnel-rocket-worker:
+  mock-s3:
+    image: minio/minio
+    container_name: mock-s3
+    ports:
+      - 9000:9000
+    environment:
+      - MINIO_ROOT_USER=testtest
+      - MINIO_ROOT_PASSWORD=testtest
+    command: server /data
+
+  frocket-worker:
     build:
       dockerfile: docker/Dockerfile
       target: prod
       context: .
     image: dynamicyield/frocket
     environment:
-      - FROCKET_REDIS_HOST=storage-redis
+      - FROCKET_REDIS_HOST=redis
+      - FROCKET_REDIS_PORT=6380
+      - MOCK_S3_URL=http://mock-s3:9000
+      - MOCK_S3_USER=testtest
+      - MOCK_S3_SECRET=testtest
     tty: true
     depends_on:
-      - storage-redis
+      - redis
     command: worker
 
-  funnel-rocket-api-server:
+  frocket-apiserver:
     image: dynamicyield/frocket
-    container_name: frocket-api-server
+    container_name: frocket-apiserver
     ports:
       - 5000:5000
     environment:
-      - FROCKET_REDIS_HOST=storage-redis
+      - FROCKET_REDIS_HOST=redis
+      - FROCKET_REDIS_PORT=6380
+      - MOCK_S3_URL=http://mock-s3:9000
+      - MOCK_S3_USER=testtest
+      - MOCK_S3_SECRET=testtest
       - FLASK_APP=frocket/apiserver.py
     tty: true
     depends_on:
-      - storage-redis
+      - redis
     command: apiserver

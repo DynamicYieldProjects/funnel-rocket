@@ -6,6 +6,8 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import NamedTuple
 import boto3
+
+from frocket.common.config import config
 from frocket.common.dataset import DatasetPartsInfo, PartNamingMethod
 from frocket.common.helpers.utils import memoize
 
@@ -50,7 +52,7 @@ class _S3PathInfo(NamedTuple):
 @memoize
 def _s3client():
     boto3.set_stream_logger(level=logging.INFO)  # TODO allow configuration
-    return boto3.client('s3')
+    return boto3.client('s3', **config.aws_access_settings())
 
 
 class _FileBaseInfo(NamedTuple):

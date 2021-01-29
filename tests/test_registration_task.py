@@ -7,13 +7,16 @@ from frocket.common.dataset import DatasetInfo, DatasetId, DatasetPartId, Datase
 from frocket.common.helpers.utils import timestamped_uuid, bytes_to_ndarray
 from frocket.common.tasks.base import TaskStatus
 from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationTaskResult
-from frocket.datastore.registered_datastores import get_blobstore
+from frocket.datastore.registered_datastores import get_blobstore, get_datastore
 from frocket.worker.runners.registration_runner import TOP_GRACE_FACTOR
-from tests.fixtures_n_helpers import TEMP_DIR, BASE_TIME, TIME_SHIFT, STR_OR_NONE_VALUES, DEFAULT_ROW_COUNT, \
-    DEFAULT_GROUP_COUNT, temp_filename, CAT_LONG_TOP, CAT_SHORT_TOP, simple_run_task
-# Importing fixtures generates a warning, as they are injected "automagically" to functions by pytest
+from tests.task_and_job_utils import simple_run_task
+from tests.dataset_utils import DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, BASE_TIME, TIME_SHIFT, STR_OR_NONE_VALUES, \
+    CAT_SHORT_TOP, CAT_LONG_TOP
+from tests.base_test_utils import TEMP_DIR, temp_filename
 # noinspection PyUnresolvedReferences
-from tests.fixtures_n_helpers import datafile
+from tests.dataset_utils import datafile
+# noinspection PyUnresolvedReferences
+from tests.redis_fixture import init_redis
 
 
 def run_task(datafile: str,
@@ -35,6 +38,7 @@ def run_task(datafile: str,
                                   task_index=0)
 
     result = simple_run_task(req, RegistrationTaskResult)
+    get_datastore().cleanup_request_data(req.request_id)
     return cast(RegistrationTaskResult, result)
 
 
