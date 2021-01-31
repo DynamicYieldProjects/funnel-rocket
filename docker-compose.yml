@@ -8,14 +8,10 @@ services:
     entrypoint: [ "redis-server", "--port", "6380" ]
 
   mock-s3:
-    image: minio/minio
+    image: frocket/minio-server-autostart:latest
     container_name: mock-s3
     ports:
       - 9000:9000
-    environment:
-      - MINIO_ROOT_USER=testtest
-      - MINIO_ROOT_PASSWORD=testtest
-    command: server /data
 
   frocket-worker:
     build:
@@ -27,8 +23,8 @@ services:
       - FROCKET_REDIS_HOST=redis
       - FROCKET_REDIS_PORT=6380
       - MOCK_S3_URL=http://mock-s3:9000
-      - MOCK_S3_USER=testtest
-      - MOCK_S3_SECRET=testtest
+      - MOCK_S3_USER=testonly
+      - MOCK_S3_SECRET=testonly
     tty: true
     depends_on:
       - redis
@@ -43,8 +39,8 @@ services:
       - FROCKET_REDIS_HOST=redis
       - FROCKET_REDIS_PORT=6380
       - MOCK_S3_URL=http://mock-s3:9000
-      - MOCK_S3_USER=testtest
-      - MOCK_S3_SECRET=testtest
+      - MOCK_S3_USER=testonly
+      - MOCK_S3_SECRET=testonly
       - FLASK_APP=frocket/apiserver.py
     tty: true
     depends_on:
