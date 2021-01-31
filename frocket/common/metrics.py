@@ -192,7 +192,7 @@ class EnvironmentMetricsProvider(metaclass=ABCMeta):
 
 
 class MetricsBag:
-    def __init__(self, component: ComponentLabel, env_metrics_provider: EnvironmentMetricsProvider):
+    def __init__(self, component: ComponentLabel, env_metrics_provider: EnvironmentMetricsProvider = None):
         self._component: ComponentLabel = component
         self._metrics: Dict[MetricName, MetricData] = {}
         self._env_metrics_provider = env_metrics_provider
@@ -272,6 +272,9 @@ class MetricsBag:
             return self._metrics[metric].value
         else:
             return None
+
+    def label_value(self, label: Union[MetricLabel, Type[MetricLabelEnum]]):
+        return self._labels.get(label_to_str(label), None)
 
 
 # TODO set additional labels etc.? + DOC how to use + LATER consider automatic exception capture into label
