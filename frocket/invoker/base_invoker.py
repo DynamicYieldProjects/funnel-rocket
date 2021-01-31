@@ -78,7 +78,7 @@ class BaseInvoker:
 
         if error_message:
             final_job_status = JobStatus(success=False, error_message=error_message, attempts_status=[])
-            return self.RunCompletionResult(final_job_stats=final_job_status)
+            return self.RunCompletionResult(final_job_status)
 
         # Second step: build tasks, run them till done successfully or retries exhausted, and gather results
 

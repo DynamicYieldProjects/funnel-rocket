@@ -43,14 +43,15 @@ def create_datafile(part: int = 0, size: int = DEFAULT_ROW_COUNT, filename: str 
     idx = RangeIndex(size)
     min_ts = BASE_TIME + (TIME_SHIFT * part)
     max_ts = BASE_TIME + (TIME_SHIFT * (part + 1))
-    int_timestamps = [min_ts, max_ts] + [random.randint(min_ts, max_ts) for _ in range(size - 2)]
+    int_timestamps = [min_ts, max_ts] + [random.randint(min_ts + 1, max_ts - 1) for _ in range(size - 2)]
     # print(f"For part: {part}, min-ts: {min(int_timestamps)}, max-ts: {max(int_timestamps)}")
     float_timestamps = [ts + random.random() for ts in int_timestamps]
     dts = [ts * 1000000 for ts in float_timestamps]
     initial_user_id = 100000000 * part
-    int64_user_ids = list(range(DEFAULT_GROUP_COUNT)) + \
-        [random.randrange(DEFAULT_GROUP_COUNT) for _ in range(size - DEFAULT_GROUP_COUNT)]
-    int64_user_ids = [initial_user_id + uid for uid in int64_user_ids]
+    min_user_id = initial_user_id
+    max_user_id = initial_user_id + DEFAULT_GROUP_COUNT
+    int64_user_ids = list(range(min_user_id, max_user_id)) + \
+        [random.randrange(min_user_id, max_user_id) for _ in range(size - DEFAULT_GROUP_COUNT)]
     str_user_ids = [str(uid) for uid in int64_user_ids]
     str_or_none_ids = random.choices(STR_OR_NONE_VALUES, k=size)
     lists = [[1, 2, 3]] * size
@@ -139,8 +140,8 @@ class TestDatasetInfo:
 def _build_test_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') -> TestDatasetInfo:
     basepath = temp_filename(suffix="-dataset")
     os.makedirs(basepath)
-    basename_files = [f"{prefix}{temp_filename(suffix=('-p' + str(i) + suffix), with_dir=False)}"
-                      for i in range(parts)]
+    basename_files = sorted([f"{prefix}{temp_filename(suffix=('-p' + str(i) + suffix), with_dir=False)}"
+                             for i in range(parts)])
     fullpath_files = [f"{basepath}/{fname}" for fname in basename_files]
     [create_datafile(part=i, filename=fname) for i, fname in enumerate(fullpath_files)]
 
@@ -148,7 +149,7 @@ def _build_test_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') 
                                       total_parts=parts,
                                       total_size=sum([os.stat(fname).st_size for fname in fullpath_files]),
                                       running_number_pattern=None,
-                                      filenames=sorted(basename_files))
+                                      filenames=basename_files)
     # PyCharm issue?
     # noinspection PyArgumentList
     return TestDatasetInfo(basepath=basepath, basename_files=basename_files,
@@ -162,3 +163,11 @@ def new_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') -> TestD
         yield test_ds
     finally:
         test_ds.cleanup()
+
+
+def are_test_dfs_equal(df1: DataFrame, df2: DataFrame) -> bool:
+    # Pandas doesn't know how to compare object-type columns holding more than a single object,
+    # so ignore that column
+    diff_df = df1.drop(columns=['lists'], errors='ignore').compare(
+        df2.drop(columns=['lists'], errors='ignore'))
+    return len(diff_df) == 0

@@ -9,7 +9,7 @@ from frocket.common.tasks.base import TaskStatus, TaskAttemptId, BaseTaskRequest
 from frocket.common.tasks.query import PartSelectionMode, QueryTaskRequest, QueryResult, QueryTaskResult
 from frocket.engine.query_engine import QueryEngine
 from frocket.worker.runners.base_task_runner import BaseTaskRunner, TaskRunnerContext
-from frocket.worker.runners.part_loader import load_dataframe, get_cached_candidates, FilterPredicate
+from frocket.worker.runners.part_loader import part_loader, FilterPredicate
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class QueryTaskRunner(BaseTaskRunner):
 
     def _select_part_myself(self):
         time_left_in_preflight = PREFLIGHT_DURATION_SECONDS - BaseTaskRunner.time_since_invocation(self._req)
-        candidates = get_cached_candidates(self._req.dataset.id)
+        candidates = part_loader().get_cached_candidates(self._req.dataset.id)
         if not candidates:
             if time_left_in_preflight > 0:
                 logger.info("Got no candidates but we're still during preflight"
@@ -90,8 +90,9 @@ class QueryTaskRunner(BaseTaskRunner):
             logger.debug(f"Filters used when loading: {filters}")
             logger.debug(f"Columns to explicitly load as categorical: {load_as_categoricals}")
 
-        df = load_dataframe(file_id=self._dataset_part_id, metrics=self._ctx.metrics,
-                            needed_columns=needed_columns, filters=filters, load_as_categoricals=load_as_categoricals)
+        df = part_loader().load_dataframe(file_id=self._dataset_part_id, metrics=self._ctx.metrics,
+                                          needed_columns=needed_columns, filters=filters,
+                                          load_as_categoricals=load_as_categoricals)
         self._ctx.metrics.set_metric(MetricName.SCANNED_ROWS, len(df))
         self._ctx.metrics.set_metric(MetricName.SCANNED_GROUPS, df[self._req.dataset.group_id_column].nunique())
         return df
