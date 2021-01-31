@@ -4,7 +4,7 @@ from frocket.common.config import config
 from frocket.common.helpers.utils import timestamped_uuid, memoize
 from tests.base_test_utils import IN_GITHUB_WORKFLOW
 
-SKIP_MOCK_S3_TESTS = os.environ.get('SKIP_LOCAL_S3_TESTS', False) or IN_GITHUB_WORKFLOW
+SKIP_MOCK_S3_TESTS = os.environ.get('SKIP_LOCAL_S3_TESTS', False)
 if not SKIP_MOCK_S3_TESTS:
     MOCK_S3_URL = os.environ.get('MOCK_S3_URL', 'http://127.0.0.1:9000')
     MOCK_S3_USER = os.environ.get('MOCK_S3_USER', 'testonly')
