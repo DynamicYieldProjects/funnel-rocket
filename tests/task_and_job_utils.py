@@ -13,6 +13,7 @@ from frocket.invoker.jobs.registration_job_builder import RegistrationJobBuilder
 from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 from frocket.worker.runners.base_task_runner import TaskRunnerContext
 from frocket.worker.runners.registered_runners import REGISTERED_RUNNERS
+from tests.base_test_schema import DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN
 # noinspection PyUnresolvedReferences
 from tests.redis_fixture import init_redis
 
@@ -108,14 +109,14 @@ class InprocessInvokerAndWorker:
 
 def build_registration_job(basepath: str,
                            mode: DatasetValidationMode,
-                           group_id_column: str = 'int64_userid',
+                           group_id_column: str = DEFAULT_GROUP_COLUMN,
                            pattern: str = REGISTER_DEFAULT_FILENAME_PATTERN,
                            uniques: bool = True) -> RegistrationJobBuilder:
     args = RegisterArgs(
         name=f"test-{basepath}-{time.time()}",
         basepath=basepath,
         group_id_column=group_id_column,
-        timestamp_column="int64_ts",
+        timestamp_column=DEFAULT_TIMESTAMP_COLUMN,
         pattern=pattern,
         validation_mode=mode,
         validate_uniques=uniques)

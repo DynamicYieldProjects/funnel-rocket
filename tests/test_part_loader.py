@@ -7,7 +7,8 @@ import pytest
 from frocket.common.dataset import DatasetPartId, DatasetId
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.common.metrics import MetricsBag, ComponentLabel, LoadFromLabel
-from tests.dataset_utils import new_dataset, are_test_dfs_equal, BASE_TIME, TIME_SHIFT
+from tests.dataset_utils import new_test_dataset, are_test_dfs_equal
+from tests.base_test_schema import TestColumn, BASE_TIME, TIME_SHIFT
 from frocket.worker.runners.part_loader import part_loader, FilterPredicate
 from tests.mock_s3_utils import SKIP_MOCK_S3_TESTS
 
@@ -25,7 +26,7 @@ def clean_loader_cache(size_mb: float = None) -> None:
 
 def test_local_non_cached():
     with clean_loader_cache():
-        with new_dataset(4) as test_ds:
+        with new_test_dataset(4) as test_ds:
             dataset_id = DatasetId.now(timestamped_uuid())
             original_df = pandas.read_parquet(test_ds.fullpath_files[0])
             file_id = DatasetPartId(dataset_id, path=test_ds.fullpath_files[0], part_idx=0)
@@ -43,11 +44,12 @@ def test_local_non_cached():
 
 def test_needed_columns():
     with clean_loader_cache():
-        with new_dataset(1) as test_ds:
+        with new_test_dataset(1) as test_ds:
             dataset_id = DatasetId.now(timestamped_uuid())
             original_df = pandas.read_parquet(test_ds.fullpath_files[0])
             file_id = DatasetPartId(dataset_id, path=test_ds.fullpath_files[0], part_idx=0)
-            cols = ['int64_userid', 'str_userid', 'none_object', 'float32', 'cat_long']
+            cols = [TestColumn.int_64_userid, TestColumn.str_userid, TestColumn.str_all_none,
+                    TestColumn.float_32, TestColumn.str_category_many]
 
             metrics = MetricsBag(component=ComponentLabel.WORKER)
             loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, needed_columns=cols)
@@ -69,38 +71,38 @@ def test_needed_columns():
 def test_filters():
     # Note that we're not testing Arrow's filter functionality, but rather that we're using it as intended
     with clean_loader_cache():
-        with new_dataset(1) as test_ds:
+        with new_test_dataset(1) as test_ds:
             dataset_id = DatasetId.now(timestamped_uuid())
             original_df = pandas.read_parquet(test_ds.fullpath_files[0])
             file_id = DatasetPartId(dataset_id, path=test_ds.fullpath_files[0], part_idx=0)
 
             # All rows should return
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            filters = [FilterPredicate('int64_ts', '>=', str(BASE_TIME)),
-                       FilterPredicate('int64_ts', '<=', str(BASE_TIME + TIME_SHIFT))]
+            filters = [FilterPredicate(TestColumn.int_64_ts.value, '>=', str(BASE_TIME)),
+                       FilterPredicate(TestColumn.int_64_ts.value, '<=', str(BASE_TIME + TIME_SHIFT))]
             loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
             assert are_test_dfs_equal(original_df, loaded_df)
 
             # Only rows with exact match should return
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            filters = [FilterPredicate('int64_ts', '==', str(BASE_TIME))]
+            filters = [FilterPredicate(TestColumn.int_64_ts.value, '==', str(BASE_TIME))]
             loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
-            assert are_test_dfs_equal(original_df.loc[original_df['int64_ts'] == BASE_TIME], loaded_df)
+            assert are_test_dfs_equal(original_df.loc[original_df[TestColumn.int_64_ts] == BASE_TIME], loaded_df)
 
             # Now test a string column filter + specific needed columns
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            filters = [FilterPredicate('str_userid', '==', '0')]
+            filters = [FilterPredicate(TestColumn.str_userid.value, '==', '0')]
             loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, filters=filters,
-                                                     needed_columns=['bool', 'str_userid'])
+                                                     needed_columns=[TestColumn.bool, TestColumn.str_userid])
             # In the loaded DF, matching rows have 0..n index (regardless of their "original" position)
-            expected_df = original_df[['bool', 'str_userid']]. \
-                loc[original_df['str_userid'] == '0']. \
+            expected_df = original_df[[TestColumn.bool, TestColumn.str_userid]]. \
+                loc[original_df[TestColumn.str_userid] == '0']. \
                 reset_index(drop=True)
             assert are_test_dfs_equal(expected_df, loaded_df)
 
             # No rows match
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            filters = [FilterPredicate('int64_ts', '<', str(BASE_TIME))]
+            filters = [FilterPredicate(TestColumn.int_64_ts.value, '<', str(BASE_TIME))]
             loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
             assert len(loaded_df) == 0
 
@@ -115,7 +117,7 @@ def validate_load(file_id: DatasetPartId, original_df: pandas.DataFrame, expecte
 @pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
 def test_remote_caching():
     with clean_loader_cache():
-        with new_dataset(4) as test_ds:
+        with new_test_dataset(4) as test_ds:
             s3path = test_ds.copy_to_s3(timestamped_uuid())
 
             ds_name = timestamped_uuid()
@@ -147,7 +149,7 @@ def test_remote_caching():
 @pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
 def test_cache_size():
     num_parts = 4
-    with new_dataset(num_parts) as test_ds:
+    with new_test_dataset(num_parts) as test_ds:
         name = timestamped_uuid()
         s3path = test_ds.copy_to_s3(name)
         dataset_id = DatasetId.now(name)
@@ -205,7 +207,7 @@ def test_get_candidates():
     # and ensure that parts are cached as different files (although source path in S3 is similar),
     # and that candidates are returned for the relevant ds ID only
     num_parts = 2
-    with new_dataset(num_parts) as test_ds:
+    with new_test_dataset(num_parts) as test_ds:
         s3path = test_ds.copy_to_s3()
         original_dfs = [pandas.read_parquet(test_ds.fullpath_files[i])
                         for i in range(num_parts)]
