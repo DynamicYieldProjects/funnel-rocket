@@ -153,9 +153,14 @@ class TestDatasetInfo(DisablePyTestCollectionMixin):
         s3path = f"s3://{self.bucket.name}/{path_in_bucket}"
         return s3path
 
-    def make_part(self, part_idx: int) -> DatasetPartId:
-        return DatasetPartId(dataset_id=self.default_dataset_id,
-                             path=self.fullpath_files[part_idx], part_idx=part_idx)
+    def make_part(self, part_idx: int, s3path: str = None) -> DatasetPartId:
+        if not s3path:
+            path = self.fullpath_files[part_idx]
+        else:
+            if not s3path.endswith('/'):
+                s3path += '/'
+            path = f"{s3path}{self.basename_files[part_idx]}"
+        return DatasetPartId(dataset_id=self.default_dataset_id, path=path, part_idx=part_idx)
 
     # noinspection PyUnresolvedReferences
     def cleanup(self):
