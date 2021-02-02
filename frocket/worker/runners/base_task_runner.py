@@ -8,14 +8,23 @@ from frocket.common.tasks.base import TaskStatus, BaseTaskRequest, BaseTaskResul
 from frocket.datastore.datastore import Datastore
 from frocket.datastore.blobstore import Blobstore
 from frocket.datastore.registered_datastores import get_datastore, get_blobstore
+from frocket.worker.runners.part_loader import PartLoader, shared_part_loader
 
 logger = logging.getLogger(__name__)
 REQUEST_MAX_AGE = int(config.get("worker.reject.age"))
+DEFAULT_PREFLIGHT_DURATION_MS = config.int("part.selection.preflight.ms")
 
 
 class TaskRunnerContext:
-    def __init__(self, metrics: MetricsBag):
+    def __init__(self,
+                 metrics: MetricsBag,
+                 private_part_loader: PartLoader = None,
+                 preflight_duration_ms: int = None):
         self._metrics = metrics
+        self._part_loader = private_part_loader or shared_part_loader()
+        if preflight_duration_ms is None:
+            preflight_duration_ms = DEFAULT_PREFLIGHT_DURATION_MS
+        self._preflight_duration_seconds = preflight_duration_ms / 1000
 
     @property
     def metrics(self) -> MetricsBag:
@@ -29,6 +38,14 @@ class TaskRunnerContext:
     @property
     def blobstore(self) -> Blobstore:
         return get_blobstore()
+
+    @property
+    def part_loader(self) -> PartLoader:
+        return self._part_loader
+
+    @property
+    def preflight_duration_seconds(self) -> float:
+        return self._preflight_duration_seconds
 
 
 class BaseTaskRunner:

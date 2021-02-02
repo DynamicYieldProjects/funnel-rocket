@@ -1,27 +1,15 @@
 import datetime
 import os
-from contextlib import contextmanager
 from typing import Dict, List
 import pandas
 import pytest
 from frocket.common.dataset import DatasetPartId, DatasetId
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.common.metrics import MetricsBag, ComponentLabel, LoadFromLabel
-from tests.dataset_utils import new_test_dataset, are_test_dfs_equal
+from tests.dataset_utils import new_test_dataset, are_test_dfs_equal, clean_loader_cache
 from tests.base_test_schema import TestColumn, BASE_TIME, TIME_SHIFT
-from frocket.worker.runners.part_loader import part_loader, FilterPredicate
+from frocket.worker.runners.part_loader import shared_part_loader, FilterPredicate
 from tests.mock_s3_utils import SKIP_MOCK_S3_TESTS
-
-
-# noinspection PyProtectedMember
-@contextmanager
-def clean_loader_cache(size_mb: float = None) -> None:
-    loader = part_loader()
-    try:
-        loader._setup(size_mb)
-        yield None
-    finally:
-        loader._setup()
 
 
 def test_local_non_cached():
@@ -32,12 +20,12 @@ def test_local_non_cached():
             file_id = DatasetPartId(dataset_id, path=test_ds.fullpath_files[0], part_idx=0)
 
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            loaded_df = part_loader().load_dataframe(file_id, metrics=metrics)
+            loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics)
             assert are_test_dfs_equal(original_df, loaded_df)
             assert metrics.label_value(LoadFromLabel) == LoadFromLabel.SOURCE.label_value
 
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            loaded_df = part_loader().load_dataframe(file_id, metrics=metrics)
+            loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics)
             assert are_test_dfs_equal(original_df, loaded_df)
             assert metrics.label_value(LoadFromLabel) == LoadFromLabel.SOURCE.label_value
 
@@ -52,18 +40,18 @@ def test_needed_columns():
                     TestColumn.float_32, TestColumn.str_category_many]
 
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, needed_columns=cols)
+            loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, needed_columns=cols)
             assert are_test_dfs_equal(original_df[cols], loaded_df)
             assert metrics.label_value(LoadFromLabel) == LoadFromLabel.SOURCE.label_value
 
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, needed_columns=cols)
+            loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, needed_columns=cols)
             assert are_test_dfs_equal(original_df[cols], loaded_df)
             assert metrics.label_value(LoadFromLabel) == LoadFromLabel.SOURCE.label_value
 
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, needed_columns=cols,
-                                                     load_as_categoricals=['str_userid'])
+            loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, needed_columns=cols,
+                                                            load_as_categoricals=['str_userid'])
             assert loaded_df['str_userid'].dtype == 'category'
             assert are_test_dfs_equal(original_df[cols], loaded_df)
 
@@ -80,20 +68,20 @@ def test_filters():
             metrics = MetricsBag(component=ComponentLabel.WORKER)
             filters = [FilterPredicate(TestColumn.int_64_ts.value, '>=', str(BASE_TIME)),
                        FilterPredicate(TestColumn.int_64_ts.value, '<=', str(BASE_TIME + TIME_SHIFT))]
-            loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
+            loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
             assert are_test_dfs_equal(original_df, loaded_df)
 
             # Only rows with exact match should return
             metrics = MetricsBag(component=ComponentLabel.WORKER)
             filters = [FilterPredicate(TestColumn.int_64_ts.value, '==', str(BASE_TIME))]
-            loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
+            loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
             assert are_test_dfs_equal(original_df.loc[original_df[TestColumn.int_64_ts] == BASE_TIME], loaded_df)
 
             # Now test a string column filter + specific needed columns
             metrics = MetricsBag(component=ComponentLabel.WORKER)
             filters = [FilterPredicate(TestColumn.str_userid.value, '==', '0')]
-            loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, filters=filters,
-                                                     needed_columns=[TestColumn.bool, TestColumn.str_userid])
+            loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, filters=filters,
+                                                            needed_columns=[TestColumn.bool, TestColumn.str_userid])
             # In the loaded DF, matching rows have 0..n index (regardless of their "original" position)
             expected_df = original_df[[TestColumn.bool, TestColumn.str_userid]]. \
                 loc[original_df[TestColumn.str_userid] == '0']. \
@@ -103,13 +91,13 @@ def test_filters():
             # No rows match
             metrics = MetricsBag(component=ComponentLabel.WORKER)
             filters = [FilterPredicate(TestColumn.int_64_ts.value, '<', str(BASE_TIME))]
-            loaded_df = part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
+            loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
             assert len(loaded_df) == 0
 
 
 def validate_load(file_id: DatasetPartId, original_df: pandas.DataFrame, expected_load_from: LoadFromLabel):
     metrics = MetricsBag(component=ComponentLabel.WORKER)
-    loaded_df = part_loader().load_dataframe(file_id, metrics=metrics)
+    loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics)
     assert are_test_dfs_equal(original_df, loaded_df)
     assert metrics.label_value(LoadFromLabel) == expected_load_from.label_value
 
@@ -143,7 +131,7 @@ def test_remote_caching():
             # NOTE: For now, cache doesn't auto-clear when newer dataset revision is found
             validate_load(partid1, original_df1, LoadFromLabel.DISK_CACHE)
 
-            assert part_loader().cache_len == 3
+            assert shared_part_loader().cache_len == 3
 
 
 @pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
@@ -168,13 +156,13 @@ def test_cache_size():
 
             # With no cache, the most recent file loaded was still downloaded locally
             # TODO reconsider this behavior
-            assert part_loader().cache_len == 1
+            assert shared_part_loader().cache_len == 1
             filesize_mb = os.path.getsize(test_ds.fullpath_files[-1]) / (1024 ** 2)
-            assert part_loader().cache_current_size_mb == filesize_mb
+            assert shared_part_loader().cache_current_size_mb == filesize_mb
 
         # Constrain cache size to contain about half the dataset files, +/-1
         # This assumes all test files are about the same size.
-        assert part_loader().cache_len == 0
+        assert shared_part_loader().cache_len == 0
         half_ds_size_bytes = sum([os.path.getsize(test_ds.fullpath_files[i]) for i in range(num_parts - 2)])
         half_ds_size_mb = half_ds_size_bytes / (1024 ** 2)
 
@@ -190,12 +178,12 @@ def test_cache_size():
                 validate_load(part_ids[i], original_dfs[i], LoadFromLabel.SOURCE)
 
             # Cache should hold up to about half the files
-            assert 0 < part_loader().cache_len <= (num_parts / 2 + 1)
+            assert 0 < shared_part_loader().cache_len <= (num_parts / 2 + 1)
 
             # All parts now in cache should be "valid candidates" from the same dataset.
             # Basically, using the get_cached_candidates() to extract cache contents
-            parts_in_cache = part_loader().get_cached_candidates(dataset_id)
-            assert len(parts_in_cache) == part_loader().cache_len
+            parts_in_cache = shared_part_loader().get_cached_candidates(dataset_id)
+            assert len(parts_in_cache) == shared_part_loader().cache_len
             # Validate that it's in fact the most-recently used parts that are in that list
             parts_in_cache = sorted(parts_in_cache, key=lambda part: part.part_idx)
             assert parts_in_cache == part_ids[-len(parts_in_cache):]
@@ -232,6 +220,6 @@ def test_get_candidates():
 
             for dsid, parts in dsid_to_parts.items():
                 dsid_copy = DatasetId(name=dsid.name, registered_at=dsid.registered_at)
-                candidates = part_loader().get_cached_candidates(dsid_copy)
+                candidates = shared_part_loader().get_cached_candidates(dsid_copy)
                 candidates = sorted(candidates, key=lambda k: k.part_idx)
                 assert candidates == parts

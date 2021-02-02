@@ -2,22 +2,15 @@ import logging
 import time
 from typing import List, cast, Optional
 from pandas import DataFrame
-from frocket.common.config import config
 from frocket.common.dataset import DatasetPartId
 from frocket.common.metrics import MetricName, PartSelectMethodLabel
 from frocket.common.tasks.base import TaskStatus, TaskAttemptId, BaseTaskRequest
 from frocket.common.tasks.query import PartSelectionMode, QueryTaskRequest, QueryResult, QueryTaskResult
 from frocket.engine.query_engine import QueryEngine
 from frocket.worker.runners.base_task_runner import BaseTaskRunner, TaskRunnerContext
-from frocket.worker.runners.part_loader import part_loader, FilterPredicate
+from frocket.worker.runners.part_loader import FilterPredicate
 
 logger = logging.getLogger(__name__)
-
-preflight_duration = int(config.get("part.selection.preflight.ms"))
-if preflight_duration < 0 or preflight_duration > 2000:
-    raise Exception("Preflight duration should be between 0 (disabled) and 2000 milliseconds"
-                    f", but configured: {preflight_duration}")
-PREFLIGHT_DURATION_SECONDS = preflight_duration / 1000
 
 
 class QueryTaskRunner(BaseTaskRunner):
@@ -60,13 +53,17 @@ class QueryTaskRunner(BaseTaskRunner):
         self._task_attempt_id = TaskAttemptId(part_id.part_idx, task_attempt_no)
 
     def _select_part_myself(self):
-        time_left_in_preflight = PREFLIGHT_DURATION_SECONDS - BaseTaskRunner.time_since_invocation(self._req)
-        candidates = part_loader().get_cached_candidates(self._req.dataset.id)
-        if not candidates:
-            if time_left_in_preflight > 0:
-                logger.info("Got no candidates but we're still during preflight"
-                            f", so sleeping for {time_left_in_preflight} seconds")
-                time.sleep(time_left_in_preflight)
+        time_left_in_preflight = self._ctx.preflight_duration_seconds - BaseTaskRunner.time_since_invocation(self._req)
+        candidates = self._ctx.part_loader.get_cached_candidates(self._req.dataset.id)
+        sleep_time = 0
+        if not candidates and time_left_in_preflight > 0:
+            logger.info("Got no candidates but we're still during preflight"
+                        f", so sleeping for {time_left_in_preflight} seconds")
+            sleep_time = time_left_in_preflight
+
+        if sleep_time:
+            time.sleep(time_left_in_preflight)
+        self._ctx.metrics.set_metric(MetricName.TASK_PREFLIGHT_SLEEP_SECONDS, sleep_time)
 
         # If a worker got some candidates, we still gonna try to grab them even if preflight time has ended
         selected_part = self._ctx.datastore.self_select_part(self._req.request_id, self._req.attempt_no, candidates)
@@ -90,9 +87,9 @@ class QueryTaskRunner(BaseTaskRunner):
             logger.debug(f"Filters used when loading: {filters}")
             logger.debug(f"Columns to explicitly load as categorical: {load_as_categoricals}")
 
-        df = part_loader().load_dataframe(file_id=self._dataset_part_id, metrics=self._ctx.metrics,
-                                          needed_columns=needed_columns, filters=filters,
-                                          load_as_categoricals=load_as_categoricals)
+        df = self._ctx.part_loader.load_dataframe(file_id=self._dataset_part_id, metrics=self._ctx.metrics,
+                                                  needed_columns=needed_columns, filters=filters,
+                                                  load_as_categoricals=load_as_categoricals)
         self._ctx.metrics.set_metric(MetricName.SCANNED_ROWS, len(df))
         self._ctx.metrics.set_metric(MetricName.SCANNED_GROUPS, df[self._req.dataset.group_id_column].nunique())
         return df

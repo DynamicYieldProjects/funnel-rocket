@@ -7,6 +7,7 @@ from pandas import DataFrame
 import pyarrow.parquet
 from frocket.common.config import config
 from frocket.common.helpers.storage import is_remote_path, get_local_path
+from frocket.common.helpers.utils import memoize
 from frocket.common.metrics import MetricName, LoadFromLabel, MetricsBag
 from frocket.common.dataset import DatasetPartId, DatasetId
 
@@ -26,7 +27,7 @@ class CacheEntry:
     last_used: float
 
 
-class _PartLoader:
+class PartLoader:
     _cache: Dict[DatasetPartId, CacheEntry] = None  # DatasetPartId is a dataclass with proper hash & equality
     _disk_cache_max_size: float = None
 
@@ -74,7 +75,6 @@ class _PartLoader:
                        filters: List[FilterPredicate] = None,
                        load_as_categoricals: List[str] = None) -> DataFrame:
         self._prune_cache()
-
         loaded_from: Optional[LoadFromLabel] = LoadFromLabel.SOURCE
         is_source_remote = is_remote_path(file_id.path)
 
@@ -123,11 +123,6 @@ class _PartLoader:
         return candidates if (candidates and len(candidates) > 0) else None
 
 
-_part_loader = None
-
-
-def part_loader() -> _PartLoader:
-    global _part_loader
-    if not _part_loader:
-        _part_loader = _PartLoader()
-    return _part_loader
+@memoize
+def shared_part_loader() -> PartLoader:
+    return PartLoader()

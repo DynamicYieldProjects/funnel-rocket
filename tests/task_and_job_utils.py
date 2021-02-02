@@ -12,19 +12,21 @@ from frocket.invoker.jobs.job_builder import JobBuilder
 from frocket.invoker.jobs.registration_job_builder import RegistrationJobBuilder
 from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 from frocket.worker.runners.base_task_runner import TaskRunnerContext
+from frocket.worker.runners.part_loader import PartLoader
 from frocket.worker.runners.registered_runners import REGISTERED_RUNNERS
 from tests.base_test_schema import DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN
 # noinspection PyUnresolvedReferences
 from tests.redis_fixture import init_redis
 
 
-def _simple_task_runner_ctx() -> TaskRunnerContext:
-    return TaskRunnerContext(metrics=MetricsBag(component=ComponentLabel.WORKER,
-                                                env_metrics_provider=GenericEnvMetricsProvider()))
-
-
-def simple_run_task(req: BaseTaskRequest, expected_resultcls: Type[BaseTaskResult]) -> BaseTaskResult:
-    ctx = _simple_task_runner_ctx()
+def simple_run_task(req: BaseTaskRequest,
+                    expected_resultcls: Type[BaseTaskResult],
+                    private_part_loader: PartLoader = None,
+                    preflight_duration_ms: int = None) -> BaseTaskResult:
+    ctx = TaskRunnerContext(metrics=MetricsBag(component=ComponentLabel.WORKER,
+                                               env_metrics_provider=GenericEnvMetricsProvider()),
+                            private_part_loader=private_part_loader,
+                            preflight_duration_ms=preflight_duration_ms)
     task_runner = REGISTERED_RUNNERS[type(req)](req, ctx)
     result = task_runner.run()
     assert type(result) == expected_resultcls

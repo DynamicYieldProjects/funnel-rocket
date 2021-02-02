@@ -1,6 +1,7 @@
 import os
 import tempfile
-from typing import List
+from typing import List, Type
+
 from frocket.common.metrics import MetricName, MetricData, MetricLabelEnum
 
 IN_GITHUB_WORKFLOW = "GITHUB_WORKFLOW" in os.environ
@@ -21,14 +22,22 @@ class DisablePyTestCollectionMixin(object):
     __test__ = False
 
 
-def assert_metric_value(metrics: List[MetricData], name: MetricName, value: float):
+def get_metric_value(metrics: List[MetricData], name: MetricName) -> float:
     assert metrics
     metric = next(filter(lambda metric: metric.name == name, metrics), None)
     assert metric is not None
-    assert metric.value == value
+    return metric.value
+
+
+def assert_metric_value(metrics: List[MetricData], name: MetricName, value: float):
+    assert get_metric_value(metrics, name) == value
+
+
+def find_first_label_value(metrics: List[MetricData], label_type: Type[MetricLabelEnum]) -> str:
+    assert metrics
+    found_metric = next(filter(lambda metric: label_type.label_name in metric.labels, metrics), None)
+    return found_metric.labels[label_type.label_name]
 
 
 def assert_label_value_exists(metrics: List[MetricData], label: MetricLabelEnum):
-    assert metrics
-    found_metric = next(filter(lambda metric: label.label_name in metric.labels, metrics), None)
-    assert found_metric.labels[label.label_name] == label.label_value
+    assert find_first_label_value(metrics, label.__class__) == label.label_value

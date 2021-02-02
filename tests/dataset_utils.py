@@ -11,6 +11,7 @@ from frocket.common.dataset import DatasetPartsInfo, DatasetId, DatasetPartId, P
 from frocket.common.tasks.registration import DatasetValidationMode, REGISTER_DEFAULT_FILENAME_PATTERN
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker.jobs.registration_job_builder import RegistrationJobBuilder
+from frocket.worker.runners.part_loader import shared_part_loader
 from tests.base_test_schema import TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, \
     DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, TIME_SHIFT, UNSUPPORTED_COLUMN_DTYPES
 from tests.base_test_utils import temp_filename, TEMP_DIR, DisablePyTestCollectionMixin
@@ -97,7 +98,7 @@ def create_datafile(part: int = 0, size: int = DEFAULT_ROW_COUNT, filename: str 
     }
     assert sorted([e for e in columns.keys()]) == sorted([col for col in TestColumn])  # All enum members covered!
 
-    df = DataFrame(columns)
+    df = DataFrame({col.value: values for col, values in columns.items()})
     if not filename:
         filename = temp_filename('.testpq')
     df.to_parquet(filename)
@@ -216,3 +217,14 @@ def are_test_dfs_equal(df1: DataFrame, df2: DataFrame) -> bool:
     diff_df = df1.drop(columns=cols_to_ignore, errors='ignore').compare(
         df2.drop(columns=cols_to_ignore, errors='ignore'))
     return len(diff_df) == 0
+
+
+# noinspection PyProtectedMember
+@contextmanager
+def clean_loader_cache(size_mb: float = None) -> None:
+    loader = shared_part_loader()
+    try:
+        loader._setup(size_mb)
+        yield None
+    finally:
+        loader._setup()  # Cleanup and make ready for next use

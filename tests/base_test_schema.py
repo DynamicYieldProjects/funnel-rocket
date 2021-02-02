@@ -26,8 +26,8 @@ class TestColumn(DisablePyTestCollectionMixin, str, AutoNamedEnum):
 
 DEFAULT_ROW_COUNT = 1000
 DEFAULT_GROUP_COUNT = 200
-DEFAULT_GROUP_COLUMN = TestColumn.int_64_userid
-DEFAULT_TIMESTAMP_COLUMN = TestColumn.int_64_ts
+DEFAULT_GROUP_COLUMN = TestColumn.int_64_userid.value
+DEFAULT_TIMESTAMP_COLUMN = TestColumn.int_64_ts.value
 BASE_TIME = 1609459200000  # Start of 2021, UTC
 TIME_SHIFT = 10000
 UNSUPPORTED_COLUMN_DTYPES = {TestColumn.unsupported_datetimes: 'datetime64[ns]',

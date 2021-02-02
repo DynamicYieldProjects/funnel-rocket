@@ -100,6 +100,7 @@ class MetricName(EnumSerializableByName):
     INVOKE_TO_RUN_SECONDS = ComponentLabel.WORKER
     TASK_TOTAL_RUN_SECONDS = ComponentLabel.WORKER
     TASK_TOTAL_LOAD_SECONDS = ComponentLabel.WORKER
+    TASK_PREFLIGHT_SLEEP_SECONDS = ComponentLabel.WORKER
     TASK_DOWNLOAD_SECONDS = ComponentLabel.WORKER
     TASK_LOAD_FILE_SECONDS = ComponentLabel.WORKER
     TASK_RUN_QUERY_SECONDS = ComponentLabel.WORKER
