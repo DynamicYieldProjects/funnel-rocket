@@ -7,21 +7,20 @@ from typing import List
 import numpy as np
 import pytest
 from pandas import RangeIndex, Series, DataFrame
-from frocket.common.dataset import DatasetPartsInfo, DatasetId, DatasetPartId, PartNamingMethod
+from frocket.common.dataset import DatasetPartsInfo, DatasetId, DatasetPartId, PartNamingMethod, DatasetInfo
 from frocket.common.tasks.registration import DatasetValidationMode, REGISTER_DEFAULT_FILENAME_PATTERN
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker.jobs.registration_job_builder import RegistrationJobBuilder
-from tests.base_test_utils import temp_filename, TEMP_DIR
+from frocket.worker.runners.part_loader import shared_part_loader
+from tests.base_test_schema import TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, \
+    DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, TIME_SHIFT, UNSUPPORTED_COLUMN_DTYPES
+from tests.base_test_utils import temp_filename, TEMP_DIR, DisablePyTestCollectionMixin
 from tests.task_and_job_utils import build_registration_job
 from tests.mock_s3_utils import SKIP_MOCK_S3_TESTS, new_mock_s3_bucket
 
-DEFAULT_ROW_COUNT = 1000
-DEFAULT_GROUP_COUNT = 200
-BASE_TIME = 1609459200000  # Start of 2021, UTC
-TIME_SHIFT = 10000
-STR_OR_NONE_VALUES = ["1", "2", "3", None]
-CAT_SHORT_TOP = [0.9, 0.07, 0.02, 0.01]
-CAT_LONG_TOP = [0.5, 0.2] + [0.01] * 30
+STR_AND_NONE_VALUES = ["1", "2", "3"]
+STR_CAT_FEW_WEIGHTS = [0.9, 0.07, 0.02, 0.01]
+STR_CAT_MANY_WEIGHTS = [0.5, 0.2] + [0.01] * 30
 
 
 def weighted_list(size: int, weights: list) -> list:
@@ -34,64 +33,95 @@ def weighted_list(size: int, weights: list) -> list:
     return res
 
 
+def str_and_none_column_values(part: int = 0, with_none: bool = True) -> List[str]:
+    result = [*STR_AND_NONE_VALUES, f"part-{part}"]
+    if with_none:
+        result.append(None)
+    return result
+
+
+def create_datafile(part: int = 0, size: int = DEFAULT_ROW_COUNT, filename: str = None) -> str:
+    # First, prepare data for columns
+
+    # Each part has a separate set of user (a.k.a. group) IDs
+    initial_user_id = 100000 * part
+    min_user_id = initial_user_id
+    max_user_id = initial_user_id + DEFAULT_GROUP_COUNT - 1
+    # To each tests, ensure that each user ID appears in the file at least once, by including the whole range,
+    # then add random IDs in the range
+    int64_user_ids = \
+        list(range(min_user_id, max_user_id + 1)) + \
+        random.choices(range(min_user_id, max_user_id + 1), k=size - DEFAULT_GROUP_COUNT)
+    # And also represent as strings in another column
+    str_user_ids = [str(uid) for uid in int64_user_ids]
+
+    # Timestamp: each part has a range of values of size TIME_SHIFT
+    min_ts = BASE_TIME + (TIME_SHIFT * part)
+    max_ts = BASE_TIME + (TIME_SHIFT * (part + 1))
+    # Ensure that min & max timestamps appear exactly once, and fill the rest randomly in the range
+    int_timestamps = \
+        [min_ts, max_ts] + \
+        random.choices(range(min_ts + 1, max_ts), k=size-2)
+    # Now as floats and as (incorrect!) datetimes (datetimes currently unsupported)
+    float_timestamps = [ts + random.random() for ts in int_timestamps]
+
+    # More test columns
+    int_u32_values = random.choices(range(100), k=size)
+    float_32_values = [np.nan, *[random.random() for _ in range(size - 2)], np.nan]
+    str_and_none_values = random.choices(str_and_none_column_values(part), k=size)
+    bool_values = random.choices([True, False], k=size)
+
+    # For yet-unsupported columns below
+    lists_values = [[1, 2, 3]] * size
+    datetimes = [ts * 1000000 for ts in float_timestamps]
+
+    # Now create all series
+    idx = RangeIndex(size)
+    columns = {
+        TestColumn.int_64_userid: Series(data=int64_user_ids),
+        TestColumn.int_64_ts: Series(data=int_timestamps),
+        TestColumn.int_u32: Series(data=int_u32_values, dtype='uint32'),
+        TestColumn.float_64_ts: Series(data=float_timestamps),
+        TestColumn.float_all_none: Series(data=None, index=idx, dtype='float64'),
+        TestColumn.float_32: Series(data=float_32_values, dtype='float32'),
+        TestColumn.float_category: Series(data=float_timestamps, index=idx, dtype='category'),
+        TestColumn.str_userid: Series(data=str_user_ids),
+        TestColumn.str_and_none: Series(data=str_and_none_values),
+        TestColumn.str_all_none: Series(data=None, index=idx, dtype='str'),
+        TestColumn.str_object_all_none: Series(data=None, index=idx, dtype='object'),
+        TestColumn.str_category_userid: Series(data=str_user_ids, dtype='category'),
+        TestColumn.str_category_few: Series(data=weighted_list(size, STR_CAT_FEW_WEIGHTS)),
+        TestColumn.str_category_many: Series(data=weighted_list(size, STR_CAT_MANY_WEIGHTS), dtype='category'),
+        TestColumn.bool: Series(data=bool_values, dtype='bool'),
+        TestColumn.unsupported_datetimes: Series(data=datetimes, dtype='datetime64[us]'),
+        TestColumn.unsupported_lists: Series(data=lists_values)
+    }
+    assert sorted([e for e in columns.keys()]) == sorted([col for col in TestColumn])  # All enum members covered!
+
+    df = DataFrame({col.value: values for col, values in columns.items()})
+    if not filename:
+        filename = temp_filename('.testpq')
+    df.to_parquet(filename)
+    # print(f"Written DataFrame to {filename}, columns:\n{df.dtypes}\nSample:\n{df}")
+    return filename
+
+
+create_datafile()
+
+
 @pytest.fixture(scope="module")
 def datafile() -> str:
     return create_datafile()
 
 
-def create_datafile(part: int = 0, size: int = DEFAULT_ROW_COUNT, filename: str = None) -> str:
-    idx = RangeIndex(size)
-    min_ts = BASE_TIME + (TIME_SHIFT * part)
-    max_ts = BASE_TIME + (TIME_SHIFT * (part + 1))
-    int_timestamps = [min_ts, max_ts] + [random.randint(min_ts + 1, max_ts - 1) for _ in range(size - 2)]
-    # print(f"For part: {part}, min-ts: {min(int_timestamps)}, max-ts: {max(int_timestamps)}")
-    float_timestamps = [ts + random.random() for ts in int_timestamps]
-    dts = [ts * 1000000 for ts in float_timestamps]
-    initial_user_id = 100000000 * part
-    min_user_id = initial_user_id
-    max_user_id = initial_user_id + DEFAULT_GROUP_COUNT
-    int64_user_ids = list(range(min_user_id, max_user_id)) + \
-        [random.randrange(min_user_id, max_user_id) for _ in range(size - DEFAULT_GROUP_COUNT)]
-    str_user_ids = [str(uid) for uid in int64_user_ids]
-    str_or_none_ids = random.choices(STR_OR_NONE_VALUES, k=size)
-    lists = [[1, 2, 3]] * size
-
-    columns = {'bool': Series(data=random.choices([True, False], k=size), index=idx, dtype='bool'),
-               'none_float': Series(data=None, index=idx, dtype='float64'),
-               'none_object': Series(data=None, index=idx, dtype='object'),
-               'none_str': Series(data=None, index=idx, dtype='str'),
-               'int64_userid': Series(data=int64_user_ids, index=idx),
-               'str_userid': Series(data=str_user_ids, index=idx),
-               'str_none_userid': Series(data=str_or_none_ids, index=idx),
-               'int64_ts': Series(data=int_timestamps, index=idx),
-               'float64_ts': Series(data=float_timestamps, index=idx),
-               'uint32': Series(data=random.choices(range(100), k=size),
-                                index=idx, dtype='uint32'),
-               'float32': Series(data=[np.nan, *[random.random() for _ in range(size - 2)], np.nan],
-                                 index=idx, dtype='float32'),
-               'cat_userid_str': Series(data=str_user_ids, index=idx, dtype='category'),
-               'cat_short': Series(data=weighted_list(size, CAT_SHORT_TOP), index=idx),
-               'cat_long': Series(data=weighted_list(size, CAT_LONG_TOP), index=idx, dtype='category'),
-               'cat_float': Series(data=float_timestamps, index=idx, dtype='category'),
-               'dt': Series(data=dts, index=idx, dtype='datetime64[us]'),
-               'lists': Series(data=lists, index=idx)
-               }
-
-    df = DataFrame(columns)
-    if not filename:
-        filename = temp_filename('.testpq')
-    df.to_parquet(filename)
-    # Enable if needed
-    # print(f"Written DataFrame to {filename}, columns:\n{df.dtypes}\nSample:\n{df}")
-    return filename
-
-
 @dataclass
-class TestDatasetInfo:
+class TestDatasetInfo(DisablePyTestCollectionMixin):
     basepath: str
     basename_files: List[str]
     fullpath_files: List[str]
     expected_parts: DatasetPartsInfo
+    default_dataset_id: DatasetId
+    default_dataset_info: DatasetInfo
     registration_jobs: List[RegistrationJobBuilder] = field(default_factory=list)
     bucket: object = None
 
@@ -102,7 +132,7 @@ class TestDatasetInfo:
 
     def registration_job(self,
                          mode: DatasetValidationMode,
-                         group_id_column: str = 'int64_userid',
+                         group_id_column: str = DEFAULT_GROUP_COLUMN,
                          pattern: str = REGISTER_DEFAULT_FILENAME_PATTERN,
                          uniques: bool = True) -> RegistrationJobBuilder:
         job = build_registration_job(self.basepath, mode, group_id_column, pattern, uniques)
@@ -124,6 +154,15 @@ class TestDatasetInfo:
         s3path = f"s3://{self.bucket.name}/{path_in_bucket}"
         return s3path
 
+    def make_part(self, part_idx: int, s3path: str = None) -> DatasetPartId:
+        if not s3path:
+            path = self.fullpath_files[part_idx]
+        else:
+            if not s3path.endswith('/'):
+                s3path += '/'
+            path = f"{s3path}{self.basename_files[part_idx]}"
+        return DatasetPartId(dataset_id=self.default_dataset_id, path=path, part_idx=part_idx)
+
     # noinspection PyUnresolvedReferences
     def cleanup(self):
         assert self.basepath.startswith(TEMP_DIR)
@@ -136,29 +175,35 @@ class TestDatasetInfo:
                 key.delete()
             self.bucket.delete()
 
+    @staticmethod
+    def build(parts: int, prefix: str = '', suffix: str = '.parquet'):
+        basepath = temp_filename(suffix="-dataset")
+        os.makedirs(basepath)
+        basename_files = sorted([f"{prefix}{temp_filename(suffix=('-p' + str(i) + suffix), with_dir=False)}"
+                                 for i in range(parts)])
+        fullpath_files = [f"{basepath}/{fname}" for fname in basename_files]
+        [create_datafile(part=i, filename=fname) for i, fname in enumerate(fullpath_files)]
 
-def _build_test_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') -> TestDatasetInfo:
-    basepath = temp_filename(suffix="-dataset")
-    os.makedirs(basepath)
-    basename_files = sorted([f"{prefix}{temp_filename(suffix=('-p' + str(i) + suffix), with_dir=False)}"
-                             for i in range(parts)])
-    fullpath_files = [f"{basepath}/{fname}" for fname in basename_files]
-    [create_datafile(part=i, filename=fname) for i, fname in enumerate(fullpath_files)]
+        expected_parts = DatasetPartsInfo(naming_method=PartNamingMethod.LIST,
+                                          total_parts=parts,
+                                          total_size=sum([os.stat(fname).st_size for fname in fullpath_files]),
+                                          running_number_pattern=None,
+                                          filenames=basename_files)
 
-    expected_parts = DatasetPartsInfo(naming_method=PartNamingMethod.LIST,
-                                      total_parts=parts,
-                                      total_size=sum([os.stat(fname).st_size for fname in fullpath_files]),
-                                      running_number_pattern=None,
-                                      filenames=basename_files)
-    # PyCharm issue?
-    # noinspection PyArgumentList
-    return TestDatasetInfo(basepath=basepath, basename_files=basename_files,
-                           fullpath_files=fullpath_files, expected_parts=expected_parts)
+        dsid = DatasetId.now(name='dsid:' + basepath)
+        ds = DatasetInfo(id=dsid,
+                         basepath=basepath,
+                         total_parts=parts,
+                         group_id_column=DEFAULT_GROUP_COLUMN,
+                         timestamp_column=DEFAULT_TIMESTAMP_COLUMN)
+        return TestDatasetInfo(basepath=basepath, basename_files=basename_files,
+                               fullpath_files=fullpath_files, expected_parts=expected_parts,
+                               default_dataset_id=dsid, default_dataset_info=ds)
 
 
 @contextmanager
-def new_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') -> TestDatasetInfo:
-    test_ds = _build_test_dataset(parts=parts, prefix=prefix, suffix=suffix)
+def new_test_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') -> TestDatasetInfo:
+    test_ds = TestDatasetInfo.build(parts=parts, prefix=prefix, suffix=suffix)
     try:
         yield test_ds
     finally:
@@ -168,6 +213,18 @@ def new_dataset(parts: int, prefix: str = '', suffix: str = '.parquet') -> TestD
 def are_test_dfs_equal(df1: DataFrame, df2: DataFrame) -> bool:
     # Pandas doesn't know how to compare object-type columns holding more than a single object,
     # so ignore that column
-    diff_df = df1.drop(columns=['lists'], errors='ignore').compare(
-        df2.drop(columns=['lists'], errors='ignore'))
+    cols_to_ignore = list(UNSUPPORTED_COLUMN_DTYPES.keys())
+    diff_df = df1.drop(columns=cols_to_ignore, errors='ignore').compare(
+        df2.drop(columns=cols_to_ignore, errors='ignore'))
     return len(diff_df) == 0
+
+
+# noinspection PyProtectedMember
+@contextmanager
+def clean_loader_cache(size_mb: float = None) -> None:
+    loader = shared_part_loader()
+    try:
+        loader._setup(size_mb)
+        yield None
+    finally:
+        loader._setup()  # Cleanup and make ready for next use

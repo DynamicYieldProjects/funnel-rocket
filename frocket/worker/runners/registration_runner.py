@@ -13,7 +13,6 @@ from frocket.common.tasks.registration import RegistrationTaskResult, Registrati
 from frocket.common.helpers.utils import ndarray_to_bytes
 from frocket.common.validation.consts import CONDITION_COLUMN_PREFIX
 from frocket.worker.runners.base_task_runner import BaseTaskRunner, TaskRunnerContext
-from frocket.worker.runners.part_loader import part_loader
 
 logger = logging.getLogger(__name__)
 TOP_GRACE_FACTOR = 1.3  # TODO doc: how many actual top values to return, so they can be aggregated between parts...
@@ -38,7 +37,7 @@ class RegistrationTaskRunner(BaseTaskRunner):
     def _do_run(self):
         self._update_status(TaskStatus.LOADING_DATA)
         with self._ctx.metrics.measure(MetricName.TASK_TOTAL_LOAD_SECONDS):
-            df = part_loader().load_dataframe(self._part_id, self._ctx.metrics)
+            df = self._ctx.part_loader.load_dataframe(self._part_id, self._ctx.metrics)
 
         self._update_status(TaskStatus.RUNNING)
         self._validate_basic_cols(df)

@@ -6,7 +6,8 @@ import pytest
 import pandas as pd
 from tests.mock_s3_utils import SKIP_MOCK_S3_TESTS
 from tests.task_and_job_utils import registration_job_invoker, build_registration_job
-from tests.dataset_utils import DEFAULT_GROUP_COUNT, CAT_LONG_TOP, new_dataset
+from tests.dataset_utils import new_test_dataset, STR_CAT_MANY_WEIGHTS
+from tests.base_test_schema import TestColumn, DEFAULT_GROUP_COUNT
 from tests.base_test_utils import temp_filename, SKIP_SLOW_TESTS
 from frocket.common.helpers.utils import bytes_to_ndarray
 from frocket.common.tasks.registration import DatasetValidationMode,  \
@@ -20,7 +21,7 @@ from tests.redis_fixture import init_redis
 
 # TODO create dataset and tear it down nicer
 def test_local_single_file_discovery():
-    with new_dataset(1) as test_ds:
+    with new_test_dataset(1) as test_ds:
         job = test_ds.registration_job(DatasetValidationMode.SINGLE)
         job.prerun()
 
@@ -47,7 +48,7 @@ def test_local_single_file_discovery():
 
 
 def do_test_multiple_local_files(parts: int):
-    with new_dataset(parts) as test_ds:
+    with new_test_dataset(parts) as test_ds:
         job = test_ds.registration_job(DatasetValidationMode.SINGLE)
         job.prerun()
         assert sorted(job.parts.filenames) == sorted(test_ds.expected_parts.filenames)
@@ -121,7 +122,7 @@ def test_nofiles_failure():
 
 def test_local_nondefault_pattern():
     num_parts = 4
-    with new_dataset(num_parts, "blah-", ".123") as test_ds:
+    with new_test_dataset(num_parts, "blah-", ".123") as test_ds:
         with open(f"{test_ds.basepath}/single", "w") as f:
             f.write("herehere")
 
@@ -145,7 +146,7 @@ def test_local_nondefault_pattern():
 
 def test_merged_schema():
     num_parts = 20
-    with new_dataset(num_parts) as test_ds:
+    with new_test_dataset(num_parts) as test_ds:
         job = test_ds.registration_job(mode=DatasetValidationMode.SAMPLE, uniques=True)
         with registration_job_invoker(job) as invoker:
             invoker.prerun()
@@ -189,14 +190,14 @@ def test_merged_schema():
             assert result_short_schema.min_timestamp == min_ts
             assert result_short_schema.max_timestamp == max_ts
 
-            cat_long_attrs = result_schema.columns['cat_long'].colattrs
-            assert cat_long_attrs.categorical and len(cat_long_attrs.cat_top_values) == CATEGORICAL_TOP_COUNT
-            assert cat_long_attrs.cat_top_values['0'] == CAT_LONG_TOP[0]
-            assert cat_long_attrs.cat_top_values['1'] == CAT_LONG_TOP[1]
+            attrs = result_schema.columns[TestColumn.str_category_many].colattrs
+            assert attrs.categorical and len(attrs.cat_top_values) == CATEGORICAL_TOP_COUNT
+            assert attrs.cat_top_values['0'] == STR_CAT_MANY_WEIGHTS[0]
+            assert attrs.cat_top_values['1'] == STR_CAT_MANY_WEIGHTS[1]
 
 
 def test_non_unique_ids():
-    with new_dataset(2) as test_ds:
+    with new_test_dataset(2) as test_ds:
         # Copy first file over the second one - so they now have the same group IDs
         shutil.copyfile(test_ds.fullpath_files[0], test_ds.fullpath_files[-1])
         job = test_ds.registration_job(mode=DatasetValidationMode.FIRST_LAST, uniques=True)
@@ -213,10 +214,10 @@ def test_non_unique_ids():
 
 
 def test_schemas_differ():
-    with new_dataset(2) as test_ds:
+    with new_test_dataset(2) as test_ds:
         fname = test_ds.fullpath_files[-1]
         df = pd.read_parquet(fname)
-        df['added_column'] = df['int64_userid']
+        df['added_column'] = df[TestColumn.int_64_userid]
         df.to_parquet(fname)
 
         job = test_ds.registration_job(mode=DatasetValidationMode.FIRST_LAST, uniques=True)
@@ -239,7 +240,7 @@ def test_s3_paths():
         f.write("Not really")
 
     # Simple case - no sub dir, default filename pattern
-    with new_dataset(2) as test_ds:
+    with new_test_dataset(2) as test_ds:
         s3path = test_ds.copy_to_s3()
         job = build_registration_job(s3path, mode=DatasetValidationMode.SAMPLE)
         job.prerun()
@@ -254,7 +255,7 @@ def test_s3_paths():
         assert job.parts == test_ds.expected_parts
 
     # Now with non-default patterns
-    with new_dataset(8, prefix="blah-", suffix=".pq") as test_ds:
+    with new_test_dataset(8, prefix="blah-", suffix=".pq") as test_ds:
         s3path = test_ds.copy_to_s3()
         # Add files to be ignored
         test_ds.bucket.upload_file(ignore_this_file, 'ignore.parquet')
@@ -298,7 +299,7 @@ def test_s3_missing_bucket_failure():
 @pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
 @pytest.mark.xfail
 def test_s3_missing_key_failure():
-    with new_dataset(2) as test_ds:
+    with new_test_dataset(2) as test_ds:
         s3path = test_ds.copy_to_s3('exists')
         job = build_registration_job(s3path + '/notreally', mode=DatasetValidationMode.SAMPLE)
         job.prerun()
