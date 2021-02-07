@@ -9,13 +9,13 @@ from frocket.common.metrics import MetricName
 from frocket.common.tasks.base import BaseTaskRequest, TaskStatus, TaskAttemptsInfo
 from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater
 from frocket.invoker.base_invoker import BaseInvoker, JobStatus
-from frocket.invoker.jobs.job_builder import JobBuilder
+from frocket.invoker.jobs.job import Job
 
 logger = logging.getLogger(__name__)
 
 
 class AsyncInvoker(BaseInvoker):
-    def __init__(self, job_builder: JobBuilder):
+    def __init__(self, job_builder: Job):
         super().__init__(job_builder)
         self._run_timeout_seconds = config.int("invoker.run.timeout")
         self._poll_interval_seconds = config.int("invoker.async.poll.interval.ms") / 1000

@@ -13,9 +13,9 @@ from frocket.common.tasks.registration import RegistrationTaskRequest, Registrat
 from frocket.common.validation.query_validator import QueryValidator
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker.base_invoker import BaseInvoker
-from frocket.invoker.jobs.job_builder import JobBuilder
-from frocket.invoker.jobs.query_job_builder import QueryJobBuilder
-from frocket.invoker.jobs.registration_job_builder import RegistrationJobBuilder
+from frocket.invoker.jobs.job import Job
+from frocket.invoker.jobs.query_job import QueryJob
+from frocket.invoker.jobs.registration_job import RegistrationJob
 from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 from frocket.worker.runners.base_task_runner import TaskRunnerContext
 from frocket.worker.runners.part_loader import PartLoader
@@ -40,7 +40,7 @@ def simple_run_task(req: BaseTaskRequest,
 
 
 class InprocessInvokerAndWorker:
-    def __init__(self, job: JobBuilder,
+    def __init__(self, job: Job,
                  taskreq_cls: Type[BaseTaskRequest],
                  taskres_cls: Type[BaseTaskResult],
                  jobres_cls: Type[BaseJobResult]):
@@ -139,7 +139,7 @@ def build_registration_job(basepath: str,
                            mode: DatasetValidationMode,
                            group_id_column: str = DEFAULT_GROUP_COLUMN,
                            pattern: str = REGISTER_DEFAULT_FILENAME_PATTERN,
-                           uniques: bool = True) -> RegistrationJobBuilder:
+                           uniques: bool = True) -> RegistrationJob:
     args = RegisterArgs(
         name=f"test-{basepath}-{time.time()}",
         basepath=basepath,
@@ -148,7 +148,7 @@ def build_registration_job(basepath: str,
         pattern=pattern,
         validation_mode=mode,
         validate_uniques=uniques)
-    job = RegistrationJobBuilder(args=args)
+    job = RegistrationJob(args=args)
     job.request_id = timestamped_uuid('test-reg-')
     return job
 
@@ -157,18 +157,18 @@ def build_query_job(query: dict,
                     ds: DatasetInfo,
                     parts: DatasetPartsInfo,
                     short_schema: DatasetShortSchema,
-                    worker_can_select_part: bool = None) -> QueryJobBuilder:
+                    worker_can_select_part: bool = None) -> QueryJob:
     validation_result = QueryValidator(query, ds, short_schema).expand_and_validate()
-    job = QueryJobBuilder(ds, parts, short_schema,
-                          query=validation_result.expanded_query,
-                          used_columns=validation_result.used_columns,
-                          worker_can_select_part=worker_can_select_part)
+    job = QueryJob(ds, parts, short_schema,
+                   query=validation_result.expanded_query,
+                   used_columns=validation_result.used_columns,
+                   worker_can_select_part=worker_can_select_part)
     job.request_id = timestamped_uuid('test-query-')
     return job
 
 
 @contextmanager
-def registration_job_invoker(job: RegistrationJobBuilder) -> InprocessInvokerAndWorker:
+def registration_job_invoker(job: RegistrationJob) -> InprocessInvokerAndWorker:
     invoker_runner = InprocessInvokerAndWorker(
         job, RegistrationTaskRequest, RegistrationTaskResult, RegistrationJobResult)
     try:
@@ -178,7 +178,7 @@ def registration_job_invoker(job: RegistrationJobBuilder) -> InprocessInvokerAnd
 
 
 @contextmanager
-def query_job_invoker(job: QueryJobBuilder) -> InprocessInvokerAndWorker:
+def query_job_invoker(job: QueryJob) -> InprocessInvokerAndWorker:
     invoker_runner = InprocessInvokerAndWorker(
         job, QueryTaskRequest, QueryTaskResult, QueryJobResult)
     try:

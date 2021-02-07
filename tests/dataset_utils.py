@@ -10,7 +10,7 @@ from pandas import RangeIndex, Series, DataFrame
 from frocket.common.dataset import DatasetPartsInfo, DatasetId, DatasetPartId, PartNamingMethod, DatasetInfo
 from frocket.common.tasks.registration import DatasetValidationMode, REGISTER_DEFAULT_FILENAME_PATTERN
 from frocket.datastore.registered_datastores import get_datastore
-from frocket.invoker.jobs.registration_job_builder import RegistrationJobBuilder
+from frocket.invoker.jobs.registration_job import RegistrationJob
 from frocket.worker.runners.part_loader import shared_part_loader
 from tests.base_test_schema import TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, \
     DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, TIME_SHIFT, UNSUPPORTED_COLUMN_DTYPES
@@ -122,7 +122,7 @@ class TestDatasetInfo(DisablePyTestCollectionMixin):
     expected_parts: DatasetPartsInfo
     default_dataset_id: DatasetId
     default_dataset_info: DatasetInfo
-    registration_jobs: List[RegistrationJobBuilder] = field(default_factory=list)
+    registration_jobs: List[RegistrationJob] = field(default_factory=list)
     bucket: object = None
 
     def expected_part_ids(self, dsid: DatasetId, parts: List[int] = None) -> List[DatasetPartId]:
@@ -134,7 +134,7 @@ class TestDatasetInfo(DisablePyTestCollectionMixin):
                          mode: DatasetValidationMode,
                          group_id_column: str = DEFAULT_GROUP_COLUMN,
                          pattern: str = REGISTER_DEFAULT_FILENAME_PATTERN,
-                         uniques: bool = True) -> RegistrationJobBuilder:
+                         uniques: bool = True) -> RegistrationJob:
         job = build_registration_job(self.basepath, mode, group_id_column, pattern, uniques)
         self.registration_jobs.append(job)
         return job

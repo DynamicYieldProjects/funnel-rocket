@@ -11,8 +11,8 @@ from frocket.common.helpers.utils import memoize
 from frocket.common.validation.query_validator import QueryValidator
 from frocket.common.validation.result import QueryValidationResult
 from frocket.datastore.registered_datastores import get_datastore
-from frocket.invoker.jobs.query_job_builder import QueryJobBuilder
-from frocket.invoker.jobs.registration_job_builder import RegistrationJobBuilder
+from frocket.invoker.jobs.query_job import QueryJob
+from frocket.invoker.jobs.registration_job import RegistrationJob
 from frocket.invoker.impl.registered_invokers import new_invoker
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def _unregister_safety_interval() -> int:
 
 
 def register_dataset(args: RegisterArgs) -> RegistrationJobResult:
-    request_builder = RegistrationJobBuilder(args)
+    request_builder = RegistrationJob(args)
     invoker = new_invoker(request_builder)
     result = cast(RegistrationJobResult, invoker.run())
     logger.info(f"Registration {'successful' if result.success else f'failed! {result.error_message}'}")
@@ -42,7 +42,7 @@ def register_dataset(args: RegisterArgs) -> RegistrationJobResult:
 
 def register_dataset_async(args: RegisterArgs, set_max_wait: bool = True) -> AsyncJobTracker:
     def worker(register_args, async_status):
-        invoker = new_invoker(RegistrationJobBuilder(register_args))
+        invoker = new_invoker(RegistrationJob(register_args))
         return invoker.run(async_status)
 
     async_status = AsyncJobStatusUpdater(max_wait=(ASYNC_MAX_WAIT if set_max_wait else None))
@@ -95,7 +95,7 @@ def expand_and_validate_query(dataset: DatasetInfo, query: dict) -> QueryValidat
 
 def _build_query_job(dataset: DatasetInfo,
                      query: dict,
-                     validation_result: QueryValidationResult) -> QueryJobBuilder:
+                     validation_result: QueryValidationResult) -> QueryJob:
     if validation_result:
         assert validation_result.success
         assert query in [validation_result.source_query, validation_result.expanded_query]
@@ -107,8 +107,8 @@ def _build_query_job(dataset: DatasetInfo,
     get_datastore().mark_used(dataset)
     dataset_parts = get_datastore().dataset_parts_info(dataset)
     short_schema = get_datastore().short_schema(dataset)
-    return QueryJobBuilder(dataset, dataset_parts, short_schema,
-                           validation_result.expanded_query, validation_result.used_columns)
+    return QueryJob(dataset, dataset_parts, short_schema,
+                    validation_result.expanded_query, validation_result.used_columns)
 
 
 def run_query(dataset: DatasetInfo,

@@ -11,7 +11,7 @@ from frocket.common.tasks.query import QueryJobResult, PartSelectionMode, Aggreg
 from frocket.common.tasks.registration import DatasetValidationMode, RegistrationJobResult
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker import invoker_api
-from frocket.invoker.jobs.query_job_builder import QueryJobBuilder
+from frocket.invoker.jobs.query_job import QueryJob
 from tests.base_test_schema import DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT, TestColumn
 from tests.dataset_utils import TestDatasetInfo, str_and_none_column_values
 from tests.task_and_job_utils import build_registration_job, query_job_invoker, registration_job_invoker, \
@@ -68,7 +68,7 @@ def query_dataset_info():
 
 def query_job(query: dict,
               remote_dataset: bool = False,
-              worker_can_select_part: bool = None) -> QueryJobBuilder:
+              worker_can_select_part: bool = None) -> QueryJob:
     query_ds_info = QueryDatasetInfo.shared_instance()
     ds = query_ds_info.remote_dataset if remote_dataset else query_ds_info.local_dataset
     return build_query_job(query, ds, query_ds_info.parts_info, query_ds_info.short_schema, worker_can_select_part)

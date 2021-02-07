@@ -6,10 +6,10 @@ from frocket.common.metrics import JobTypeLabel, DATASET_LABEL
 from frocket.common.tasks.base import BaseTaskRequest, JobStatus, BaseTaskResult, BaseJobResult
 from frocket.common.tasks.query import PartSelectionMode, QueryTaskRequest, QueryTaskResult, QueryJobResult, \
     QueryResult
-from frocket.invoker.jobs.job_builder import JobBuilder
+from frocket.invoker.jobs.job import Job
 
 
-class QueryJobBuilder(JobBuilder):
+class QueryJob(Job):
     def __init__(self, dataset: DatasetInfo, parts: DatasetPartsInfo,
                  short_schema: DatasetShortSchema, query: dict, used_columns: List[str],
                  worker_can_select_part: bool = None):

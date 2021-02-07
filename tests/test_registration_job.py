@@ -13,7 +13,7 @@ from frocket.common.helpers.utils import bytes_to_ndarray
 from frocket.common.tasks.registration import DatasetValidationMode,  \
     RegistrationTaskResult, RegistrationJobResult
 from frocket.datastore.registered_datastores import get_datastore, get_blobstore
-from frocket.invoker.jobs.registration_job_builder import VALIDATION_MAX_SAMPLES, \
+from frocket.invoker.jobs.registration_job import VALIDATION_MAX_SAMPLES, \
     VALIDATION_SAMPLE_RATIO, CATEGORICAL_TOP_COUNT
 # noinspection PyUnresolvedReferences
 from tests.redis_fixture import init_redis

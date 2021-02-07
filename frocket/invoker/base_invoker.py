@@ -7,7 +7,7 @@ from frocket.common.tasks.base import TaskAttemptId, TaskStatus, BaseTaskResult,
 from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater, AsyncJobStage
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.datastore.registered_datastores import get_datastore
-from frocket.invoker.jobs.job_builder import JobBuilder
+from frocket.invoker.jobs.job import Job
 from frocket.invoker.metrics_frame import MetricsFrame
 from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseInvoker:
-    def __init__(self, job_builder: JobBuilder):
+    def __init__(self, job_builder: Job):
         self._job_builder = job_builder
         self._request_id = self.new_request_id()
         self._job_builder.request_id = self._request_id
