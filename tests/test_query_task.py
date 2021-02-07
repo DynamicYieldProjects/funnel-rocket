@@ -18,9 +18,47 @@ from tests.base_test_schema import TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_
 from tests.mock_s3_utils import SKIP_MOCK_S3_TESTS
 from tests.task_and_job_utils import simple_run_task
 
-
 # Note: not trying to test the query engine itself here, but that the query task "wraps it" correctly.
 # Specifically, that part self-selection works (in PartSelectionMode.SELECTED_BY_WORKER)
+
+TEST_QUERY_WITH_AGGRS = {
+    'query': {
+        'conditions': [
+            {
+                "filter": [
+                    DEFAULT_TIMESTAMP_COLUMN,
+                    ">=",
+                    BASE_TIME
+                ]
+            }
+        ],
+        'aggregations': [
+            {'column': TestColumn.str_and_none, 'name': 'cond_aggr1', 'type': 'countPerValue'},
+            {'column': TestColumn.str_and_none, 'name': 'cond_aggr2', 'type': 'count'}
+        ]
+    },
+    'funnel': {
+        "sequence": [
+            {
+                "filter": [
+                    DEFAULT_TIMESTAMP_COLUMN,
+                    ">=",
+                    BASE_TIME
+                ]
+            }
+        ],
+        "stepAggregations": [
+            {'column': TestColumn.str_and_none, 'name': 'funnel_step_aggr1', 'type': 'countPerValue'},
+            {'column': TestColumn.str_and_none, 'name': 'funnel_step_aggr2', 'type': 'count'}
+
+        ],
+        "endAggregations": [
+            {'column': TestColumn.str_and_none, 'name': 'funnel_end_aggr1', 'type': 'countPerValue'},
+            {'column': TestColumn.str_and_none, 'name': 'funnel_end_aggr2', 'type': 'count'}
+
+        ]
+    }
+}
 
 
 def build_task_requests(test_ds: TestDatasetInfo,
@@ -50,8 +88,10 @@ def build_task_requests(test_ds: TestDatasetInfo,
         part_id = test_ds.make_part(part_idx, s3path)
         if part_selection_mode == PartSelectionMode.SET_BY_INVOKER:
             invoker_set_part = part_id
+            task_index = i
         else:
             invoker_set_part = None
+            task_index = None
 
         req = QueryTaskRequest(
             dataset=test_ds.default_dataset_info,
@@ -60,7 +100,7 @@ def build_task_requests(test_ds: TestDatasetInfo,
             invoker_set_part=invoker_set_part,
             used_columns=[DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, TestColumn.str_and_none.value],
             load_as_categoricals=None,
-            attempt_no=attempt_no, invoke_time=time.time(), request_id=request_id, task_index=i)
+            attempt_no=attempt_no, invoke_time=time.time(), request_id=request_id, invoker_set_task_index=task_index)
         requests.append(req)
         part_ids.append(part_id)
     return requests, part_ids
@@ -114,40 +154,7 @@ def test_empty_query():
 def test_local_invoker_set_part():
     num_parts = 3
     with new_test_dataset(num_parts) as test_ds:
-        query = {
-            'query': {
-                'conditions': [
-                    {
-                        "filter": [
-                            DEFAULT_TIMESTAMP_COLUMN,
-                            ">=",
-                            BASE_TIME
-                        ]
-                    }
-                ],
-                'aggregations': [
-                    {'column': TestColumn.str_and_none, 'name': 'cond_aggr', 'type': 'countPerValue'}
-                ]
-            },
-            'funnel': {
-                "sequence": [
-                    {
-                        "filter": [
-                            DEFAULT_TIMESTAMP_COLUMN,
-                            ">=",
-                            BASE_TIME
-                        ]
-                    }
-                ],
-                "stepAggregations": [
-                    {'column': TestColumn.str_and_none, 'name': 'funnel_step_aggr', 'type': 'countPerValue'}
-                ],
-                "endAggregations": [
-                    {'column': TestColumn.str_and_none, 'name': 'funnel_end_aggr', 'type': 'countPerValue'}
-                ]
-            }
-        }
-        task_result = run_query_task(test_ds, query,
+        task_result = run_query_task(test_ds, TEST_QUERY_WITH_AGGRS,
                                      parts=num_parts - 1,
                                      part_selection_mode=PartSelectionMode.SET_BY_INVOKER)
         assert task_result.query_result.query.matching_groups == DEFAULT_GROUP_COUNT
@@ -158,21 +165,27 @@ def test_local_invoker_set_part():
         assert_label_value_exists(task_result.metrics, LoadFromLabel.SOURCE)
         assert_label_value_exists(task_result.metrics, PartSelectMethodLabel.SET_BY_INVOKER)
 
+        # Totally hard-coded :-|
         def validate_aggr(aggr_results: List[AggregationResult], expected_name: str):
-            assert len(aggr_results) == 1
-            aggr = aggr_results[0]
-            assert aggr.name == expected_name
+            assert len(aggr_results) == 2
+            aggr1 = aggr_results[0]
+            assert aggr1.name == expected_name + '1'
             # By checking the keys in 'str_and_none', test that the right keys for the given part idx exist
-            assert aggr.column == TestColumn.str_and_none and aggr.type == "countPerValue"
+            assert aggr1.column == TestColumn.str_and_none and aggr1.type == "countPerValue"
             expected_aggr_keys = sorted(str_and_none_column_values(part=num_parts - 1, with_none=False))
-            assert sorted(aggr.value.keys()) == expected_aggr_keys
+            assert sorted(aggr1.value.keys()) == expected_aggr_keys
+
+            aggr2 = aggr_results[1]
+            assert aggr2.name == expected_name + '2'
+            assert aggr2.column == TestColumn.str_and_none and aggr2.type == "count"
+            assert aggr2.value == sum(aggr1.value.values())
 
         validate_aggr(task_result.query_result.query.aggregations, expected_name='cond_aggr')
         validate_aggr(task_result.query_result.funnel.sequence[0].aggregations, expected_name='funnel_step_aggr')
         validate_aggr(task_result.query_result.funnel.end_aggregations, expected_name='funnel_end_aggr')
 
         # Re-run: check that results are ok and that part was again loaded from source (as it is local)
-        task_result = run_query_task(test_ds, query,
+        task_result = run_query_task(test_ds, TEST_QUERY_WITH_AGGRS,
                                      parts=num_parts - 1,
                                      part_selection_mode=PartSelectionMode.SET_BY_INVOKER)
         assert task_result.query_result.query.matching_groups == DEFAULT_GROUP_COUNT

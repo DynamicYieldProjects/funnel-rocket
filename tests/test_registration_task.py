@@ -36,7 +36,7 @@ def run_task(datafile: str,
                                   part_id=DatasetPartId(dataset_id=dsid, part_idx=0, path=datafile),
                                   request_id=timestamped_uuid(),
                                   return_group_ids=return_uniques,
-                                  task_index=0)
+                                  invoker_set_task_index=0)
 
     result = simple_run_task(req, RegistrationTaskResult)
     get_datastore().cleanup_request_data(req.request_id)

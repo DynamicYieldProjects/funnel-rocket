@@ -22,7 +22,7 @@ class BaseTaskRequest(SerializableDataClass):
     request_id: str
     invoke_time: float
     attempt_no: int
-    task_index: int
+    invoker_set_task_index: Optional[int]  # TODO doc this
 
 
 class TaskStatus(AutoNamedEnum):

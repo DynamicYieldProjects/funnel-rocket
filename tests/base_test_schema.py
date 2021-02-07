@@ -47,6 +47,7 @@ def test_colname_to_coltype(name: str) -> DatasetColumnType:
 
 
 def datafile_schema(part: int = 0) -> DatasetShortSchema:
+    # noinspection PyUnresolvedReferences
     result = DatasetShortSchema(
         min_timestamp=float(BASE_TIME),
         max_timestamp=float(BASE_TIME + TIME_SHIFT),

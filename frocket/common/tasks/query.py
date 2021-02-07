@@ -72,7 +72,7 @@ class AggregationResult(SerializableDataClass):
 class QueryConditionsResult(SerializableDataClass):
     matching_groups: int
     matching_group_rows: int
-    aggregations: List[AggregationResult]
+    aggregations: Optional[List[AggregationResult]]
 
     @classmethod
     def _reduce_fields(cls, serializables):

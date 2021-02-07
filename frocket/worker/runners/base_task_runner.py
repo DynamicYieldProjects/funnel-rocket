@@ -85,7 +85,7 @@ class BaseTaskRunner:
 
         final_metrics = self._ctx.metrics.finalize(success=(final_status == TaskStatus.ENDED_SUCCESS))
         base_attributes = BaseTaskResult(
-            task_index=self._req.task_index,
+            task_index=self._task_attempt_id.task_index,
             status=final_status,
             error_message=error_message,
             metrics=final_metrics).shallowdict(include_none=True)

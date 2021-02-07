@@ -112,7 +112,7 @@ class RegistrationJobBuilder(JobBuilder):
         request = RegistrationTaskRequest(
             request_id=self._request_id,
             invoke_time=time.time(),
-            task_index=task_index,
+            invoker_set_task_index=task_index,
             attempt_no=attempt_no,
             dataset=self._dataset,
             part_id=self._sampled_parts[task_index],
