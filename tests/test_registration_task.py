@@ -8,7 +8,7 @@ from frocket.common.helpers.utils import timestamped_uuid, bytes_to_ndarray
 from frocket.common.tasks.base import TaskStatus
 from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationTaskResult
 from frocket.datastore.registered_datastores import get_blobstore, get_datastore
-from frocket.worker.runners.registration_runner import TOP_GRACE_FACTOR
+from frocket.worker.runners.registration_task_runner import TOP_GRACE_FACTOR
 from tests.task_and_job_utils import simple_run_task
 from tests.dataset_utils import str_and_none_column_values, STR_CAT_FEW_WEIGHTS, STR_CAT_MANY_WEIGHTS
 from tests.base_test_schema import TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, \
@@ -36,7 +36,7 @@ def run_task(datafile: str,
                                   part_id=DatasetPartId(dataset_id=dsid, part_idx=0, path=datafile),
                                   request_id=timestamped_uuid(),
                                   return_group_ids=return_uniques,
-                                  task_index=0)
+                                  invoker_set_task_index=0)
 
     result = simple_run_task(req, RegistrationTaskResult)
     get_datastore().cleanup_request_data(req.request_id)

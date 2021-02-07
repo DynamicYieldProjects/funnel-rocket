@@ -562,6 +562,7 @@ def test_default_aggr_name():
     res = v.expand_and_validate()
     assert res.success
 
+    # noinspection PyTypeChecker
     q['funnel']['stepAggregations'][1]['name'] = "mename"
     v = new_validator(q)
     res = v.expand_and_validate()

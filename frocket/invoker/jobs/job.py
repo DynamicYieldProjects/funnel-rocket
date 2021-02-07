@@ -9,7 +9,7 @@ from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater
 # TODO doc nicely
 
 
-class JobBuilder:
+class Job:
     _request_id = None
     _labels = {}
 

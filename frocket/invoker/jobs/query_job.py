@@ -6,17 +6,19 @@ from frocket.common.metrics import JobTypeLabel, DATASET_LABEL
 from frocket.common.tasks.base import BaseTaskRequest, JobStatus, BaseTaskResult, BaseJobResult
 from frocket.common.tasks.query import PartSelectionMode, QueryTaskRequest, QueryTaskResult, QueryJobResult, \
     QueryResult
-from frocket.invoker.jobs.job_builder import JobBuilder
+from frocket.invoker.jobs.job import Job
 
 
-class QueryJobBuilder(JobBuilder):
+class QueryJob(Job):
     def __init__(self, dataset: DatasetInfo, parts: DatasetPartsInfo,
-                 short_schema: DatasetShortSchema, query: dict, used_columns: List[str]):
+                 short_schema: DatasetShortSchema, query: dict, used_columns: List[str],
+                 worker_can_select_part: bool = None):
         self._dataset = dataset
         self._query = query
         self._used_columns = used_columns
         self._paths = parts.fullpaths(parent=dataset)
-        self._worker_can_select_part = config.bool('worker.self.select.enabled')
+        self._worker_can_select_part = worker_can_select_part \
+            if worker_can_select_part is not None else config.bool('worker.self.select.enabled')
         if config.bool('dataset.categorical.potential.use'):
             self._load_as_categoricals = short_schema.potential_categoricals
         else:
@@ -56,9 +58,11 @@ class QueryJobBuilder(JobBuilder):
             invoker_set_part = DatasetPartId(dataset_id=self._dataset.id,
                                              path=self._paths[part_index],
                                              part_idx=part_index)
+            task_index = part_index
         elif mode == PartSelectionMode.SELECTED_BY_WORKER:
             assert attempt_no == 0
             invoker_set_part = None
+            task_index = None
         else:
             raise Exception("Unknown mode {mode}")
 
@@ -68,7 +72,7 @@ class QueryJobBuilder(JobBuilder):
             dataset=self._dataset,
             load_as_categoricals=self._load_as_categoricals,
             query=self._query,
-            task_index=part_index,
+            invoker_set_task_index=task_index,
             attempt_no=attempt_no,
             mode=mode,
             invoker_set_part=invoker_set_part,

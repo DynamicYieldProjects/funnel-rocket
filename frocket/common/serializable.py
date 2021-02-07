@@ -98,7 +98,12 @@ class SerializableDataClass(dataclasses_json.DataClassJsonMixin):
 
         base_fields = dataclasses.asdict(serializables[0])
         reduced_fields = cls._reduce_fields(serializables)  # Call the concrete class to handle all reducable fields
-        all_fields = {**base_fields, **reduced_fields}
+        # Ensure the non-reduced fields indeed have the same value for all objects in list
+        common_fields = {k: v for k, v in base_fields.items() if k not in reduced_fields}
+        for k, v in common_fields.items():
+            assert all(getattr(e, k) == v for e in serializables[1:])
+
+        all_fields = {**common_fields, **reduced_fields}
         # noinspection PyArgumentList
         return cls(**all_fields)
 

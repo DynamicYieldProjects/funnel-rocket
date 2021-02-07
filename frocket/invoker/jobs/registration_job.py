@@ -13,7 +13,7 @@ from frocket.common.tasks.registration import RegistrationTaskRequest, Registrat
     RegistrationTaskResult, DatasetValidationMode, RegisterArgs
 from frocket.common.helpers.utils import sample_from_range, bytes_to_ndarray
 from frocket.datastore.registered_datastores import get_blobstore, get_datastore
-from frocket.invoker.jobs.job_builder import JobBuilder
+from frocket.invoker.jobs.job import Job
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ CATEGORICAL_TOP_COUNT = config.int('dataset.categorical.top.count')
 CATEGORICAL_TOP_MIN_PCT = config.float('dataset.categorical.top.minpct')
 
 
-class RegistrationJobBuilder(JobBuilder):
+class RegistrationJob(Job):
     def __init__(self, args: RegisterArgs):
         self._args = args
         self._dataset = None
@@ -112,7 +112,7 @@ class RegistrationJobBuilder(JobBuilder):
         request = RegistrationTaskRequest(
             request_id=self._request_id,
             invoke_time=time.time(),
-            task_index=task_index,
+            invoker_set_task_index=task_index,
             attempt_no=attempt_no,
             dataset=self._dataset,
             part_id=self._sampled_parts[task_index],

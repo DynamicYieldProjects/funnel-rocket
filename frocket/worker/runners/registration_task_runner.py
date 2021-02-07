@@ -24,7 +24,7 @@ class RegistrationTaskRunner(BaseTaskRunner):
         super().__init__(req, ctx)
         self._req = cast(RegistrationTaskRequest, req)
         self._part_id = self._req.part_id
-        self._task_attempt_id = TaskAttemptId(req.task_index, req.attempt_no)  # TODO handle in base
+        self._task_attempt_id = TaskAttemptId(req.invoker_set_task_index, req.attempt_no)  # TODO handle in base
         self._schema = None
         self._uniques_blob_id = None
         self._warnings = []

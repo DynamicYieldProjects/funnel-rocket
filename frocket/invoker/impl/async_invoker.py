@@ -1,21 +1,21 @@
 import logging
 import time
 from time import sleep
-from typing import Dict, List
+from typing import List
 from abc import abstractmethod
 from collections import Counter
 from frocket.common.config import config
 from frocket.common.metrics import MetricName
-from frocket.common.tasks.base import BaseTaskRequest, TaskAttemptId, TaskStatus, TaskAttemptsInfo
+from frocket.common.tasks.base import BaseTaskRequest, TaskStatus, TaskAttemptsInfo
 from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater
 from frocket.invoker.base_invoker import BaseInvoker, JobStatus
-from frocket.invoker.jobs.job_builder import JobBuilder
+from frocket.invoker.jobs.job import Job
 
 logger = logging.getLogger(__name__)
 
 
 class AsyncInvoker(BaseInvoker):
-    def __init__(self, job_builder: JobBuilder):
+    def __init__(self, job_builder: Job):
         super().__init__(job_builder)
         self._run_timeout_seconds = config.int("invoker.run.timeout")
         self._poll_interval_seconds = config.int("invoker.async.poll.interval.ms") / 1000
@@ -24,13 +24,13 @@ class AsyncInvoker(BaseInvoker):
         self._retry_failed_interval = config.int("invoker.retry.failed.interval")
         self._retry_lost_interval = config.int("invoker.retry.lost.interval")
 
-    def _do_run(self, task_requests: Dict[TaskAttemptId, BaseTaskRequest],
+    def _do_run(self, task_requests: List[BaseTaskRequest],
                 async_status_updater: AsyncJobStatusUpdater = None):
 
         with self._metrics.measure(MetricName.ASYNC_ENQUEUE_SECONDS):
             if async_status_updater:
                 async_status_updater.update(message="Enqueuing tasks")
-            self._enqueue(list(task_requests.values()))
+            self._enqueue(task_requests)
             logger.info(f"Enqueued {len(task_requests)} tasks")
 
         with self._metrics.measure(MetricName.ASYNC_POLL_SECONDS):

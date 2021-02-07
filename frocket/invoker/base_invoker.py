@@ -7,7 +7,7 @@ from frocket.common.tasks.base import TaskAttemptId, TaskStatus, BaseTaskResult,
 from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater, AsyncJobStage
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.datastore.registered_datastores import get_datastore
-from frocket.invoker.jobs.job_builder import JobBuilder
+from frocket.invoker.jobs.job import Job
 from frocket.invoker.metrics_frame import MetricsFrame
 from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseInvoker:
-    def __init__(self, job_builder: JobBuilder):
+    def __init__(self, job_builder: Job):
         self._job_builder = job_builder
         self._request_id = self.new_request_id()
         self._job_builder.request_id = self._request_id
@@ -94,7 +94,7 @@ class BaseInvoker:
         if async_status_updater:
             async_status_updater.update(stage=AsyncJobStage.FINISHING)
 
-        latest_task_results = self._latest_results_only(job_status, all_task_results)
+        latest_task_results = self.latest_results_only(job_status, all_task_results)
         if job_status.success:
             successful_tasks = [tr for tr in latest_task_results if tr.status == TaskStatus.ENDED_SUCCESS]
             assert (len(successful_tasks) == self._job_builder.total_tasks())
@@ -106,23 +106,25 @@ class BaseInvoker:
 
     @abstractmethod
     def _do_run(self,
-                task_requests: Dict[TaskAttemptId, BaseTaskRequest],
+                task_requests: List[BaseTaskRequest],
                 async_status_updater: AsyncJobStatusUpdater = None) -> JobStatus:
         pass
 
-    def __build_initial_tasks(self) -> Dict[TaskAttemptId, BaseTaskRequest]:
+    def __build_initial_tasks(self) -> List[BaseTaskRequest]:
         requests = self._job_builder.build_tasks()
-        request_attempts = {TaskAttemptId(task_index=req.task_index): req for req in requests}
-
-        self._datastore.update_task_status(self._request_id, list(request_attempts.keys()), TaskStatus.QUEUED)
-
         parts_to_publish = self._job_builder.dataset_parts_to_publish()
+        if parts_to_publish:
+            assert all([req.invoker_set_task_index is None for req in requests])
+
+        attempt_ids = [TaskAttemptId(task_index=req.invoker_set_task_index or i) for i, req in enumerate(requests)]
+        self._datastore.update_task_status(self._request_id, attempt_ids, TaskStatus.QUEUED)
+
         if parts_to_publish:
             self._datastore.publish_for_worker_selection(self._request_id,
                                                          parts=parts_to_publish,
                                                          attempt_round=0)
 
-        return request_attempts
+        return requests
 
     def _build_retry_task(self, task_index) -> (TaskAttemptId, BaseTaskRequest):
         attempt_no = self._datastore.increment_attempt(self._request_id, task_index)
@@ -179,8 +181,8 @@ class BaseInvoker:
 
     # Get results only for the single latest attempt per each task
     @classmethod
-    def _latest_results_only(cls, job_status: JobStatus,
-                             all_task_results: Dict[TaskAttemptId, BaseTaskResult]) -> List[BaseTaskResult]:
+    def latest_results_only(cls, job_status: JobStatus,
+                            all_task_results: Dict[TaskAttemptId, BaseTaskResult]) -> List[BaseTaskResult]:
 
         latest_attempts = [ts.latest_attempt for ts in job_status.attempts_status]
         results = [result for attempt_id, result in all_task_results.items()
