@@ -9,15 +9,15 @@ from frocket.common.tasks.base import TaskStatus
 from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationTaskResult
 from frocket.datastore.registered_datastores import get_blobstore, get_datastore
 from frocket.worker.runners.registration_task_runner import TOP_GRACE_FACTOR
-from tests.task_and_job_utils import simple_run_task
-from tests.dataset_utils import str_and_none_column_values, STR_CAT_FEW_WEIGHTS, STR_CAT_MANY_WEIGHTS
-from tests.base_test_schema import TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, \
-    DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, TIME_SHIFT, UNSUPPORTED_COLUMN_DTYPES, datafile_schema
-from tests.base_test_utils import TEMP_DIR, temp_filename
+from tests.utils.task_and_job_utils import simple_run_task
+from tests.utils.dataset_utils import str_and_none_column_values, STR_CAT_FEW_WEIGHTS, STR_CAT_MANY_WEIGHTS, \
+    TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, \
+    TIME_SHIFT, UNSUPPORTED_COLUMN_DTYPES, datafile_schema
+from tests.utils.base_test_utils import TEMP_DIR, temp_filename
 # noinspection PyUnresolvedReferences
-from tests.dataset_utils import datafile
+from tests.utils.dataset_utils import datafile
 # noinspection PyUnresolvedReferences
-from tests.redis_fixture import init_redis
+from tests.utils.redis_fixture import init_redis
 
 
 def run_task(datafile: str,

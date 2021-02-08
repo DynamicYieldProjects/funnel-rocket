@@ -12,9 +12,9 @@ from frocket.common.tasks.registration import DatasetValidationMode, Registratio
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker import invoker_api
 from frocket.invoker.jobs.query_job import QueryJob
-from tests.base_test_schema import DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT, TestColumn
-from tests.dataset_utils import TestDatasetInfo, str_and_none_column_values
-from tests.task_and_job_utils import build_registration_job, query_job_invoker, registration_job_invoker, \
+from tests.utils.dataset_utils import TestDatasetInfo, str_and_none_column_values, TestColumn, DEFAULT_ROW_COUNT, \
+    DEFAULT_GROUP_COUNT
+from tests.utils.task_and_job_utils import build_registration_job, query_job_invoker, registration_job_invoker, \
     build_query_job
 from tests.test_query_task import run_query_task, TEST_QUERY_WITH_AGGRS
 
@@ -260,7 +260,7 @@ def test_reduce_with_none_empty():
     assert res.aggregations == []
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(strict=True)
 def test_reduce_partially_none_xfail():
     elems = [
         QueryConditionsResult(matching_groups=0, matching_group_rows=0, aggregations=None),
@@ -270,7 +270,7 @@ def test_reduce_partially_none_xfail():
     QueryConditionsResult.reduce(elems)
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(strict=True)
 def test_reduce_wrong_class_xfail():
     elems = [
         QueryConditionsResult(matching_groups=0, matching_group_rows=0, aggregations=None),
@@ -279,7 +279,7 @@ def test_reduce_wrong_class_xfail():
     FunnelResult.reduce(elems)
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(strict=True)
 def test_reduce_aggrs_len_xfail():
     elems = [
         QueryConditionsResult(matching_groups=0, matching_group_rows=0, aggregations=[
@@ -293,7 +293,7 @@ def test_reduce_aggrs_len_xfail():
     QueryConditionsResult.reduce(elems)
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(strict=True)
 def test_reduce_different_aggrs_xfail():
     elems = [
         QueryConditionsResult(matching_groups=0, matching_group_rows=0, aggregations=[
@@ -306,7 +306,7 @@ def test_reduce_different_aggrs_xfail():
     QueryConditionsResult.reduce(elems)
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(strict=True)
 def test_reduce_different_value_types_xfail():
     elems = [
         QueryConditionsResult(matching_groups=0, matching_group_rows=0, aggregations=[

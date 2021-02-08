@@ -6,10 +6,10 @@ import pytest
 from frocket.common.dataset import DatasetPartId, DatasetId
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.common.metrics import MetricsBag, ComponentLabel, LoadFromLabel
-from tests.dataset_utils import new_test_dataset, are_test_dfs_equal, clean_loader_cache
-from tests.base_test_schema import TestColumn, BASE_TIME, TIME_SHIFT
+from tests.utils.dataset_utils import new_test_dataset, are_test_dfs_equal, clean_loader_cache, TestColumn, BASE_TIME, \
+    TIME_SHIFT
 from frocket.worker.runners.part_loader import shared_part_loader, FilterPredicate
-from tests.mock_s3_utils import SKIP_MOCK_S3_TESTS
+from tests.utils.mock_s3_utils import SKIP_MOCK_S3_TESTS
 
 
 def test_local_non_cached():
