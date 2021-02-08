@@ -10,13 +10,13 @@ from frocket.common.validation.query_validator import QueryValidator
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.worker.runners.base_task_runner import DEFAULT_PREFLIGHT_DURATION_MS
 from frocket.worker.runners.part_loader import PartLoader
-from tests.base_test_utils import assert_metric_value, assert_label_value_exists, find_first_label_value, \
+from tests.utils.base_test_utils import assert_metric_value, assert_label_value_exists, find_first_label_value, \
     get_metric_value
-from tests.dataset_utils import new_test_dataset, str_and_none_column_values, TestDatasetInfo
-from tests.base_test_schema import TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, \
-    DEFAULT_TIMESTAMP_COLUMN, datafile_schema, BASE_TIME, TIME_SHIFT
-from tests.mock_s3_utils import SKIP_MOCK_S3_TESTS
-from tests.task_and_job_utils import simple_run_task
+from tests.utils.dataset_utils import new_test_dataset, str_and_none_column_values, TestDatasetInfo, TestColumn, \
+    DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, TIME_SHIFT, \
+    datafile_schema
+from tests.utils.mock_s3_utils import SKIP_MOCK_S3_TESTS
+from tests.utils.task_and_job_utils import simple_run_task
 
 # Note: not trying to test the query engine itself here, but that the query task "wraps it" correctly.
 # Specifically, that part self-selection works (in PartSelectionMode.SELECTED_BY_WORKER)

@@ -1,7 +1,6 @@
 import time
 from contextlib import contextmanager
 from typing import Type, List, cast, Optional
-
 from frocket.common.dataset import DatasetInfo, DatasetPartsInfo, DatasetShortSchema
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.common.metrics import MetricsBag, ComponentLabel
@@ -20,9 +19,9 @@ from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 from frocket.worker.runners.base_task_runner import TaskRunnerContext
 from frocket.worker.runners.part_loader import PartLoader
 from frocket.worker.runners.registered_runners import REGISTERED_RUNNERS
-from tests.base_test_schema import DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN
+from tests.utils.dataset_utils import DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, TestDatasetInfo
 # noinspection PyUnresolvedReferences
-from tests.redis_fixture import init_redis
+from tests.utils.redis_fixture import init_redis
 
 
 def simple_run_task(req: BaseTaskRequest,
@@ -151,6 +150,20 @@ def build_registration_job(basepath: str,
     job = RegistrationJob(args=args)
     job.request_id = timestamped_uuid('test-reg-')
     return job
+
+
+@contextmanager
+def registration_job(test_ds: TestDatasetInfo,
+                     mode: DatasetValidationMode,
+                     group_id_column: str = DEFAULT_GROUP_COLUMN,
+                     pattern: str = REGISTER_DEFAULT_FILENAME_PATTERN,
+                     uniques: bool = True) -> RegistrationJob:
+    job = build_registration_job(test_ds.basepath, mode, group_id_column, pattern, uniques)
+    try:
+        yield job
+    finally:
+        if job.dataset:
+            get_datastore().remove_dataset_info(job.dataset.id.name)
 
 
 def build_query_job(query: dict,

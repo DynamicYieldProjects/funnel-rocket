@@ -8,9 +8,9 @@ from frocket.common.dataset import DatasetInfo, DatasetId, DatasetColumnType
 from frocket.common.dataset import DatasetShortSchema
 from frocket.common.validation.error import ValidationErrorKind
 from frocket.engine.relation_to_pandas import relation_to_pandas_query
-from tests.base_test_utils import SKIP_SLOW_TESTS
+from tests.utils.base_test_utils import SKIP_SLOW_TESTS
 
-ORIGINAL_QUERY_PATH = os.path.dirname(__file__) + '/base_query_example.json'
+ORIGINAL_QUERY_PATH = os.path.dirname(__file__) + '/utils/base_query_example.json'
 ORIGINAL_QUERY_JSON = open(ORIGINAL_QUERY_PATH, 'r').read()
 ORIGINAL_QUERY_USED_COLUMNS = ['userId', 'ts', 'goalId', 'goalValue', 'eventId', 'eventValue', 'eventType',
                                'device', 'transactionId']

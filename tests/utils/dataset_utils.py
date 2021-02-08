@@ -2,25 +2,78 @@ import os
 import random
 import shutil
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from enum import auto
 from typing import List
 import numpy as np
 import pytest
 from pandas import RangeIndex, Series, DataFrame
-from frocket.common.dataset import DatasetPartsInfo, DatasetId, DatasetPartId, PartNamingMethod, DatasetInfo
-from frocket.common.tasks.registration import DatasetValidationMode, REGISTER_DEFAULT_FILENAME_PATTERN
-from frocket.datastore.registered_datastores import get_datastore
-from frocket.invoker.jobs.registration_job import RegistrationJob
+from frocket.common.dataset import DatasetPartsInfo, DatasetId, DatasetPartId, PartNamingMethod, DatasetInfo, \
+    DatasetColumnType, DatasetShortSchema
+from frocket.common.serializable import AutoNamedEnum
 from frocket.worker.runners.part_loader import shared_part_loader
-from tests.base_test_schema import TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, \
-    DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, TIME_SHIFT, UNSUPPORTED_COLUMN_DTYPES
-from tests.base_test_utils import temp_filename, TEMP_DIR, DisablePyTestCollectionMixin
-from tests.task_and_job_utils import build_registration_job
-from tests.mock_s3_utils import SKIP_MOCK_S3_TESTS, new_mock_s3_bucket
+from tests.utils.base_test_utils import temp_filename, TEMP_DIR, DisablePyTestCollectionMixin
+from tests.utils.mock_s3_utils import SKIP_MOCK_S3_TESTS, new_mock_s3_bucket
 
+
+class TestColumn(DisablePyTestCollectionMixin, str, AutoNamedEnum):
+    int_64_userid = auto()
+    int_64_ts = auto()
+    int_u32 = auto()
+    float_64_ts = auto()
+    float_all_none = auto()
+    float_32 = auto()
+    float_category = auto()
+    str_userid = auto()
+    str_and_none = auto()
+    str_all_none = auto()
+    str_object_all_none = auto()
+    str_category_userid = auto()
+    str_category_few = auto()
+    str_category_many = auto()
+    bool = auto()
+    unsupported_datetimes = auto()
+    unsupported_lists = auto()
+
+
+DEFAULT_GROUP_COUNT = 200
+DEFAULT_ROW_COUNT = 1000
+DEFAULT_GROUP_COLUMN = TestColumn.int_64_userid.value
+DEFAULT_TIMESTAMP_COLUMN = TestColumn.int_64_ts.value
+BASE_TIME = 1609459200000  # Start of 2021, UTC
+TIME_SHIFT = 10000
+UNSUPPORTED_COLUMN_DTYPES = {TestColumn.unsupported_datetimes: 'datetime64[ns]',
+                             TestColumn.unsupported_lists: 'object'}
 STR_AND_NONE_VALUES = ["1", "2", "3"]
 STR_CAT_FEW_WEIGHTS = [0.9, 0.07, 0.02, 0.01]
 STR_CAT_MANY_WEIGHTS = [0.5, 0.2] + [0.01] * 30
+
+
+def test_colname_to_coltype(name: str) -> DatasetColumnType:
+    prefix_to_type = {
+        'int': DatasetColumnType.INT,
+        'float': DatasetColumnType.FLOAT,
+        'str': DatasetColumnType.STRING,
+        'bool': DatasetColumnType.BOOL,
+        'unsupported': None
+    }
+    coltype = prefix_to_type[name.split('_')[0]]
+    return coltype
+
+
+def datafile_schema(part: int = 0) -> DatasetShortSchema:
+    # noinspection PyUnresolvedReferences
+    result = DatasetShortSchema(
+        min_timestamp=float(BASE_TIME),
+        max_timestamp=float(BASE_TIME + TIME_SHIFT),
+        source_categoricals=[TestColumn.str_category_userid, TestColumn.str_category_many],
+        potential_categoricals=[TestColumn.str_and_none, TestColumn.str_category_few],
+        columns={col.value: test_colname_to_coltype(col)
+                 for col in TestColumn
+                 if test_colname_to_coltype(col)})
+
+    # print(f"Test dataset short schema is:\n{result.to_json(indent=2)}")
+    return result
 
 
 def weighted_list(size: int, weights: list) -> list:
@@ -122,22 +175,12 @@ class TestDatasetInfo(DisablePyTestCollectionMixin):
     expected_parts: DatasetPartsInfo
     default_dataset_id: DatasetId
     default_dataset_info: DatasetInfo
-    registration_jobs: List[RegistrationJob] = field(default_factory=list)
     bucket: object = None
 
     def expected_part_ids(self, dsid: DatasetId, parts: List[int] = None) -> List[DatasetPartId]:
         parts = parts or range(len(self.fullpath_files))
         return [DatasetPartId(dataset_id=dsid, path=self.fullpath_files[i], part_idx=i)
                 for i in parts]
-
-    def registration_job(self,
-                         mode: DatasetValidationMode,
-                         group_id_column: str = DEFAULT_GROUP_COLUMN,
-                         pattern: str = REGISTER_DEFAULT_FILENAME_PATTERN,
-                         uniques: bool = True) -> RegistrationJob:
-        job = build_registration_job(self.basepath, mode, group_id_column, pattern, uniques)
-        self.registration_jobs.append(job)
-        return job
 
     # noinspection PyUnresolvedReferences
     def copy_to_s3(self, path_in_bucket: str = '') -> str:
@@ -167,9 +210,6 @@ class TestDatasetInfo(DisablePyTestCollectionMixin):
     def cleanup(self):
         assert self.basepath.startswith(TEMP_DIR)
         shutil.rmtree(self.basepath)
-        for rj in self.registration_jobs:
-            if rj.dataset:
-                get_datastore().remove_dataset_info(rj.dataset.id.name)
         if self.bucket:
             for key in self.bucket.objects.all():
                 key.delete()
