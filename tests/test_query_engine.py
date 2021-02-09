@@ -11,6 +11,74 @@ BEGIN_PRICE = 100
 GROUP_COLUMN = 'id'
 TS_COLUMN = 'timestamp'
 ALL_USERS = ['a', 'b', 'c', 'd']
+KEYWORDS = ['cat|dog', 'mouse|cat|dog', 'cat', 'dog|mouse|cat']
+
+'''
+test cases
+==========
+
+target types:
+- sum
+- count
+
+numeric operators: V
+- <
+- >
+- ==
+- !=
+- <=
+- >=
+
+string operators:
+- ==
+- !=
+- contains
+
+boolean operators:
+- ==
+- !=
+
+aggregations:
+- "count"
+- "countPerValue"
+- "groupsPerValue"
+- "sumPerValue"
+- "meanPerValue"
+
+'''
+
+
+# all queries filter timestamp to be <= BEGIN_TS + 5, which yields 10 rows
+# 4 rows for user "a", 3 for "b", 2 for "c" and 1 for "d"
+def test_numeric_operators():
+    data = test_create_data()
+    number_of_events = 2
+    for (op, val, expectation) in [('==', 2, 1),  # 1 user with 2 events
+                                   ('<', 3, 2),  # 2 users, with 1 and 2 events
+                                   ('>', 2, 2),  # etc.
+                                   ('<=', 1, 1),
+                                   ('>=', 4, 1),
+                                   ('!=', 1, 3)]:
+        query = {
+            'relation': 'and',
+            'conditions': [
+                {
+                    "filter": {
+                        "column": "timestamp",
+                        "op": "<=",
+                        "value": BEGIN_TS + 5
+                    },
+                    "target": {
+                        "type": "count",
+                        "op": op,
+                        "value": val
+                    }
+                }
+            ]
+        }
+
+        engine_result = expand_and_run_query(df=data, query_part=query)
+        assert engine_result.query.matching_groups == expectation
 
 
 def expand_and_run_query(df: DataFrame, query_part: dict = None, funnel_part: dict = None) -> QueryResult:
@@ -40,7 +108,8 @@ def test_create_data():
             'timestamp': [BEGIN_TS + index + i for i in range(number_of_rows_for_user)],
             'category': CATEGORIES * int(number_of_rows_for_user / 4),
             'type': TYPES * int(number_of_rows_for_user / 4),
-            'price': [BEGIN_PRICE + index + i for i in range(number_of_rows_for_user)]
+            'price': [BEGIN_PRICE + index + i for i in range(number_of_rows_for_user)],
+            'keywords': [f'{w}_{user}' for w in KEYWORDS] * int(number_of_rows_for_user / 4)
         }
         dfs.append(pd.DataFrame.from_dict(data))
     return pd.concat(dfs, axis=0)
@@ -151,26 +220,34 @@ def test_multi_filter_simple():
     assert engine_result.query.matching_group_rows == (2 ** 2) + (2 ** 3)
 
 
-def test_contains():
+def test_string_operators():
     data = test_create_data()
-    query = {
-        'relation': 'or',
-        'conditions': [
-            {
-                "filter": {
-                        "column": "category",
-                        "op": "contains",
-                        "value": "hing"
-                },
-                "target": {
-                    "type": "count",
-                    "op": ">",
-                    "value": 2
+    print(data.iloc[0])
+    # all conditions are with > 1 count target
+    for (op, value, expectation) in [('contains', 'dog_a', 0),  # a has 3 events containing dog_a
+                                     ('contains', 'dog_b', 8),  # b has 8 etc.
+                                     ('contains', 'dog_c', 16),
+                                     ('==', 'cat_a', 0),  # same as above, only 1 cat_a event
+                                     ('==', 'cat_c', 16),
+                                     ('!=', 'cat_a', 56)  # all but user a have more than 3 !cat_a events
+                                     ]:
+        query = {
+            'relation': 'or',
+            'conditions': [
+                {
+                    "filter": {
+                        "column": "keywords",
+                        "op": op,
+                        "value": value
+                    },
+                    "target": {
+                        "type": "count",
+                        "op": ">",
+                        "value": 3
+                    }
                 }
-            }
-        ]
-    }
-    engine_result = expand_and_run_query(df=data, query_part=query)
-    # this query gets users with strictly more than 2 fishing events, so only users c and d
-    assert engine_result.query.matching_groups == 1 + 1
-    assert engine_result.query.matching_group_rows == (2 ** 4) + (2 ** 5)
+            ]
+        }
+        engine_result = expand_and_run_query(df=data, query_part=query)
+        print(engine_result)
+        assert engine_result.query.matching_group_rows == expectation
