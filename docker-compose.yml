@@ -22,9 +22,9 @@ services:
     environment:
       - FROCKET_REDIS_HOST=redis
       - FROCKET_REDIS_PORT=6380
-      - MOCK_S3_URL=http://mock-s3:9000
-      - MOCK_S3_USER=testonly
-      - MOCK_S3_SECRET=testonly
+      - FROCKET_AWS_ENDPOINT_URL=http://mock-s3:9000
+      - FROCKET_AWS_ACCESS_KEY_ID=testonly
+      - FROCKET_AWS_SECRET_ACCESS_KEY=testonly
     tty: true
     depends_on:
       - redis
@@ -38,9 +38,9 @@ services:
     environment:
       - FROCKET_REDIS_HOST=redis
       - FROCKET_REDIS_PORT=6380
-      - MOCK_S3_URL=http://mock-s3:9000
-      - MOCK_S3_USER=testonly
-      - MOCK_S3_SECRET=testonly
+      - FROCKET_AWS_ENDPOINT_URL=http://mock-s3:9000
+      - FROCKET_AWS_ACCESS_KEY_ID=testonly
+      - FROCKET_AWS_SECRET_ACCESS_KEY=testonly
       - FLASK_APP=frocket/apiserver.py
     tty: true
     depends_on:
