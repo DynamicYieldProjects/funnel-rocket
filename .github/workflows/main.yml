@@ -46,6 +46,7 @@ jobs:
         if: steps.cache-venv.outputs.cache-hit != 'true'
 
       - name: Test with pytest
+        # Ignore test_invoker_api till queue_worker(s) run in this workflow
         run: |
           source venv/bin/activate
-          pytest --cov=frocket --cov-report=html
+          pytest --cov=frocket --cov-report=html --ignore=tests/test_invoker_api.py
