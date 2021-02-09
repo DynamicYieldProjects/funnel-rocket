@@ -247,7 +247,7 @@ class RegistrationJob(Job):
     def build_result(self, base_attributes, final_status, latest_task_results):
         return RegistrationJobResult(
             **base_attributes,
-            dataset=self._dataset)
+            dataset=self._dataset if final_status.success else None)
 
     @property
     def sampled_parts(self) -> Optional[List[DatasetPartId]]:

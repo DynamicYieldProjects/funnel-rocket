@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from enum import auto
 from queue import Queue, Empty
-from typing import Optional, Dict
+from typing import Optional, Dict, Generator
 from frocket.common.serializable import AutoNamedEnum
 from frocket.common.tasks.base import BaseJobResult, TaskStatus
 
@@ -26,6 +26,10 @@ class AsyncJobStatus:
     task_counters: Optional[Dict[TaskStatus, int]] = None
 
 
+class JobTimeoutError(Exception):
+    pass
+
+
 class AsyncJobTracker(metaclass=ABCMeta):
     @property
     @abstractmethod
@@ -45,6 +49,21 @@ class AsyncJobTracker(metaclass=ABCMeta):
     @abstractmethod
     def wait(self, timeout: float = None) -> bool:
         pass
+
+    def generator(self) -> Generator[AsyncJobStatus, None, None]:
+        while True:
+            update_available = self.wait()
+            if not self.wait_time_remaining:
+                raise JobTimeoutError()
+
+            status_snapshot = self.status
+            if status_snapshot.result:
+                break
+
+            if update_available:
+                yield status_snapshot
+
+        yield status_snapshot
 
 
 class AsyncJobStatusUpdater(AsyncJobTracker):

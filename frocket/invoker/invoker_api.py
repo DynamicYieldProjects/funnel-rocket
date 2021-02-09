@@ -22,7 +22,6 @@ executor = concurrent.futures.ThreadPoolExecutor()
 ASYNC_MAX_WAIT = config.int("invoker.run.timeout") * 1.1  # Adding a bit of grace around the invoker
 
 
-@memoize
 def _unregister_safety_interval() -> int:
     interval = config.get('unregister.last.used.interval', None)
     if not interval:  # Not defined, or empty string (explicit '0' is truthy)

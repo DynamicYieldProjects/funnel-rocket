@@ -211,6 +211,7 @@ def do_register(register_args, should_stream):
     if should_stream:
         return run_streamable(should_stream=True,
                               async_func=lambda: invoker_api.register_dataset_async(register_args))
+
     else:
         return run_streamable(should_stream=False,
                               sync_func=lambda: invoker_api.register_dataset(register_args))

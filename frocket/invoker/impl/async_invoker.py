@@ -21,7 +21,7 @@ class AsyncInvoker(BaseInvoker):
         self._poll_interval_seconds = config.int("invoker.async.poll.interval.ms") / 1000
         self._log_interval_seconds = config.int("invoker.async.log.interval.ms") / 1000
         self._max_attempts = config.int("invoker.retry.max.attempts")
-        self._retry_failed_interval = config.int("invoker.retry.failed.interval")
+        self._retry_failed_interval = config.float("invoker.retry.failed.interval")
         self._retry_lost_interval = config.int("invoker.retry.lost.interval")
 
     def _do_run(self, task_requests: List[BaseTaskRequest],
