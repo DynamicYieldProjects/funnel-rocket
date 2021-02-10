@@ -55,4 +55,5 @@ jobs:
           FLASK_APP=frocket/apiserver.py python -m flask run &
           python -m frocket.worker.impl.queue_worker &
           python -m frocket.worker.impl.queue_worker &
+          sleep 2
           pytest --cov=frocket --cov-report=html
