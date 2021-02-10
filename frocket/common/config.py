@@ -49,7 +49,6 @@ DEFAULTS = {
     "log.file": "",
     "log.level": "info",
     "log.format": "%(asctime)s %(name)s %(levelname)s %(message)s",
-    "apiserver.public": "false",  # TODO change default? or dependent on production env
     "apiserver.prettyprint": "true",
     "apiserver.stream.poll.interval.ms": "10",
     "apiserver.stream.write.interval.ms": "250",

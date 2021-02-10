@@ -41,6 +41,7 @@ services:
       - FROCKET_AWS_ENDPOINT_URL=http://mock-s3:9000
       - FROCKET_AWS_ACCESS_KEY_ID=testonly
       - FROCKET_AWS_SECRET_ACCESS_KEY=testonly
+      - FROCKET_INVOKER_RETRY_FAILED_INTERVAL=0.05
       - FLASK_APP=frocket/apiserver.py
     tty: true
     depends_on:

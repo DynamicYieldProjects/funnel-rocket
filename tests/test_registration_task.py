@@ -55,10 +55,10 @@ def test_col_types(datafile):
 
     col = sch.columns[TestColumn.bool]
     assert col.to_dict() == {
-        "name": TestColumn.bool, "dtype_name": "bool", "coltype": DatasetColumnType.BOOL,
+        "name": TestColumn.bool, "dtypeName": "bool", "coltype": DatasetColumnType.BOOL,
         "colattrs": {
-            "numeric_min": None, "numeric_max": None, "categorical": False,
-            "cat_top_values": None, "cat_unique_ratio": None}}
+            "numericMin": None, "numericMax": None, "categorical": False,
+            "catTopValues": None, "catUniqueRatio": None}}
 
     col = sch.columns[TestColumn.float_all_none]
     assert col.name == TestColumn.float_all_none and col.dtype_name == "float64" and \
