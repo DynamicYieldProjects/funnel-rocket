@@ -49,6 +49,9 @@ jobs:
         # Ignore test_invoker_api till queue_worker(s) run in this workflow
         run: |
           source venv/bin/activate
+          export FROCKET_AWS_ENDPOINT_URL=http://127.0.0.1:9000
+          export FROCKET_AWS_ACCESS_KEY_ID=testonly
+          export FROCKET_AWS_SECRET_ACCESS_KEY=testonly
           python -m frocket.worker.impl.queue_worker &
           python -m frocket.worker.impl.queue_worker &
           pytest --cov=frocket --cov-report=html
