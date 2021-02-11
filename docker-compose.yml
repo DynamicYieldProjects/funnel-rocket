@@ -16,9 +16,8 @@ services:
   frocket-worker:
     build:
       dockerfile: docker/Dockerfile
-      target: prod
       context: .
-    image: dynamicyield/frocket
+    image: frocket/frocket
     environment:
       - FROCKET_REDIS_HOST=redis
       - FROCKET_REDIS_PORT=6380
@@ -31,7 +30,7 @@ services:
     command: worker
 
   frocket-apiserver:
-    image: dynamicyield/frocket
+    image: frocket/frocket
     container_name: frocket-apiserver
     ports:
       - 5000:5000
@@ -42,7 +41,6 @@ services:
       - FROCKET_AWS_ACCESS_KEY_ID=testonly
       - FROCKET_AWS_SECRET_ACCESS_KEY=testonly
       - FROCKET_INVOKER_RETRY_FAILED_INTERVAL=0.05
-      - FLASK_APP=frocket/apiserver.py
     tty: true
     depends_on:
       - redis

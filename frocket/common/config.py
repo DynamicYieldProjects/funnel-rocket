@@ -37,7 +37,7 @@ DEFAULTS = {
     "invoker.retry.lost.interval": "20",  # TODO document: depends on normal performance bounds
     "worker.self.select.enabled": "true",
     "worker.reject.age": "60",
-    "metrics.export.lastrun": "lastrun.parquet",  # TODO change and doc
+    "metrics.export.lastrun": "",  # TODO change and doc
     "metrics.export.prometheus": "true",
     "metrics.buckets.default": "0.1, 0.5, 1, 5, 25, 100, 1000",
     "metrics.buckets.seconds": "0.05, 0.1, 0.5, 1, 2, 5, 10, 15",
