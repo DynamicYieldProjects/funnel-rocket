@@ -19,9 +19,11 @@ logger = logging.getLogger(__name__)
 
 STREAM_POLL_INTERVAL = config.int("apiserver.stream.poll.interval.ms") / 1000
 STREAM_WRITE_INTERVAL = config.int("apiserver.stream.write.interval.ms") / 1000
-EXPORT_TO_PROMETHEUS = config.bool('metrics.export.prometheus')
-PUBLIC_MODE = config.bool("apiserver.public")
+# TODO Disabling "public mode" (which exposes only specific endpoints and response attributes)
+#  till there's proper test coverage. This server should not be directly internet-facing.
+PUBLIC_MODE = False
 PRETTY_PRINT = config.bool("apiserver.prettyprint")
+EXPORT_TO_PROMETHEUS = config.bool('metrics.export.prometheus')
 DEFAULT_ERROR = 'Error'
 
 app = Flask(__name__)

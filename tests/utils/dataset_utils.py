@@ -41,6 +41,7 @@ DEFAULT_ROW_COUNT = 1000
 DEFAULT_GROUP_COLUMN = TestColumn.int_64_userid.value
 DEFAULT_TIMESTAMP_COLUMN = TestColumn.int_64_ts.value
 BASE_TIME = 1609459200000  # Start of 2021, UTC
+BASE_USER_ID = 100000
 TIME_SHIFT = 10000
 UNSUPPORTED_COLUMN_DTYPES = {TestColumn.unsupported_datetimes: 'datetime64[ns]',
                              TestColumn.unsupported_lists: 'object'}
@@ -97,7 +98,7 @@ def create_datafile(part: int = 0, size: int = DEFAULT_ROW_COUNT, filename: str 
     # First, prepare data for columns
 
     # Each part has a separate set of user (a.k.a. group) IDs
-    initial_user_id = 100000 * part
+    initial_user_id = BASE_USER_ID * part
     min_user_id = initial_user_id
     max_user_id = initial_user_id + DEFAULT_GROUP_COUNT - 1
     # To each tests, ensure that each user ID appears in the file at least once, by including the whole range,

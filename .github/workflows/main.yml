@@ -52,6 +52,8 @@ jobs:
           export FROCKET_AWS_ENDPOINT_URL=http://127.0.0.1:9000
           export FROCKET_AWS_ACCESS_KEY_ID=testonly
           export FROCKET_AWS_SECRET_ACCESS_KEY=testonly
+          FLASK_APP=frocket/apiserver.py python -m flask run &
           python -m frocket.worker.impl.queue_worker &
           python -m frocket.worker.impl.queue_worker &
+          sleep 2
           pytest --cov=frocket --cov-report=html

@@ -10,6 +10,8 @@ import marshmallow
 # TODO Organize & doc
 
 # As suggested in dataclasses_json's docs, store datetime in ISO format to ensure timezone consistency (UTC)
+from dataclasses_json import dataclass_json, LetterCase
+
 dataclasses_json.global_config.encoders[datetime] = datetime.isoformat
 dataclasses_json.global_config.decoders[datetime] = datetime.fromisoformat
 dataclasses_json.global_config.mm_fields[datetime] = marshmallow.fields.DateTime(format='iso')
@@ -46,6 +48,7 @@ def reducable(cls):
     return cls
 
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass(frozen=True)
 class SerializableDataClass(dataclasses_json.DataClassJsonMixin):
     @classmethod
@@ -57,27 +60,28 @@ class SerializableDataClass(dataclasses_json.DataClassJsonMixin):
         return result
 
     def to_api_response_dict(self, public_fields_only: bool) -> dict:
-        # Remove non-allowed fields - TODO only top-level fields can be filtered!
-        # remove none values and empty dicts, stringify enums (so json.dumps don't fail)
+        # remove none values and empty dicts, stringify enums (so a later json.dumps doesn't fail)
         def prepare_dict(src: dict, allowed_fields: List[str] = None) -> dict:
             res = {}
             for k, v in src.items():
                 if v is None:
                     continue
-                elif allowed_fields and (k not in allowed_fields):
-                    continue
-                elif isinstance(v, dict):
+                # TODO support removing non-public fields (including non top-level fields?),
+                #  note that k is now already camelCased
+                # elif allowed_fields and (k not in allowed_fields):
+                #    continue
+                if isinstance(v, dict):
                     if len(v) == 0:
                         continue
-                    res[k] = prepare_dict(v, allowed_fields=None)  # See restriction above
+                    res[k] = prepare_dict(v, allowed_fields=None)
                 elif isinstance(v, Enum):
                     res[k] = str(v.value)
                 else:
                     res[k] = v
             return res
 
-        allowed_fields = self.api_public_fields() if public_fields_only else None
-        d = prepare_dict(self.to_dict(), allowed_fields=allowed_fields)
+        # allowed_fields = self.api_public_fields() if public_fields_only else None
+        d = prepare_dict(self.to_dict())
         return d
 
     def shallowdict(self, include_none: bool = True):

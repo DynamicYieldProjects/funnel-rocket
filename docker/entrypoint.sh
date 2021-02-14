@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
-
 case "$1" in
   worker)
-    echo "Starting frocket task worker"
-    python /app/frocket/worker/impl/queue_worker.py
+    echo "Starting Funnel Rocket queue-based worker"
+    python -m frocket.worker.impl.queue_worker
     ;;
   apiserver)
-    echo "Starting frocket api server"
-    python -m flask run --host=0.0.0.0
+    echo "Starting Funnel Rocket API server"
+    FLASK_APP=frocket.apiserver python -m flask run --host=0.0.0.0
     ;;
   *)
-    # The command is something like bash, not an frocket subcommand. Just run it in the right environment.
     echo "Invalid command supplied"
-    exec "$@"
+    exit 1
     ;;
 esac
