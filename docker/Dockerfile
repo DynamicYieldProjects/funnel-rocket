@@ -1,11 +1,12 @@
 ARG PYTHON_VERSION=3.8
 FROM python:${PYTHON_VERSION}-slim
-RUN apt-get update \
-    && apt-get clean
+RUN apt-get update && apt-get clean
 WORKDIR /app
 ADD ./setup.py .
 ADD ./README.md .
 ADD ./frocket frocket
+ADD ./docker/entrypoint.sh .
+RUN chmod +x ./entrypoint.sh
 RUN useradd -ms /bin/bash frocket
 USER frocket
 RUN pip install --no-cache-dir --user .
@@ -15,10 +16,6 @@ RUN rm ./pyarrow/*plasma*.so*
 RUN rm ./pyarrow/plasma-store-server
 RUN find . -type d -name tests | xargs rm -rf
 RUN find . -type d -name include | xargs rm -rf
+RUN du -h /home/frocket
 WORKDIR /app
-ADD ./docker/entrypoint.sh .
-USER root
-RUN chmod +x ./entrypoint.sh
-USER frocket
-RUN du -h  /home/frocket
 ENTRYPOINT ["./entrypoint.sh"]
