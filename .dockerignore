@@ -1,6 +1,6 @@
-__pycache__/
-*.py[cod]
-.*
+**/__pycache__/
+**/*.py[cod]
+**/.*
 *.so
 *.parquet
 data/

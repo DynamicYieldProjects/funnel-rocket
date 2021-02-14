@@ -1,6 +1,7 @@
 import sys
 import argparse
 import pkg_resources
+import re
 
 # TODO doc
 
@@ -25,6 +26,7 @@ if not reqs:
     sys.exit(f"Requires list is empty")
 
 if args.skip_lambda_builtins:
-    reqs.difference_update(LAMBDA_BUILTIN_PACKAGES)
+    reqs = [req for req in reqs
+            if re.split(r'[>=<]', req)[0] not in LAMBDA_BUILTIN_PACKAGES]
 
-print(" ".join(reqs))
+print("\n".join(reqs))

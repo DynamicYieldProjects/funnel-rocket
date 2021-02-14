@@ -9,10 +9,12 @@ RUN python3.8 -m pip install --upgrade pip && \
     python3.8 -m pip install virtualenv
 
 FROM base
-ARG PACKAGES
 RUN python3.8 -m venv frocketenv
 RUN source frocketenv/bin/activate
-RUN pip install $PACKAGES -t ./python
+ARG REQS_FILE
+ADD $REQS_FILE .
+RUN cat $REQS_FILE
+RUN pip install -r $REQS_FILE -t ./python
 RUN rm /python/pyarrow/*flight*.so*
 RUN rm /python/pyarrow/*plasma*.so*
 RUN rm /python/pyarrow/plasma-store-server

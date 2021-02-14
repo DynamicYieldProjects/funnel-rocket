@@ -52,7 +52,7 @@ class _S3PathInfo(NamedTuple):
 @memoize
 def _s3client():
     boto3.set_stream_logger(level=logging.INFO)  # TODO allow configuration
-    return boto3.client('s3', **config.aws_access_settings())
+    return boto3.client('s3', **config.aws_client_settings(service='s3'))
 
 
 class _FileBaseInfo(NamedTuple):

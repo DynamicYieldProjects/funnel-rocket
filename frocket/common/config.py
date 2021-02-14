@@ -7,6 +7,7 @@ from typing import Dict
 # TODO use a "real" config package? (but Config42 was too much trouble...)
 #  None behavior?
 #
+import botocore
 
 ENV_CONFIG_PREFIX = "FROCKET"
 
@@ -32,6 +33,7 @@ DEFAULTS = {
     "invoker.lambda.name": "frocket",
     "invoker.lambda.threads": "20",
     "invoker.lambda.debug.payload": "false",
+    "invoker.lambda.legacy.async": "true",
     "invoker.retry.max.attempts": "3",
     "invoker.retry.failed.interval": "3",
     "invoker.retry.lost.interval": "20",  # TODO document: depends on normal performance bounds
@@ -59,7 +61,8 @@ DEFAULTS = {
     "aggregations.top.grace.factor": "2.0",
     "aws.endpoint.url": "",
     "aws.access.key.id": "",
-    "aws_secret_access_key": ""
+    "aws_secret_access_key": "",
+    "aws.nosign": False
 }
 
 
@@ -91,12 +94,30 @@ class ConfigDict(Dict[str, str]):
         else:
             return self.get(fallback_key, default)
 
-    def aws_access_settings(self) -> dict:
-        return {
-            'endpoint_url':  self.get('aws.endpoint.url', None) or None,
-            'aws_access_key_id':  self.get('aws.access.key.id', None) or None,
-            'aws_secret_access_key': self.get('aws.secret.access.key', None) or None
-        }
+    def _get_for_service(self, key: str, service: str = None) -> str:
+        if service:
+            value = self.get_with_fallbacks(f"{service}.{key}", key, None)
+        else:
+            value = self.get(key, None)
+        return value or None
+
+    def aws_client_settings(self, service: str = None) -> dict:
+        aws_to_config_keys = {
+            'region_name': 'aws.region',
+            'endpoint_url': 'aws.endpoint.url',
+            'aws_access_key_id': 'aws.access.key.id',
+            'aws_secret_access_key': 'aws.secret.access.key'}
+        settings = {aws_key: self._get_for_service(config_key, service)
+                    for aws_key, config_key in aws_to_config_keys.items()}
+        return settings
+
+    def aws_config_kws(self, service: str = None) -> dict:
+        val = self._get_for_service('aws.nosign', service)
+        no_sign_requests = val and val.lower() == 'true'
+        config = {}
+        if no_sign_requests:
+            config['signature_version'] = botocore.UNSIGNED
+        return config
 
     @property
     def loglevel(self) -> int:
