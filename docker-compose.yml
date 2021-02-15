@@ -33,7 +33,7 @@ services:
     build:
       dockerfile: docker/local-lambda.Dockerfile
       context: .
-    image: frocket/local_lambda
+    image: frocket/local-lambda
     container_name: mock-lambda
     environment:
       - FROCKET_REDIS_HOST=redis

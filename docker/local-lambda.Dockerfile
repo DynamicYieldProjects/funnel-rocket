@@ -7,21 +7,19 @@ FROM lambci/lambda:python${PYTHON_VERSION}
 # Lambda function code should be in /var/task
 WORKDIR /var/task
 ADD ./setup.py .
-ADD ./README.md .
-# Copy package code. Note that any .pyc files/__pycache__ dirs are filtered by .dockerignore
+ADD ./requirements.txt .
 ADD ./frocket frocket
-# Layers should be under /opt, only writable by root
+# Lambda layer(s) (useful for holding all big & infrequently changing dependencies)
+# should be located under /opt, which is only writable by root.
+# Don't install boto3/botocore, which is vendored by AWS in its most appropriate version
 USER root
-RUN mkdir /opt/python && pip install --no-cache-dir . -t /opt/python
-# Layer should not have (a) funnel-rocket package itself, (b) boto3/botocore which is vendored
-# Additionally, cleanup some big files
-RUN rm -rf /opt/python/frocket* \
-    /opt/python/funnel_rocket* \
-    /opt/python/boto* \
-    /opt/python/pyarrow/*flight*.so* \
+RUN grep -v boto requirements.txt > lambda_requirements.txt
+RUN mkdir /opt/python && pip install --no-cache-dir -r lambda_requirements.txt -t /opt/python
+# Clean-up some big files
+RUN rm /opt/python/pyarrow/*flight*.so* \
     /opt/python/pyarrow/*plasma*.so* \
     /opt/python/pyarrow/plasma-store-server \
-    setup.py README.md
+    setup.py requirements.txt lambda_requirements.txt
 # RUN find /opt/python -type d -name tests | xargs rm -rf
 # RUN find /opt/python -type d -name include | xargs rm -rf
 # Go back to user & workdir of base image

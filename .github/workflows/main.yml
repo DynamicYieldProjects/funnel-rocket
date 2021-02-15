@@ -34,7 +34,7 @@ jobs:
         id: cache-venv
         with:
           path: ./venv/
-          key: ${{ runner.os }}-venvcache-${{ hashFiles('./requirements.txt','./requirements/test.txt','./setup.py') }}
+          key: ${{ runner.os }}-venvcache-${{ hashFiles('./requirements.txt','./test-requirements.txt','./setup.py') }}
 
       - name: Build virtual environment and install dependencies
         run: |
@@ -42,16 +42,20 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           pip install -e .
-          pip install -r requirements/test.txt
+          pip install -r test-requirements.txt
         if: steps.cache-venv.outputs.cache-hit != 'true'
 
       - name: Test with pytest
-        # Ignore test_invoker_api till queue_worker(s) run in this workflow
         run: |
           source venv/bin/activate
-          export FROCKET_AWS_ENDPOINT_URL=http://127.0.0.1:9000
-          export FROCKET_AWS_ACCESS_KEY_ID=testonly
-          export FROCKET_AWS_SECRET_ACCESS_KEY=testonly
+          export FROCKET_S3_AWS_ENDPOINT_URL=http://127.0.0.1:9000
+          export FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
+          export FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
+          export FROCKET_LAMBDA_AWS_ENDPOINT_URL=http://127.0.0.1:9001
+          export FROCKET_LAMBDA_AWS_NOSIGN=true
+          export FROCKET_LAMBDA_AWS_REGION=us-east-1
+          export FROCKET_INVOKER_LAMBDA_LEGACY_ASYNC=false
+          export FROCKET_INVOKER_RETRY_FAILED_INTERVAL=0.05
           FLASK_APP=frocket/apiserver.py python -m flask run &
           python -m frocket.worker.impl.queue_worker &
           python -m frocket.worker.impl.queue_worker &
