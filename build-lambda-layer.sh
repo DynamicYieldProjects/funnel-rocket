@@ -38,7 +38,9 @@ du -h $LAYER_ZIPFILE
 echo "${YELLOW}Lambda function, zipped:${NC}"
 du -h $FUNCTION_ZIPFILE
 popd
+# Don't fail if previous files don't exist
+rm lambda-function-*.zip lambda-layer-*.zip || true
 cp $BUILD_DIR/$FUNCTION_ZIPFILE .
 cp $BUILD_DIR/$LAYER_ZIPFILE ./
 rm -rf $BUILD_DIR
-echo "${GREEN} DONE! $FUNCTION_ZIPFILE and $LAYER_ZIPFILE copied to current dir${NC}"
+echo "${YELLOW}DONE! copied to current dir:${NC}\n${FUNCTION_ZIPFILE} ${LAYER_ZIPFILE}"
