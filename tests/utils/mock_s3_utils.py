@@ -25,7 +25,7 @@ def new_mock_s3_bucket():
     _init_mock_s3_config()
 
     bucket_name = timestamped_uuid('testbucket-')
-    s3 = boto3.resource('s3', use_ssl=False, **config.aws_access_settings())
+    s3 = boto3.resource('s3', **config.aws_client_settings(service='s3'))
     bucket = s3.Bucket(bucket_name)
     bucket.create()
     print(f"Bucket '{bucket_name}' created")

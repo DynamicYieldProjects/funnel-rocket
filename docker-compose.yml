@@ -13,21 +13,40 @@ services:
     ports:
       - 9000:9000
 
-  frocket-worker:
+  frocket-queue-worker:
     build:
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/all-in-one.Dockerfile
       context: .
     image: frocket/frocket
     environment:
       - FROCKET_REDIS_HOST=redis
       - FROCKET_REDIS_PORT=6380
-      - FROCKET_AWS_ENDPOINT_URL=http://mock-s3:9000
-      - FROCKET_AWS_ACCESS_KEY_ID=testonly
-      - FROCKET_AWS_SECRET_ACCESS_KEY=testonly
-    tty: true
+      - FROCKET_S3_AWS_ENDPOINT_URL=http://mock-s3:9000
+      - FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
+      - FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
     depends_on:
       - redis
+      - mock-s3
     command: worker
+
+  frocket-lambda-worker:
+    build:
+      dockerfile: docker/local-lambda.Dockerfile
+      context: .
+    image: frocket/local-lambda
+    container_name: mock-lambda
+    environment:
+      - FROCKET_REDIS_HOST=redis
+      - FROCKET_REDIS_PORT=6380
+      - FROCKET_S3_AWS_ENDPOINT_URL=http://mock-s3:9000
+      - FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
+      - FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
+    depends_on:
+      - redis
+      - mock-s3
+    ports:
+      - 9001:9001
+    command: frocket.worker.impl.aws_lambda_worker.lambda_handler
 
   frocket-apiserver:
     image: frocket/frocket
@@ -37,11 +56,15 @@ services:
     environment:
       - FROCKET_REDIS_HOST=redis
       - FROCKET_REDIS_PORT=6380
-      - FROCKET_AWS_ENDPOINT_URL=http://mock-s3:9000
-      - FROCKET_AWS_ACCESS_KEY_ID=testonly
-      - FROCKET_AWS_SECRET_ACCESS_KEY=testonly
+      - FROCKET_S3_AWS_ENDPOINT_URL=http://mock-s3:9000
+      - FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
+      - FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
+      - FROCKET_LAMBDA_AWS_ENDPOINT_URL=http://mock-lambda:9001
+      - FROCKET_LAMBDA_AWS_NOSIGN=true
+      - FROCKET_LAMBDA_AWS_REGION=us-east-1
+      - FROCKET_INVOKER_LAMBDA_LEGACY_ASYNC=false
       - FROCKET_INVOKER_RETRY_FAILED_INTERVAL=0.05
-    tty: true
+    #  - FROCKET_INVOKER=aws_lambda
     depends_on:
       - redis
     command: apiserver

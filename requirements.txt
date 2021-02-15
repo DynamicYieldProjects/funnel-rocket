@@ -1,2 +1,11 @@
-# Install everything the package depends on to run queries
-.
+pyarrow>=2.0.0
+pandas>=1.2.0
+boto3>=1.16.0
+redis>=3.5.0
+tabulate>=0.8.0
+prometheus_client>=0.9.0
+flask>=1.1.0
+jsonschema>=3.2.0
+dataclasses-json>=0.5.2
+inflection>=0.5.0
+parsimonious>=0.8.0

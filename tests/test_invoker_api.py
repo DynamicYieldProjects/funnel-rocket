@@ -13,18 +13,34 @@ from frocket.common.tasks.registration import RegisterArgs, DatasetValidationMod
     REGISTER_DEFAULT_VALIDATE_UNIQUES, RegistrationJobResult
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker import invoker_api
+from tests.utils.base_test_utils import SKIP_LOCAL_LAMBDA_TESTS
 from tests.utils.dataset_utils import TestDatasetInfo, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, TestColumn, \
     BASE_TIME, DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT, new_test_dataset
 # noinspection PyUnresolvedReferences
 from tests.utils.redis_fixture import init_redis
 
+# TODO skip this whole module if no docker env/processes running - using a class?
+# TODO test query/register timeout (sync/async)
+# TODO Test S3 permission denied - how to simulate with mock? (probably should be test_registration_job)
+
+ORIGINAL_INVOKER_TYPE = config['invoker']
+INVOKER_TYPES = ['work_queue']
+if not SKIP_LOCAL_LAMBDA_TESTS:
+    INVOKER_TYPES.append('aws_lambda')
 API_DATASET_NUM_PARTS = 3
-# TODO skip this whole thing if no docker env/processes running - using a class?
 
 
 @pytest.fixture(scope="session", autouse=True)
 def set_invoker_intervals():
     config['invoker.retry.failed.interval'] = '0.05'
+
+
+@pytest.fixture(params=INVOKER_TYPES)
+def curr_invoker_type(request):
+    config['invoker'] = request.param
+    print(f"Running test with invoker type set to: {request.param}")
+    yield request.param
+    config['invoker'] = ORIGINAL_INVOKER_TYPE
 
 
 @dataclass
@@ -121,7 +137,6 @@ class ApiDatasetInfo:
             assert result.success
             assert result.error_message is None
             assert result.query
-            #TODO add asserts here or outside?
         else:
             assert not result.success
             assert not result.query
@@ -152,7 +167,7 @@ def api_dataset():
     info.cleanup()
 
 
-def test_register_remote(api_dataset: ApiDatasetInfo):
+def test_register_remote(api_dataset: ApiDatasetInfo, curr_invoker_type):
     common_args = api_dataset.build_register_args()
     # Register local dataset
     result = api_dataset.register(common_args, expected_basepath=api_dataset.remote_basepath)
@@ -177,21 +192,18 @@ def test_register_invalid_path(api_dataset: ApiDatasetInfo):
     args = api_dataset.build_register_args(override_basepath='s3://thisisnotabucket/')
     result = api_dataset.register(args, expected_success_value=False)
 
-    # TODO S3 permission denied - how to simulate with mock? requires storage rewrite to have another client,
-    #  probably should test this in test_registration_job...
 
-
-def test_register_invalid_column(api_dataset: ApiDatasetInfo):
+def test_register_invalid_column(api_dataset: ApiDatasetInfo, curr_invoker_type):
     args = api_dataset.build_register_args(group_id_column='notacolumn',
                                            validation_mode=DatasetValidationMode.SINGLE, validate_uniques=False)
     result = api_dataset.register(args, expected_success_value=False)
 
 
-def test_register_async(api_dataset: ApiDatasetInfo):
+def test_register_async(api_dataset: ApiDatasetInfo, curr_invoker_type):
     result = api_dataset.register(run_async=True)
 
 
-def test_register_async_fail(api_dataset: ApiDatasetInfo):
+def test_register_async_fail(api_dataset: ApiDatasetInfo, curr_invoker_type):
     args = api_dataset.build_register_args(group_id_column='notacolumn',
                                            validation_mode=DatasetValidationMode.SINGLE, validate_uniques=False)
     result = api_dataset.register(args, run_async=True, expected_success_value=False)
@@ -336,11 +348,11 @@ def run_and_validate_query(api_dataset: ApiDatasetInfo, run_async: bool):
     assert query_result.funnel.end_aggregations[0].value == funnel_row_count
 
 
-def test_query(api_dataset: ApiDatasetInfo):
+def test_query(api_dataset: ApiDatasetInfo, curr_invoker_type):
     run_and_validate_query(api_dataset, run_async=False)
 
 
-def test_query_async(api_dataset: ApiDatasetInfo):
+def test_query_async(api_dataset: ApiDatasetInfo, curr_invoker_type):
     iterations = 5  # A bit more certainty on our asserts around async job progress
     for _ in range(iterations):
         run_and_validate_query(api_dataset, run_async=True)
@@ -373,12 +385,9 @@ def run_query_missing_files(api_dataset: ApiDatasetInfo, run_async: bool):
         api_dataset.query(query, override_dataset=ds, expected_success_value=False)
 
 
-def test_query_missing_files_failure(api_dataset: ApiDatasetInfo):
+def test_query_missing_files_failure(api_dataset: ApiDatasetInfo, curr_invoker_type):
     run_query_missing_files(api_dataset, run_async=False)
 
 
-def test_query_async_fail(api_dataset: ApiDatasetInfo):
+def test_query_async_fail(api_dataset: ApiDatasetInfo, curr_invoker_type):
     run_query_missing_files(api_dataset, run_async=True)
-
-
-# TODO test timeout (sync/async query)

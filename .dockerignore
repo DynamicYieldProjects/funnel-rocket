@@ -1,8 +1,10 @@
-__pycache__/
-*.py[cod]
-.*
+**/__pycache__/
+**/*.py[cod]
+**/.*
+docker/*.Dockerfile
 *.so
 *.parquet
+*.zip
 data/
 layers/
 scratch/

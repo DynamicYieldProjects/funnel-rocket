@@ -1,11 +1,16 @@
+import pathlib
 import setuptools
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+this_dir = pathlib.Path(__file__).parent
+requirements_file = this_dir / "requirements.txt"
+readme_file = this_dir / "README.md"
+
+install_requires = requirements_file.read_text().splitlines()
+long_description = readme_file.read_text() if readme_file.exists() else ''
 
 setuptools.setup(
     name="funnel-rocket",
-    version="0.0.8",
+    version="0.1.0",
     author="Elad Rosenheim, Avshalom Manevich",
     author_email="elad@dynamicyield.com",
     description="Cloud native distributed funnel queries",
@@ -23,15 +28,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.8',
-    install_requires=['pyarrow>=2.0.0',
-                      'pandas>=1.2.0',
-                      'boto3>=1.16.0',
-                      'redis>=3.5.0',
-                      'tabulate>=0.8.0',
-                      'prometheus_client>=0.9.0',
-                      'flask>=1.1.0',
-                      'jsonschema>=3.2.0',
-                      'dataclasses-json>=0.5.2',
-                      'inflection>=0.5.0',
-                      'parsimonious>=0.8.0']
+    install_requires=install_requires
 )
