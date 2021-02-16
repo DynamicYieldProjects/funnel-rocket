@@ -43,7 +43,7 @@ jobs:
           restore-keys: |
           ${{ runner.os }}-buildx-
 
-      - name: Docker build all-in-one
+      - name: Docker build allinone
         id: docker_build_all_in_one
         uses: docker/build-push-action@v2
         with:
@@ -55,7 +55,7 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
-      - name: Docker build local-lambda
+      - name: Docker build locallambda
         id: docker_build_all_local_lambda
         uses: docker/build-push-action@v2
         with:
