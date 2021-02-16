@@ -69,10 +69,8 @@ jobs:
 
       - name: Launch docker-compose
         run: |
-          docker image inspect frocket/frocket
-          docker image inspect frocket/local-lambda
           docker-compose up -d
-          sleep 3
+          sleep 2
 
       - name: Test with pytest
         run: |
