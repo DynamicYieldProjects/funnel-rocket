@@ -8,10 +8,14 @@ services:
     entrypoint: [ "redis-server", "--port", "6380" ]
 
   mock-s3:
-    image: frocket/minio-server-autostart:latest
+    image: minio/minio:latest
     container_name: mock-s3
     ports:
       - 9000:9000
+    environment:
+      - MINIO_ROOT_USER=testonly
+      - MINIO_ROOT_PASSWORD=testonly
+    command: server /data
 
   frocket-queue-worker:
     build:
