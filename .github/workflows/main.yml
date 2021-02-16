@@ -40,8 +40,8 @@ jobs:
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-          ${{ runner.os }}-buildx-
+          #restore-keys: |
+          #${{ runner.os }}-buildx-
 
       - name: Docker build allinone
         id: docker_build_all_in_one
