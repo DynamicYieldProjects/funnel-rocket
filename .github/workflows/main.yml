@@ -65,7 +65,7 @@ jobs:
           load: true
           tags: frocket/local-lambda
           cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
 
       - name: Launch docker-compose
         run: |
