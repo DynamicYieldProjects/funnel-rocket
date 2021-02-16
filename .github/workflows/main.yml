@@ -33,8 +33,8 @@ jobs:
 
       - name: Launch docker-compose
         run: |
-          docker build -f docker/all-in-one.Dockerfile -t frocket/frocket
-          docker build -f docker/local-lambda.Dockerfile -t frocket/local-lambda
+          docker build -f docker/all-in-one.Dockerfile . -t frocket/frocket
+          docker build -f docker/local-lambda.Dockerfile . -t frocket/local-lambda
           docker-compose up -d
           sleep 3
 
