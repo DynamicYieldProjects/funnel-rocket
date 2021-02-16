@@ -3,21 +3,7 @@ on: [ push ]
 jobs:
   ci:
     runs-on: ubuntu-18.04
-    timeout-minutes: 5
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      mock-s3:
-        image: frocket/minio-server-autostart:latest
-        ports:
-          - 9000:9000
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repo
@@ -45,6 +31,13 @@ jobs:
           pip install -r test-requirements.txt
         if: steps.cache-venv.outputs.cache-hit != 'true'
 
+      - name: Launch docker-compose
+        run: |
+          docker build -f docker/all-in-one.Dockerfile -t frocket/frocket
+          docker build -f docker/local-lambda.Dockerfile -t frocket/local-lambda
+          docker-compose up -d
+          sleep 3
+
       - name: Test with pytest
         run: |
           source venv/bin/activate
@@ -56,8 +49,4 @@ jobs:
           export FROCKET_LAMBDA_AWS_REGION=us-east-1
           export FROCKET_INVOKER_LAMBDA_LEGACY_ASYNC=false
           export FROCKET_INVOKER_RETRY_FAILED_INTERVAL=0.05
-          FLASK_APP=frocket/apiserver.py python -m flask run &
-          python -m frocket.worker.impl.queue_worker &
-          python -m frocket.worker.impl.queue_worker &
-          sleep 2
           pytest --cov=frocket --cov-report=html
