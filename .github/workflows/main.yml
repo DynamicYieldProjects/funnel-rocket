@@ -41,6 +41,7 @@ jobs:
       - name: Test with pytest
         run: |
           source venv/bin/activate
+          export FROCKET_REDIS_PORT=6380
           export FROCKET_S3_AWS_ENDPOINT_URL=http://127.0.0.1:9000
           export FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
           export FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
