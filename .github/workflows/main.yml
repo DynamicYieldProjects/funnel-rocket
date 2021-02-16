@@ -3,21 +3,7 @@ on: [ push ]
 jobs:
   ci:
     runs-on: ubuntu-18.04
-    timeout-minutes: 5
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      mock-s3:
-        image: frocket/minio-server-autostart:latest
-        ports:
-          - 9000:9000
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repo
@@ -45,9 +31,59 @@ jobs:
           pip install -r test-requirements.txt
         if: steps.cache-venv.outputs.cache-hit != 'true'
 
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@master
+
+      - name: Cache Docker layers for all-in-one
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache-all-in-one
+          key: ${{ runner.os }}-buildx-all-in-one-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-all-in-one-
+
+      - name: Docker build all-in-one
+        id: docker_build_all_in_one
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./docker/all-in-one.Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          load: true
+          tags: frocket/frocket
+          cache-from: type=local,src=/tmp/.buildx-cache-all-in-one
+          cache-to: type=local,dest=/tmp/.buildx-cache-all-in-one,mode=max
+
+      - name: Cache Docker layers for local-lambda
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache-local-lambda
+          key: ${{ runner.os }}-buildx-local-lambda-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-local-lambda-
+
+      - name: Docker build local-lambda
+        id: docker_build_all_local_lambda
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./docker/local-lambda.Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          load: true
+          tags: frocket/local-lambda
+          cache-from: type=local,src=/tmp/.buildx-cache-local-lambda
+          cache-to: type=local,dest=/tmp/.buildx-cache-local-lambda,mode=max
+
+      - name: Launch docker-compose
+        run: |
+          docker-compose up -d
+          sleep 2
+
       - name: Test with pytest
         run: |
           source venv/bin/activate
+          export TEST_REDIS_PORT=6380
           export FROCKET_S3_AWS_ENDPOINT_URL=http://127.0.0.1:9000
           export FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
           export FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
@@ -56,8 +92,4 @@ jobs:
           export FROCKET_LAMBDA_AWS_REGION=us-east-1
           export FROCKET_INVOKER_LAMBDA_LEGACY_ASYNC=false
           export FROCKET_INVOKER_RETRY_FAILED_INTERVAL=0.05
-          FLASK_APP=frocket/apiserver.py python -m flask run &
-          python -m frocket.worker.impl.queue_worker &
-          python -m frocket.worker.impl.queue_worker &
-          sleep 2
           pytest --cov=frocket --cov-report=html

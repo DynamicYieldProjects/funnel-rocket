@@ -283,7 +283,7 @@ def test_unregister_after_use_wait(api_dataset: ApiDatasetInfo):
         time_passed = time.time() - start
         next_second = int(math.ceil(time_passed))
         config['unregister.last.used.interval'] = str(next_second)
-        time.sleep(next_second - time_passed)
+        time.sleep(next_second - time_passed + 0.2)
         unreg_result = invoker_api.unregister_dataset(ds.id.name)
         assert unreg_result.success
     finally:
