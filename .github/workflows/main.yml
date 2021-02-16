@@ -53,7 +53,7 @@ jobs:
           load: true
           tags: frocket/frocket
           cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
 
       - name: Docker build local-lambda
         id: docker_build_all_local_lambda
