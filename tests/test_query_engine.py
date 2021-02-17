@@ -17,7 +17,7 @@ KEYWORDS = ['cat|dog', 'mouse|cat|dog', 'cat', 'dog|mouse|cat']
 test cases
 ==========
 
-target types:
+target types: V
 - sum
 - count
 
@@ -29,12 +29,13 @@ numeric operators: V
 - <=
 - >=
 
-string operators:
+string operators: V
 - ==
 - !=
 - contains
+- not contains
 
-boolean operators:
+boolean operators: V
 - ==
 - !=
 
@@ -48,11 +49,91 @@ aggregations:
 '''
 
 
+def test_sum():
+    data = []
+    for i in range(1, 1001):
+        data.append({
+            'f': i,
+            'id': 'a',
+            'timestamp': i
+        })
+    data.append({
+        'f': 10,
+        'id': 'b',
+        'timestamp': 2
+    })
+
+    data = pd.DataFrame(data)
+    query = {
+        'conditions': [
+            {
+                "filter": {
+                    "column": "f",
+                    "op": ">",
+                    "value": 0
+                },
+                "target": {
+                    "type": "sum",
+                    "op": "==",
+                    "column": "f",
+                    "value": int((1000 * 1001) / 2)
+                }
+            }
+        ]
+    }
+    engine_result = expand_and_run_query(df=data, query_part=query)
+    assert engine_result.query.matching_group_rows == 1000
+
+
+def test_boolean_operators():
+    data = [
+        {
+            'bool_field': True,
+            'id': 'a',
+            'timestamp': 1
+        },
+        {
+            'bool_field': False,
+            'id': 'b',
+            'timestamp': 2
+        },
+        {
+            'id': 'b',
+            'timestamp': 3
+        }
+    ]
+    data = pd.DataFrame(data)
+    for (op, value, expectation, target_op) in [('==', True, 1, '=='),
+                                                # user a has exactly one "true" event, and exactly one row
+                                                ('!=', True, 2, '>'),
+                                                # user b has two events with value != "True" (one false and one NA)
+                                                ('==', False, 2, '=='),
+                                                ('!=', False, 3, '==')  # both users have one event that is not False
+                                                ]:
+        query = {
+            'conditions': [
+                {
+                    "filter": {
+                        "column": "bool_field",
+                        "op": op,
+                        "value": value
+                    },
+                    "target": {
+                        "type": "count",
+                        "op": target_op,
+                        "value": 1
+                    }
+                }
+            ]
+        }
+        engine_result = expand_and_run_query(df=data, query_part=query)
+        assert engine_result.query.matching_group_rows == expectation
+
+
 # all queries filter timestamp to be <= BEGIN_TS + 5, which yields 10 rows
 # 4 rows for user "a", 3 for "b", 2 for "c" and 1 for "d"
 def test_numeric_operators():
     data = test_create_data()
-    number_of_events = 2
     for (op, val, expectation) in [('==', 2, 1),  # 1 user with 2 events
                                    ('<', 3, 2),  # 2 users, with 1 and 2 events
                                    ('>', 2, 2),  # etc.
@@ -92,6 +173,7 @@ def expand_and_run_query(df: DataFrame, query_part: dict = None, funnel_part: di
     validation_result = validator.expand_and_validate(schema_only=True)
     expanded_query = validation_result.expanded_query
     print(f"Query after expansion: {expanded_query}")
+    print(validation_result.error_message)
     assert validation_result.success
     engine = QueryEngine(group_by_column=GROUP_COLUMN, timestamp_column=TS_COLUMN)
     return engine.run(df, expanded_query)
@@ -222,14 +304,17 @@ def test_multi_filter_simple():
 
 def test_string_operators():
     data = test_create_data()
-    print(data.iloc[0])
-    # all conditions are with > 1 count target
+    print(len(data))
+    # all conditions are with > 3 count target
     for (op, value, expectation) in [('contains', 'dog_a', 0),  # a has 3 events containing dog_a
                                      ('contains', 'dog_b', 8),  # b has 8 etc.
                                      ('contains', 'dog_c', 16),
                                      ('==', 'cat_a', 0),  # same as above, only 1 cat_a event
                                      ('==', 'cat_c', 16),
-                                     ('!=', 'cat_a', 56)  # all but user a have more than 3 !cat_a events
+                                     ('!=', 'cat_a', 56),  # all but user a have more than 3 !cat_a events
+                                     ('not contains', 'mouse', 56),  # user "a" has only 2 events that doesn't
+                                     # contain "mouse", and he has overall 4 events. All other users have more than 3
+                                     # events that doesn't contain "mouse"
                                      ]:
         query = {
             'relation': 'or',

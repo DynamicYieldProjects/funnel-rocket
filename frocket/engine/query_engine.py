@@ -176,8 +176,9 @@ class QueryEngine:
             value = value.replace("'", "\\'")
             value = "'" + value + "'"
 
-        if f['op'] == 'contains':
-            return f"{safe_column_name}.str.contains({value}, case=True, na=False, regex=False)"
+        if f['op'] in ('contains', 'not contains'):
+            return f"{'~' if f['op'].startswith('not') else ''}{safe_column_name}.str.contains({value}, \
+                    case=True, na=False, regex=False)"
         else:
             assert f['op'] in NUMERIC_OPERATORS
             return f"{safe_column_name} {f['op']} {value}"

@@ -363,7 +363,8 @@
             "enum": [
                 "==",
                 "!=",
-                "contains"
+                "contains",
+                "not contains"
             ]
         },
         "booleanOperator": {
