@@ -1,14 +1,15 @@
 import logging
 from abc import abstractmethod
-from typing import Dict, Counter, List, NamedTuple
+from typing import Dict, Counter, List, NamedTuple, Optional
 from frocket.common.metrics import MetricsBag, ComponentLabel, MetricName, MetricData, SourceAndMetricTuple, LabelsDict
 from frocket.common.tasks.base import TaskAttemptId, TaskStatus, BaseTaskResult, \
-    BaseTaskRequest, BaseJobResult, JobStatus
+    BaseTaskRequest, BaseJobResult, JobStatus, JobStats
 from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater, AsyncJobStage
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker.jobs.job import Job
 from frocket.invoker.metrics_frame import MetricsFrame
+from frocket.invoker.stats_builder import build_stats
 from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 
 logger = logging.getLogger(__name__)
@@ -38,20 +39,20 @@ class BaseInvoker:
                                                  invoker_metrics=final_metrics,
                                                  all_task_results=all_task_results)
             run_result = self.__build_run_result(final_job_status=final_job_status,
-                                                 final_metrics=final_metrics,
                                                  latest_task_results=latest_task_results,
-                                                 cost=metrics_frame.total_cost())
+                                                 metrics_frame=metrics_frame)
             metrics_frame.export()
         except Exception:
             try:
                 final_job_status = JobStatus(success=False, error_message='Unexpected error', attempts_status=[])
                 run_result = self.__build_run_result(final_job_status=final_job_status,
-                                                     final_metrics=[], latest_task_results=[])
+                                                     latest_task_results=[],
+                                                     metrics_frame=None)
                 logger.exception('Run failed')
             except Exception:
                 logger.exception('Failed to a "success=False" result via the job builder')
                 run_result = BaseJobResult(success=False, error_message='Unexpected error',
-                                           request_id=self._request_id, task_counters={}, metrics=[], cost=None)
+                                           request_id=self._request_id, stats=JobStats())
 
         # In case some lost tasks are still running, they may still "resurrect" some keys with their own data -
         # though the job is done as far as the invoker is concerned.
@@ -136,29 +137,21 @@ class BaseInvoker:
 
     def __build_run_result(self,
                            final_job_status: JobStatus,
-                           final_metrics: List[MetricData],
                            latest_task_results: List[BaseTaskResult],
-                           cost: float = None) -> BaseJobResult:
+                           metrics_frame: Optional[MetricsFrame]) -> BaseJobResult:
 
         # Collect errors from invoker and tasks (only from latest attempts, not from recovered attempts)
         full_error_message = final_job_status.error_message
         task_errors: List[str] = [res.error_message for res in latest_task_results if res.error_message]
         if len(task_errors) > 0:
             full_error_message = f"{full_error_message or 'No errors in invoker'}. Task errors: {task_errors}"
-
-        # Count final known status of all task attempts
-        task_counters = Counter[str]()
-        for at in final_job_status.attempts_status:
-            status_names = [task_update.status.name for task_update in at.attempts.values()]
-            task_counters.update(status_names)
+        stats = build_stats(metrics_frame, self._job_builder.parts_info()) if metrics_frame else None
 
         base_attributes = BaseJobResult(
             request_id=self._request_id,
             success=final_job_status.success,
             error_message=full_error_message,
-            task_counters=task_counters,
-            metrics=final_metrics,
-            cost=cost). \
+            stats=stats).\
             shallowdict(include_none=True)
 
         run_result = self._job_builder.build_result(

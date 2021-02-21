@@ -1,11 +1,16 @@
 import logging
-from typing import Optional, List, Dict, Union
+from typing import List, Dict, Union
 import pandas as pd
+from pandas import DataFrame
 from frocket.common.config import config
-from frocket.common.metrics import MetricName, SourceAndMetricTuple, ALL_LABEL_NAMES
+from frocket.common.metrics import SourceAndMetricTuple, ALL_LABEL_NAMES
 from frocket.invoker import prom_adapter
 
 logger = logging.getLogger(__name__)
+
+METRIC_SOURCE_COLUMN = 'source'
+METRIC_NAME_COLUMN = 'metric'
+METRIC_VALUE_COLUMN = 'value'
 
 PANDAS_FLOAT_FORMAT = '{:.5f}'
 pd.options.display.float_format = PANDAS_FLOAT_FORMAT.format
@@ -39,9 +44,9 @@ class MetricsFrame:
             for label_name, label_value in metric.labels.items():
                 label_columns[label_name][i] = label_value
 
-        df_columns = {'source': metric_source_column,
-                      'metric': metric_name_column,
-                      'value': metric_value_column,
+        df_columns = {METRIC_SOURCE_COLUMN: metric_source_column,
+                      METRIC_NAME_COLUMN: metric_name_column,
+                      METRIC_VALUE_COLUMN: metric_value_column,
                       **label_columns}
         self._df = pd.DataFrame(data=df_columns)
 
@@ -61,18 +66,10 @@ class MetricsFrame:
     def _to_lastrun_file(self, filename: str) -> None:
         self._build_df()
         if filename.lower().endswith('.parquet'):
-            self._df.to_parquet(filename)
+            self._df.to_parquet(filename, index=False)
         else:
             self._df.to_csv(filename, float_format=PANDAS_FLOAT_FORMAT, index=False)
 
-    # TODO check if all actual expected cost values are found?
-    def total_cost(self) -> Optional[float]:
-        cost_reports = [m.value for m in self._metrics if m.name == MetricName.COST_DOLLARS]
-        num_reports = len(cost_reports)
-        if num_reports == 0:
-            logger.debug(f"Total cost: no metrics found")
-            return None
-        else:
-            total_cost = sum(cost_reports)
-            logger.debug(f"Total cost: ${total_cost:.6f} (sum of {num_reports} metric reports)")
-            return total_cost
+    @property
+    def dataframe(self) -> DataFrame:
+        return self._df

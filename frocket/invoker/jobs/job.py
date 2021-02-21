@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from typing import List, Optional, Set
-from frocket.common.dataset import DatasetPartId
+from frocket.common.dataset import DatasetPartId, DatasetPartsInfo
 from frocket.common.metrics import LabelsDict
 from frocket.common.tasks.base import BaseTaskRequest, BaseTaskResult, BaseJobResult, JobStatus, ErrorMessage
 from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater
@@ -14,7 +14,7 @@ class Job:
     _labels = {}
 
     @property
-    def request_id(self):
+    def request_id(self) -> Optional[str]:
         return self._request_id
 
     @request_id.setter
@@ -24,6 +24,10 @@ class Job:
     @property
     def metric_labels(self) -> LabelsDict:
         return self._labels
+
+    @abstractmethod
+    def parts_info(self) -> Optional[DatasetPartsInfo]:
+        pass
 
     @abstractmethod
     def total_tasks(self) -> int:

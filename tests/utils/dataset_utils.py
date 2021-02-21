@@ -232,6 +232,7 @@ class TestDatasetInfo(DisablePyTestCollectionMixin):
                                           filenames=basename_files)
 
         dsid = DatasetId.now(name='dsid:' + basepath)
+        # noinspection PyTypeChecker
         ds = DatasetInfo(id=dsid,
                          basepath=basepath,
                          total_parts=parts,

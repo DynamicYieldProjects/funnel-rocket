@@ -2,7 +2,7 @@ import logging
 from enum import auto
 from datetime import datetime, timezone
 from typing import Optional, List, Dict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from frocket.common.serializable import SerializableDataClass, AutoNamedEnum, api_public_field
 
 logger = logging.getLogger(__name__)
@@ -47,8 +47,8 @@ class DatasetPartsInfo(SerializableDataClass):
     naming_method: PartNamingMethod
     total_parts: int
     total_size: int
-    running_number_pattern: Optional[str]
-    filenames: Optional[List[str]]
+    running_number_pattern: Optional[str] = field(default=None)
+    filenames: Optional[List[str]] = field(default=None)
 
     def fullpaths(self, parent: DatasetInfo) -> List[str]:
         parentpath = parent.basepath if parent.basepath.endswith('/') else parent.basepath + '/'

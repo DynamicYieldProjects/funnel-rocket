@@ -123,11 +123,52 @@ class BaseApiResult(SerializableDataClass):
 
 
 @dataclass(frozen=True)
+class JobDatasetStats(SerializableDataClass):
+    total_size: int
+    parts: int
+    # TODO total groups & known are known only registration goes through all parts, OR
+    #  when no pushdown predicate filter is applied (see invoker stats)
+
+
+@dataclass(frozen=True)
+class JobInvokerStats(SerializableDataClass):
+    enqueue_time: float
+    poll_time: float
+    total_tasks: int
+    failed_tasks: int
+    task_success_over_time: Dict[float, int]  # Non-cumulative
+    # TODO lost_task_retries: int
+
+
+TimingStats = Dict[str, float]
+
+
+@dataclass(frozen=True)
+class JobWorkerStats(SerializableDataClass):
+    cold_tasks: int
+    warm_tasks: int
+    invoke_latency: TimingStats
+    load_time: TimingStats
+    total_time: TimingStats
+    scanned_rows: int
+    scanned_groups: int
+    cache: Dict[str, int]
+    # TODO loaded_column_types: Dict[str, int]  # e.g. int, float, string (and string:categorical!)
+
+
+@dataclass(frozen=True)
+class JobStats(SerializableDataClass):
+    total_time: Optional[float] = field(default=None)
+    invoker: Optional[JobInvokerStats] = field(default=None)
+    worker: Optional[JobWorkerStats] = field(default=None)
+    dataset: Optional[JobDatasetStats] = field(default=None)
+    cost: Optional[float] = field(default=None)
+
+
+@dataclass(frozen=True)
 class BaseJobResult(BaseApiResult):
     request_id: str = field(metadata=API_PUBLIC_METADATA)
-    task_counters: Dict[str, int]
-    metrics: List[MetricData]
-    cost: Optional[float]
+    stats: JobStats = field(metadata=API_PUBLIC_METADATA)
 
 
 # Final status of a job run & all its task attempts

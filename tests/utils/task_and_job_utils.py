@@ -5,7 +5,7 @@ from frocket.common.dataset import DatasetInfo, DatasetPartsInfo, DatasetShortSc
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.common.metrics import MetricsBag, ComponentLabel
 from frocket.common.tasks.base import BaseTaskRequest, BaseTaskResult, BaseJobResult, TaskStatus, TaskAttemptsInfo, \
-    JobStatus, TaskAttemptId
+    JobStatus, TaskAttemptId, JobStats
 from frocket.common.tasks.query import QueryTaskResult, QueryTaskRequest, QueryJobResult
 from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationTaskResult, RegistrationJobResult, \
     DatasetValidationMode, REGISTER_DEFAULT_FILENAME_PATTERN, RegisterArgs
@@ -114,7 +114,7 @@ class InprocessInvokerAndWorker:
             request_id=self._job.request_id,
             success=self._final_job_status.success,
             error_message=self._final_job_status.error_message,
-            task_counters={}, metrics=[], cost=None). \
+            stats=JobStats()). \
             shallowdict(include_none=True)
 
         job_result = self._job.build_result(base_attributes, self._final_job_status, self._latest_task_results)
