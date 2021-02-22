@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 TASK_COMPLETION_GRANULARITY_SECONDS = 0.25
 TIMING_PERCENTILES = [float(pct) for pct in config.get('stats.timing.percentiles').split(',')]
+MIN_METRICS_FOR_PERCENTILES = 20
+MIN_METRICS_FOR_99_PERCENTILE = 100
 TIMING_DESCRIBE_KEYS = ['min', 'mean', 'max'] + [f"{int(pct*100)}%" for pct in TIMING_PERCENTILES]
 
 
@@ -29,39 +31,39 @@ def build_stats(frame: MetricsFrame, parts_info: DatasetPartsInfo = None) -> Job
         ds_stats = None
 
     # Invoker stats
-    worker_df = _filter_by_label(df, ComponentLabel.WORKER)
-    total_tasks = _count_tasks(worker_df)
-    success_worker_df = _filter_by_success(worker_df)
+    all_task_rows_df = _filter_by_label(df, ComponentLabel.WORKER)
+    successful_task_rows_df = _filter_by_success(all_task_rows_df)
+    total_tasks = _count_tasks(all_task_rows_df)
+    failed_tasks = total_tasks - _count_tasks(successful_task_rows_df)
+
     invoker_stats = JobInvokerStats(
-        enqueue_time=_sum(df, MetricName.ASYNC_ENQUEUE_SECONDS, single_value=True),
-        poll_time=_sum(df, MetricName.ASYNC_POLL_SECONDS, single_value=True),
+        enqueue_time=_sum_value(df, MetricName.ASYNC_ENQUEUE_SECONDS, single_value=True),
+        poll_time=_sum_value(df, MetricName.ASYNC_POLL_SECONDS, single_value=True),
         total_tasks=total_tasks,
-        failed_tasks=total_tasks - _count_tasks(success_worker_df),
-        task_success_over_time=_task_success_over_time(success_worker_df)
+        failed_tasks=failed_tasks,
+        task_success_over_time=_task_success_over_time(successful_task_rows_df)
         # TODO later add: lost_task_retries
     )
 
     # Worker stats
     worker_stats = JobWorkerStats(
-        cold_tasks=_count_tasks(_filter_by_label(success_worker_df, WorkerStartupLabel.COLD)),
-        warm_tasks=_count_tasks(_filter_by_label(success_worker_df, WorkerStartupLabel.WARM)),
-        scanned_rows=int(_sum(success_worker_df, MetricName.SCANNED_ROWS)),
-        scanned_groups=int(_sum(success_worker_df, MetricName.SCANNED_GROUPS)),
-        cache=_cache_performance(success_worker_df),
-        invoke_latency=_timing_stats(success_worker_df, MetricName.INVOKE_TO_RUN_SECONDS),
-        load_time=_timing_stats(success_worker_df, MetricName.TASK_TOTAL_LOAD_SECONDS),
-        total_time=_timing_stats(success_worker_df, MetricName.TASK_TOTAL_RUN_SECONDS)
+        cold_tasks=_count_tasks(_filter_by_label(successful_task_rows_df, WorkerStartupLabel.COLD)),
+        warm_tasks=_count_tasks(_filter_by_label(successful_task_rows_df, WorkerStartupLabel.WARM)),
+        scanned_rows=_sum_value(successful_task_rows_df, MetricName.SCANNED_ROWS, as_int=True),
+        scanned_groups=_sum_value(successful_task_rows_df, MetricName.SCANNED_GROUPS, as_int=True),
+        cache=_cache_performance(successful_task_rows_df),
+        invoke_latency=_timing_stats(successful_task_rows_df, MetricName.INVOKE_TO_RUN_SECONDS),
+        load_time=_timing_stats(successful_task_rows_df, MetricName.TASK_TOTAL_LOAD_SECONDS),
+        total_time=_timing_stats(successful_task_rows_df, MetricName.TASK_TOTAL_RUN_SECONDS)
         # TODO later add: loaded_column_types
     )
 
     job_stats = JobStats(
-        total_time=_sum(df, MetricName.INVOKER_TOTAL_SECONDS, single_value=True),
+        total_time=_sum_value(df, MetricName.INVOKER_TOTAL_SECONDS, single_value=True),
         cost=_total_cost(df),
         dataset=ds_stats,
         invoker=invoker_stats,
         worker=worker_stats)
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug(job_stats.to_json(indent=2))
     return job_stats
 
 
@@ -81,11 +83,17 @@ def _cache_performance(task_rows_df: DataFrame) -> Dict[str, int]:
     }
 
 
-def _sum(df: DataFrame, metric: MetricName, single_value: bool = False) -> Optional[float]:
+def _sum_value(df: DataFrame, metric: MetricName,
+               single_value: bool = False,
+               as_int: bool = False) -> Union[float, int, None]:
     df = _filter_by_metrics(df, metric)
     if single_value:
         assert len(df) <= 1
-    return float(df[METRIC_VALUE_COLUMN].sum()) if not df.empty else None
+    if df.empty:
+        return None
+    else:
+        values_sum = df[METRIC_VALUE_COLUMN].sum()
+        return int(values_sum) if as_int else float(values_sum)
 
 
 def _count(df: DataFrame, metric: MetricName) -> int:
@@ -93,8 +101,15 @@ def _count(df: DataFrame, metric: MetricName) -> int:
 
 
 def _timing_stats(task_rows_df: DataFrame, metric: MetricName) -> TimingStats:
-    raw_stats = _filter_by_metrics(task_rows_df, metric)[METRIC_VALUE_COLUMN].\
-        describe(percentiles=TIMING_PERCENTILES).to_dict()
+    values_df = _filter_by_metrics(task_rows_df, metric)[METRIC_VALUE_COLUMN]
+    if len(values_df) < MIN_METRICS_FOR_PERCENTILES:
+        percentiles = [0.5]
+    else:
+        percentiles = TIMING_PERCENTILES
+        if len(values_df) < MIN_METRICS_FOR_99_PERCENTILE:
+            percentiles = [pct for pct in percentiles if pct < 0.99]
+
+    raw_stats = values_df.describe(percentiles=percentiles).to_dict()
     return {k: v for k, v in raw_stats.items() if k in TIMING_DESCRIBE_KEYS}
 
 

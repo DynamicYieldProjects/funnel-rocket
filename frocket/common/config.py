@@ -53,7 +53,7 @@ DEFAULTS = {
     "apiserver.stream.write.interval.ms": "250",
     "validation.sample.max": "10",
     "validation.sample.ratio": "0.1",
-    "unregister.last.used.interval": "10",  # TODO comment out & doc - default is invoker.run.timeout * 2
+    "unregister.last.used.interval": "30",  # TODO comment out & doc - default is invoker.run.timeout * 2
     "aggregations.top.default.count": "10",
     "aggregations.top.grace.factor": "2.0",
     "aws.endpoint.url": "",

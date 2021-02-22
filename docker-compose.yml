@@ -45,6 +45,7 @@ services:
       - FROCKET_S3_AWS_ENDPOINT_URL=http://mock-s3:9000
       - FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
       - FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
+      - AWS_REGION=us-east-1
     depends_on:
       - redis
       - mock-s3

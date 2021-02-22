@@ -26,12 +26,9 @@ class MetricsFrame:
     def __init__(self, source_and_metrics: List[SourceAndMetricTuple]):
         self._sources = [ms.source for ms in source_and_metrics]
         self._metrics = [ms.metric for ms in source_and_metrics]
-        self._df = None
+        self._build_df()
 
     def _build_df(self):
-        if self._df is not None:
-            return
-
         metric_source_column = self._sources
         metric_name_column = [m.name.name for m in self._metrics]
         metric_value_column = [m.value for m in self._metrics]
@@ -49,12 +46,9 @@ class MetricsFrame:
                       METRIC_VALUE_COLUMN: metric_value_column,
                       **label_columns}
         self._df = pd.DataFrame(data=df_columns)
+        # logger.debug(f"Types: {self._df.dtypes.index.tolist()}, data:\n{self._df}")  # If needed
 
     def export(self) -> None:
-        if logger.isEnabledFor(logging.DEBUG):
-            self._build_df()
-            logger.debug(f"Types: {self._df.dtypes.index.tolist()}, data:\n{self._df}")
-
         if EXPORT_LASTRUN_FILE:
             self._to_lastrun_file(EXPORT_LASTRUN_FILE)
         if EXPORT_TO_PROMETHEUS:
@@ -64,7 +58,6 @@ class MetricsFrame:
         prom_adapter.update(self._metrics)
 
     def _to_lastrun_file(self, filename: str) -> None:
-        self._build_df()
         if filename.lower().endswith('.parquet'):
             self._df.to_parquet(filename, index=False)
         else:
