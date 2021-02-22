@@ -7,7 +7,6 @@ FROM lambci/lambda:python${PYTHON_VERSION}
 WORKDIR /var/task
 COPY ./setup.py .
 COPY ./requirements.txt .
-COPY ./frocket frocket
 # Lambda layer(s) (useful for holding all big & infrequently changing dependencies)
 # should be located under /opt, which is only writable by root.
 # Don't install boto3/botocore, which is vendored by AWS in its most appropriate version
@@ -21,6 +20,7 @@ RUN rm /opt/python/pyarrow/*flight*.so* \
     setup.py requirements.txt lambda_requirements.txt
 # Go back to user & workdir of base image
 USER ${RUN_USER}
+COPY ./frocket /var/task/frocket
 WORKDIR /
 ENV DOCKER_LAMBDA_STAY_OPEN=1 \
     AWS_LAMBDA_FUNCTION_NAME=frocket \

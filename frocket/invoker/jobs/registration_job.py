@@ -98,6 +98,9 @@ class RegistrationJob(Job):
             logger.debug(f"Parts chosen to be sampled: {result}")
         return result
 
+    def parts_info(self):
+        return self._parts_info
+
     def total_tasks(self):
         return len(self._sampled_parts)
 

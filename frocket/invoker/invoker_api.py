@@ -7,7 +7,6 @@ from frocket.common.dataset import DatasetInfo, DatasetShortSchema, DatasetSchem
 from frocket.common.tasks.registration import RegistrationJobResult, RegisterArgs, UnregisterApiResult
 from frocket.common.tasks.query import QueryJobResult
 from frocket.common.tasks.async_tracker import AsyncJobTracker, AsyncJobStatusUpdater
-from frocket.common.helpers.utils import memoize
 from frocket.common.validation.query_validator import QueryValidator
 from frocket.common.validation.result import QueryValidationResult
 from frocket.datastore.registered_datastores import get_datastore

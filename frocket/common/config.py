@@ -2,15 +2,11 @@ import os
 import logging
 import sys
 from typing import Dict
-
-#
-# TODO use a "real" config package? (but Config42 was too much trouble...)
-#  None behavior?
-#
 import botocore
 
-ENV_CONFIG_PREFIX = "FROCKET"
+# TODO Switch to a "real" config package, standardize behavior on none/empty values
 
+ENV_CONFIG_PREFIX = "FROCKET"
 DEFAULTS = {
     "datastore": "redis",
     "blobstore": "redis",  # TODO doc optional separate redis config of any property
@@ -48,6 +44,7 @@ DEFAULTS = {
     "metrics.buckets.groups": "100, 1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 500_000_000",
     "metrics.buckets.rows":   "100, 1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 500_000_000",
     "worker.disk.cache.size.mb": "256",  # TODO document: 0 means no caching
+    "stats.timing.percentiles": "0.25, 0.5, 0.75, 0.95, 0.99",
     "log.file": "",
     "log.level": "info",
     "log.format": "%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -56,7 +53,7 @@ DEFAULTS = {
     "apiserver.stream.write.interval.ms": "250",
     "validation.sample.max": "10",
     "validation.sample.ratio": "0.1",
-    "unregister.last.used.interval": "10",  # TODO comment out & doc - default is invoker.run.timeout * 2
+    "unregister.last.used.interval": "30",  # TODO comment out & doc - default is invoker.run.timeout * 2
     "aggregations.top.default.count": "10",
     "aggregations.top.grace.factor": "2.0",
     "aws.endpoint.url": "",

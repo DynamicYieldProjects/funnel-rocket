@@ -18,19 +18,20 @@ RUN rm ./packages/pyarrow/*flight*.so* \
     find ./packages -type d -name include | xargs rm -rf && \
     find ./packages/botocore/data -type d -mindepth 1 -maxdepth 1 | \
     grep -vE 's3|lambda' | xargs rm -rf
-# Copy and install funnel-rocket itself only after seldom-chanding dependencies are done, for better caching
-COPY ./setup.py .
-COPY ./frocket frocket
-RUN pip install --no-cache-dir --no-compile --no-deps . -t ./packages
 
-# Copy the pruned packages to the final image.
-# This image is based on 'base' again, so it doesn't carry over intermediate fat layers from package-install image
+# This image is based on 'base' again, so it doesn't carry over intermediate fat layers from package-install image.
+# It copies over only the pruned packages to the final image.
 FROM base
 WORKDIR /app
-COPY --from=package-install /app/packages packages
 COPY ./docker/entrypoint.sh .
 RUN chmod +x ./entrypoint.sh
 RUN useradd -ms /bin/bash frocket
+COPY --from=package-install /app/packages packages
+# The most frequently-changing files (the source code itself) is installed last, so previous layers are unaffected
+COPY ./requirements.txt .
+COPY ./setup.py .
+COPY ./frocket frocket
+RUN pip install --no-cache-dir --no-compile --no-deps . -t ./packages
 USER frocket
 ENV PYTHONPATH=/app/packages
 ENTRYPOINT ["./entrypoint.sh"]

@@ -12,6 +12,7 @@ from frocket.common.config import config
 # TODO Later: also inject actual invoke time of this task (rather than when invocation of all job's tasks started)
 # TODO handle throttling, consider response codes
 
+config.init_logging()
 logger = logging.getLogger(__name__)
 DEBUG_PRINT_PAYLOADS = config.bool("invoker.lambda.debug.payload")
 LEGACY_INVOKE_ASYNC = config.bool("invoker.lambda.legacy.async")

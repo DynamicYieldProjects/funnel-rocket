@@ -1,11 +1,9 @@
 import time
-from typing import List, Optional, Set, cast
+from typing import List, cast
 from frocket.common.config import config
 from frocket.common.dataset import DatasetInfo, DatasetPartId, DatasetPartsInfo, DatasetShortSchema
 from frocket.common.metrics import JobTypeLabel, DATASET_LABEL
-from frocket.common.tasks.base import BaseTaskRequest, JobStatus, BaseTaskResult, BaseJobResult
-from frocket.common.tasks.query import PartSelectionMode, QueryTaskRequest, QueryTaskResult, QueryJobResult, \
-    QueryResult
+from frocket.common.tasks.query import PartSelectionMode, QueryTaskRequest, QueryTaskResult, QueryJobResult, QueryResult
 from frocket.invoker.jobs.job import Job
 
 
@@ -14,6 +12,7 @@ class QueryJob(Job):
                  short_schema: DatasetShortSchema, query: dict, used_columns: List[str],
                  worker_can_select_part: bool = None):
         self._dataset = dataset
+        self._parts = parts
         self._query = query
         self._used_columns = used_columns
         self._paths = parts.fullpaths(parent=dataset)
@@ -28,10 +27,13 @@ class QueryJob(Job):
             DATASET_LABEL: self._dataset.id.name
         }
 
-    def total_tasks(self) -> int:
+    def parts_info(self):
+        return self._parts
+
+    def total_tasks(self):
         return len(self._paths)
 
-    def build_tasks(self) -> List[BaseTaskRequest]:
+    def build_tasks(self):
         if self._worker_can_select_part:
             mode = PartSelectionMode.SELECTED_BY_WORKER
         else:
@@ -40,7 +42,7 @@ class QueryJob(Job):
         requests = [self._build_task(mode, i) for i in range(self.total_tasks())]
         return requests
 
-    def dataset_parts_to_publish(self) -> Optional[Set[DatasetPartId]]:
+    def dataset_parts_to_publish(self):
         if self._worker_can_select_part:
             parts_to_publish = {DatasetPartId(self._dataset.id, path, part_index)
                                 for part_index, path in enumerate(self._paths)}
@@ -48,7 +50,7 @@ class QueryJob(Job):
         else:
             return None
 
-    def build_retry_task(self, attempt_no: int, task_index: int) -> BaseTaskRequest:
+    def build_retry_task(self, attempt_no, task_index):
         return self._build_task(PartSelectionMode.SET_BY_INVOKER,
                                 part_index=task_index,
                                 attempt_no=attempt_no)
@@ -79,9 +81,7 @@ class QueryJob(Job):
             used_columns=self._used_columns)
         return request
 
-    def build_result(self, base_attributes: dict,
-                     final_status: JobStatus,
-                     latest_task_results: List[BaseTaskResult]) -> BaseJobResult:
+    def build_result(self, base_attributes, final_status, latest_task_results):
         aggregated_query_result = None
         # Only if query was successful, aggregate query results (for each task - from a single successful attempt)
         if final_status.success:
