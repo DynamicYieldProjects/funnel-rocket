@@ -120,7 +120,7 @@ def test_multipass():
 @pytest.mark.skipif(SKIP_SLOW_TESTS, reason="Skipping slow tests")
 def test_many_runs():
     iterations = 50
-    max_avg_iteration_time = 0.02
+    max_avg_iteration_time = 0.03
     max_total_time = max_avg_iteration_time * iterations
 
     q = query_clone()

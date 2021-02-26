@@ -7,7 +7,7 @@ from frocket.common.config import config
 from frocket.common.dataset import DatasetInfo
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.common.tasks.async_tracker import AsyncJobTracker, AsyncJobStage
-from frocket.common.tasks.base import BaseJobResult, TaskStatus, BaseApiResult, JobStats
+from frocket.common.tasks.base import BaseJobResult, TaskStatus, JobStats
 from frocket.common.tasks.query import QueryJobResult
 from frocket.common.tasks.registration import RegisterArgs, DatasetValidationMode, REGISTER_DEFAULT_VALIDATION_MODE, \
     REGISTER_DEFAULT_VALIDATE_UNIQUES, RegistrationJobResult
@@ -18,7 +18,7 @@ from tests.utils.base_test_utils import SKIP_LOCAL_LAMBDA_TESTS
 from tests.utils.dataset_utils import TestDatasetInfo, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, TestColumn, \
     BASE_TIME, DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT, new_test_dataset
 # noinspection PyUnresolvedReferences
-from tests.utils.redis_fixture import init_redis
+from tests.utils.redis_fixture import init_test_redis_settings
 
 # TODO skip this whole module if no docker env/processes running - using a class?
 # TODO test query/register timeout (sync/async)

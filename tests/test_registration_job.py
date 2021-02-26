@@ -15,7 +15,7 @@ from frocket.datastore.registered_datastores import get_datastore, get_blobstore
 from frocket.invoker.jobs.registration_job import VALIDATION_MAX_SAMPLES, \
     VALIDATION_SAMPLE_RATIO, CATEGORICAL_TOP_COUNT
 # noinspection PyUnresolvedReferences
-from tests.utils.redis_fixture import init_redis
+from tests.utils.redis_fixture import init_test_redis_settings
 
 
 # TODO create dataset and tear it down nicer

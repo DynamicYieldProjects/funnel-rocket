@@ -4,7 +4,6 @@ import sys
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from typing import Any
-
 from tabulate import tabulate
 from frocket.common.config import config
 from frocket.common.serializable import SerializableDataClass

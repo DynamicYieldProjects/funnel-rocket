@@ -4,7 +4,7 @@ from frocket.common.tasks.registration import DatasetValidationMode, REGISTER_DE
     REGISTER_DEFAULT_FILENAME_PATTERN, REGISTER_DEFAULT_VALIDATE_UNIQUES
 
 REGISTER_VALIDATION_MODE_CHOICES = [e.value.lower() for e in DatasetValidationMode]
-LOG_LEVEL_CHOICES = ['debug', 'info', 'warning', 'error']
+LOG_LEVEL_CHOICES = ['debug', 'info', 'warning', 'error', 'critical']
 LOG_LINE_PREFIX = '[Log '
 LOG_FORMAT = LOG_LINE_PREFIX + '%(levelname)s %(name)s] %(message)s'
 
@@ -15,7 +15,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--notrim', action='store_true', help='Don\'t trim any text')
     parser.add_argument('--nocolor', action='store_true', help='Don\'t trim colorize any text')
     parser.add_argument('--nopretty', action='store_true', help='Don\'t pretty-print the response')
-    parser.add_argument('--loglevel', type=str, choices=LOG_LEVEL_CHOICES, help=f'Set log level {LOG_LEVEL_CHOICES}')
+    parser.add_argument('--loglevel', type=str.lower, choices=LOG_LEVEL_CHOICES,
+                        help=f'Set log level {LOG_LEVEL_CHOICES}')
     subparsers = parser.add_subparsers(dest='command', title='commands')
     subparsers.required = True
 
@@ -35,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
              'with or without sub-second resoluton based on your needs, either as int or float.')
     register_parser.add_argument('--pattern', type=str, default=REGISTER_DEFAULT_FILENAME_PATTERN,
                                  help='Filename pattern. Sub-directories are currently not supported.')
-    register_parser.add_argument('--validation', type=str,
+    register_parser.add_argument('--validation', type=str.lower,
                                  choices=REGISTER_VALIDATION_MODE_CHOICES,
                                  default=REGISTER_DEFAULT_VALIDATION_MODE.value.lower(),
                                  help=f"Validation mode to use {REGISTER_VALIDATION_MODE_CHOICES}",
@@ -72,7 +73,6 @@ def build_parser() -> argparse.ArgumentParser:
 def run_from_args(args: argparse.Namespace):
     config['log.format'] = LOG_FORMAT if args.nocolor else f"\033[33m{LOG_FORMAT}\033[0m"
     if args.loglevel:
-        print("Setting log level:", args.loglevel)
         config['log.level'] = args.loglevel
     config.init_logging(force_console_output=True)
 

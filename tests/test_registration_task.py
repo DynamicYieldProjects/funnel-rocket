@@ -17,7 +17,7 @@ from tests.utils.base_test_utils import TEMP_DIR, temp_filename
 # noinspection PyUnresolvedReferences
 from tests.utils.dataset_utils import datafile
 # noinspection PyUnresolvedReferences
-from tests.utils.redis_fixture import init_redis
+from tests.utils.redis_fixture import init_test_redis_settings
 
 
 def run_task(datafile: str,
