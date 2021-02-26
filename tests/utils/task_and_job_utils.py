@@ -21,7 +21,7 @@ from frocket.worker.runners.part_loader import PartLoader
 from frocket.worker.runners.registered_runners import REGISTERED_RUNNERS
 from tests.utils.dataset_utils import DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, TestDatasetInfo
 # noinspection PyUnresolvedReferences
-from tests.utils.redis_fixture import init_redis
+from tests.utils.redis_fixture import init_test_redis_settings
 
 
 def simple_run_task(req: BaseTaskRequest,

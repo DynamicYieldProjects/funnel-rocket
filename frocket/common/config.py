@@ -116,6 +116,10 @@ class ConfigDict(Dict[str, str]):
             config['signature_version'] = botocore.UNSIGNED
         return config
 
+    @staticmethod
+    def to_env_variable(key: str) -> str:
+        return ENV_CONFIG_PREFIX + '_' + key.replace('.', '_').upper()
+
     @property
     def loglevel(self) -> int:
         configured_level_name = self.get('log.level').upper()
