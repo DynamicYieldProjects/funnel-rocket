@@ -170,10 +170,10 @@ class ApiDatasetInfo:
         assert sum(stats.invoker.task_success_over_time.values()) == expected_total_tasks
         assert stats.worker.cold_tasks + stats.worker.warm_tasks == expected_total_tasks
         assert sum(stats.worker.cache.values()) == expected_total_tasks
-        # Timing (0.5 is a low number for sanity, so CI tests aren't flaky)
+        # Timing (0.5 / 0.25 are low numbers for sanity, so CI tests aren't flaky)
         assert total_time >= stats.total_time >= (total_time * 0.5)
         assert total_time >= (stats.invoker.enqueue_time +
-                              stats.invoker.poll_time) >= (total_time * 0.5)
+                              stats.invoker.poll_time) >= (total_time * 0.25)
         max_key_in_completion_dict = \
             math.ceil(total_time / TASK_COMPLETION_GRANULARITY_SECONDS) * TASK_COMPLETION_GRANULARITY_SECONDS
         assert all([0 < ts <= max_key_in_completion_dict
