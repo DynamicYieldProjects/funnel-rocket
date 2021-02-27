@@ -270,6 +270,24 @@ def test_logical_or():
     assert engine_result.query.matching_group_rows == (2 ** 2) + (2 ** 5)
 
 
+def test_colum_aggregations():
+    data = test_create_data()
+    query = {
+        'conditions': [],
+        'aggregations': [
+            {
+                'column': 'category'
+            }
+        ]
+    }
+    engine_result = expand_and_run_query(df=data, query_part=query)
+    aggs = engine_result.query.aggregations
+    assert len(aggs) == 3
+    aggs_d = {agg.type:agg for agg in aggs}
+    assert aggs_d['count'].value == len(data)
+    assert aggs_d['countPerValue'].value == {cat:15 for cat in CATEGORIES}
+    assert aggs_d['groupsPerValue'].value == {cat: 4 for cat in CATEGORIES}
+
 def test_multi_filter_simple():
     data = test_create_data()
     query = {
