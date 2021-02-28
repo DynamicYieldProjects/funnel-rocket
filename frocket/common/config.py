@@ -2,6 +2,8 @@ import os
 import logging
 import sys
 from typing import Dict
+
+import boto3
 import botocore
 
 # TODO Switch to a "real" config package, standardize behavior on none/empty values
@@ -59,7 +61,11 @@ DEFAULTS = {
     "aws.endpoint.url": "",
     "aws.access.key.id": "",
     "aws_secret_access_key": "",
-    "aws.nosign": False
+    "aws.no.signature": "false",
+    "lambda.aws.max.pool.connections": "50",
+    "lambda.aws.connect.timeout": "3",
+    "lambda.aws.read.timeout": "3",
+    "lambda.aws.retries.max.attempts": "3"
 }
 
 
@@ -76,8 +82,11 @@ class ConfigDict(Dict[str, str]):
                 clean_key = key.replace(prefix + '_', '').replace('_', '.').lower()
                 self[clean_key] = value
 
+    def _value_is_true(self, v: str = None) -> bool:
+        return v and v.strip().lower() == 'true'
+
     def bool(self, key: str) -> bool:
-        return self.get(key).strip().lower() == 'true'
+        return self._value_is_true(self.get(key))
 
     def int(self, key) -> int:
         return int(self.get(key))
@@ -108,12 +117,21 @@ class ConfigDict(Dict[str, str]):
                     for aws_key, config_key in aws_to_config_keys.items()}
         return settings
 
-    def aws_config_kws(self, service: str = None) -> dict:
-        val = self._get_for_service('aws.nosign', service)
-        no_sign_requests = val and val.lower() == 'true'
-        config = {}
-        if no_sign_requests:
-            config['signature_version'] = botocore.UNSIGNED
+    def aws_config_dict(self, service: str = None) -> dict:
+        max_pool_connections = self._get_for_service('aws.max.pool.connections', service) or None
+        connect_timeout = self._get_for_service('aws.connect.timeout', service) or None
+        read_timeout = self._get_for_service('aws.read.timeout', service) or None
+        max_retries = self._get_for_service('aws.retries.max.attempts', service) or None
+        no_sign_requests = self._value_is_true(self._get_for_service('aws.no.signature', service))
+
+        config = {
+            'max_pool_connections': int(max_pool_connections) if max_pool_connections else None,
+            'connect_timeout': int(connect_timeout) if connect_timeout else None,
+            'read_timeout': int(read_timeout) if read_timeout else None,
+            'retries': {'max_attempts': int(max_retries)} if max_retries else None,
+            'signature_version': botocore.UNSIGNED if no_sign_requests else None
+        }
+        config = {k: v for k, v in config.items() if v is not None}
         return config
 
     @staticmethod
@@ -147,6 +165,10 @@ class ConfigDict(Dict[str, str]):
                 logging.basicConfig(filename=use_filename, **base_args)
             else:
                 logging.basicConfig(stream=sys.stdout, **base_args)
+
+            # boto<X> can be pretty chatty, so only report warnings (e.g. connection pool pressure) and above
+            for package_prefix in ['botocore', 'boto3', 'urllib3']:
+                boto3.set_stream_logger(name=package_prefix, level=logging.WARNING)
             self._log_initialized = True
 
 

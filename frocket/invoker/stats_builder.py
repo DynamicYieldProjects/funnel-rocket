@@ -110,7 +110,8 @@ def _timing_stats(task_rows_df: DataFrame, metric: MetricName) -> TimingStats:
             percentiles = [pct for pct in percentiles if pct < 0.99]
 
     raw_stats = values_df.describe(percentiles=percentiles).to_dict()
-    return {k: v for k, v in raw_stats.items() if k in TIMING_DESCRIBE_KEYS}
+    return {k: v for k, v in raw_stats.items()
+            if k in TIMING_DESCRIBE_KEYS and not np.isnan(v)}
 
 
 def _filter_by_metrics(df: DataFrame, metrics: Union[MetricName, List[MetricName]]) -> DataFrame:
