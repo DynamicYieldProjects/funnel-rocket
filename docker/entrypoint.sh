@@ -5,8 +5,10 @@ case "$1" in
     python -m frocket.worker.impl.queue_worker
     ;;
   apiserver)
-    echo "Starting Funnel Rocket API server"
-    FLASK_APP=frocket.apiserver python -m flask run --host=0.0.0.0
+    PORT=${APISERVER_PORT:-5000}
+    NUM_WORKERS=${APISERVER_NUM_WORKERS:-8}
+    echo "Starting Funnel Rocket API server with $NUM_WORKERS workers on port $PORT"
+    python -m gunicorn.app.wsgiapp frocket.apiserver:app --bind=0.0.0.0:$PORT --workers=$NUM_WORKERS
     ;;
   *)
     echo "Invalid command supplied"

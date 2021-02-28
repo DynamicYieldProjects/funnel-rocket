@@ -59,6 +59,7 @@ services:
     ports:
       - 5000:5000
     environment:
+      - APISERVER_NUM_WORKERS=2
       - FROCKET_REDIS_HOST=redis
       - FROCKET_REDIS_PORT=6380
       - FROCKET_S3_AWS_ENDPOINT_URL=http://mock-s3:9000

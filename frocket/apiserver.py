@@ -1,7 +1,5 @@
 import logging
-import os
-from pathlib import Path
-from typing import Type, Callable
+from typing import Type, Callable, cast
 import flask
 from flask import Flask, request, jsonify, Response, stream_with_context, json, make_response
 from prometheus_client.exposition import make_wsgi_app
@@ -99,54 +97,12 @@ def make_api_response(result: BaseApiResult) -> flask.Response:
     return make_response(jsonify(result.to_api_response_dict(PUBLIC_MODE)), status_code)
 
 
-@app.route('/datasets')
-def list_datasets():
-    datasets = [ds.to_api_response_dict(public_fields_only=PUBLIC_MODE)
-                for ds in invoker_api.list_datasets()]
-    return jsonify(datasets)
-
-
-@app.route('/datasets/<dataset_name>/schema')
-def get_dataset_schema(dataset_name: str):
-    dataset = get_dataset_or_fail(dataset_name)
-    want_full_schema = bool_request_arg('full')
-    schema = invoker_api.get_dataset_schema(dataset, full=want_full_schema)
-    return jsonify(schema.to_api_response_dict(PUBLIC_MODE))
-
-
-@app.route('/datasets/<dataset_name>/parts')
-def get_dataset_parts(dataset_name: str):
-    fail_if_public()
-    dataset = get_dataset_or_fail(dataset_name)
-    parts = invoker_api.get_dataset_parts(dataset)
-    return jsonify(parts.to_api_response_dict(PUBLIC_MODE))
-
-
 def bool_request_arg(name: str, default: bool = False) -> bool:
     v = request.args.get(name, None)
     if v is None:
         return default
     else:
         return v.strip().lower() == "true"
-
-
-def do_run_query(dataset_name: str, query: dict, should_stream: bool = False) -> Response:
-    dataset = get_dataset_or_fail(dataset_name)
-    validation_result = invoker_api.expand_and_validate_query(dataset, query)
-    if not validation_result.success:
-        is_public_error = validation_result.error_kind != ValidationErrorKind.UNEXPECTED
-        raise ClientFacingError(message=f"Query validation failed: {validation_result.error_message}",
-                                public_error=is_public_error)
-
-    query = validation_result.expanded_query
-    if should_stream:
-        return run_streamable(should_stream=True,
-                              async_func=lambda: invoker_api.run_query_async(dataset, query,
-                                                                             validation_result=validation_result))
-    else:
-        return run_streamable(should_stream=False,
-                              sync_func=lambda: invoker_api.run_query(dataset, query,
-                                                                      validation_result=validation_result))
 
 
 # TODO move to helper module with rest of friends...
@@ -194,37 +150,15 @@ def run_streamable(sync_func: Callable[[], BaseApiResult] = None,
         raise ClientFacingError(str(e), public_error=False)
 
 
-@app.route('/datasets/<dataset_name>/query', methods=['POST'])
-def run_query(dataset_name: str):
-    query = request.json
-    should_stream = bool_request_arg('stream')
-    return do_run_query(dataset_name, query, should_stream)
-
-
-# TODO transform to empty query when engine supports it fully
-@app.route('/datasets/<dataset_name>/example_query')
-def run_example_query(dataset_name: str):
-    query = json.load(open(Path(os.path.dirname(__file__)) / 'resources/example_query.json', 'r'))
-    should_stream = bool_request_arg('stream')
-    return do_run_query(dataset_name, query, should_stream)
-
-
-def do_register(register_args, should_stream):
-    if should_stream:
-        return run_streamable(should_stream=True,
-                              async_func=lambda: invoker_api.register_dataset_async(register_args))
-
-    else:
-        return run_streamable(should_stream=False,
-                              sync_func=lambda: invoker_api.register_dataset(register_args))
-
-
 @app.route('/datasets/register', methods=['POST'])
 def register_dataset():
     fail_if_public()
-    register_args = dataclass_from_body(request, RegisterArgs)
+    register_args = cast(RegisterArgs, dataclass_from_body(request, RegisterArgs))
     should_stream = bool_request_arg('stream')
-    return do_register(register_args, should_stream)
+    if should_stream:
+        return run_streamable(should_stream=True, async_func=lambda: invoker_api.register_dataset_async(register_args))
+    else:
+        return run_streamable(should_stream=False, sync_func=lambda: invoker_api.register_dataset(register_args))
 
 
 @app.route('/datasets/<dataset_name>/unregister', methods=['POST'])
@@ -233,3 +167,59 @@ def unregister_dataset(dataset_name: str):
     should_force = bool_request_arg('force')
     result = invoker_api.unregister_dataset(dataset_name, should_force)
     return make_api_response(result)
+
+
+@app.route('/datasets')
+def list_datasets():
+    datasets = [ds.to_api_response_dict(public_fields_only=PUBLIC_MODE)
+                for ds in invoker_api.list_datasets()]
+    return jsonify(datasets)
+
+
+@app.route('/datasets/<dataset_name>/schema')
+def get_dataset_schema(dataset_name: str):
+    dataset = get_dataset_or_fail(dataset_name)
+    want_full_schema = bool_request_arg('full')
+    schema = invoker_api.get_dataset_schema(dataset, full=want_full_schema)
+    return jsonify(schema.to_api_response_dict(PUBLIC_MODE))
+
+
+@app.route('/datasets/<dataset_name>/parts')
+def get_dataset_parts(dataset_name: str):
+    fail_if_public()
+    dataset = get_dataset_or_fail(dataset_name)
+    parts = invoker_api.get_dataset_parts(dataset)
+    return jsonify(parts.to_api_response_dict(PUBLIC_MODE))
+
+
+def do_run_query(dataset_name: str, query: dict, should_stream: bool = False) -> Response:
+    dataset = get_dataset_or_fail(dataset_name)
+    validation_result = invoker_api.expand_and_validate_query(dataset, query)
+    if not validation_result.success:
+        is_public_error = validation_result.error_kind != ValidationErrorKind.UNEXPECTED
+        raise ClientFacingError(message=f"Query validation failed: {validation_result.error_message}",
+                                public_error=is_public_error)
+
+    query = validation_result.expanded_query
+    if should_stream:
+        return run_streamable(should_stream=True,
+                              async_func=lambda:  invoker_api.run_query_async(dataset, query,
+                                                                              validation_result=validation_result))
+    else:
+        return run_streamable(should_stream=False,
+                              sync_func=lambda: invoker_api.run_query(dataset, query,
+                                                                      validation_result=validation_result))
+
+
+@app.route('/datasets/<dataset_name>/query', methods=['POST'])
+def run_query(dataset_name: str):
+    query = request.json
+    should_stream = bool_request_arg('stream')
+    return do_run_query(dataset_name, query, should_stream)
+
+
+@app.route('/datasets/<dataset_name>/empty-query')
+def run_empty_query(dataset_name: str):
+    query = {}
+    should_stream = bool_request_arg('stream')
+    return do_run_query(dataset_name, query, should_stream)
