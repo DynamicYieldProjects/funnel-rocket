@@ -180,6 +180,7 @@ class ApiDatasetInfo:
                     for ts in stats.invoker.task_success_over_time.keys()])
         # Just a most basic sanity for the TimingStats
         for timing in [stats.worker.invoke_latency, stats.worker.load_time, stats.worker.total_time]:
+            assert timing is not None
             assert all(0 < t < total_time for t in timing.values())
             assert min(timing.values()) == timing['min'] and max(timing.values()) == timing['max']
             assert timing['max'] >= timing['50%'] >= timing['min']

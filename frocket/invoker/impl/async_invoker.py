@@ -26,17 +26,20 @@ class AsyncInvoker(BaseInvoker):
 
     def _do_run(self, task_requests: List[BaseTaskRequest],
                 async_status_updater: AsyncJobStatusUpdater = None):
+        try:
+            with self._metrics.measure(MetricName.ASYNC_ENQUEUE_SECONDS):
+                if async_status_updater:
+                    async_status_updater.update(message="Enqueuing tasks")
+                self._enqueue(task_requests)
+                logger.info(f"Enqueued {len(task_requests)} tasks")
 
-        with self._metrics.measure(MetricName.ASYNC_ENQUEUE_SECONDS):
-            if async_status_updater:
-                async_status_updater.update(message="Enqueuing tasks")
-            self._enqueue(task_requests)
-            logger.info(f"Enqueued {len(task_requests)} tasks")
-
-        with self._metrics.measure(MetricName.ASYNC_POLL_SECONDS):
-            if async_status_updater:
-                async_status_updater.update(message="Polling results")
-            raw_result = self._poll(async_status_updater)
+            with self._metrics.measure(MetricName.ASYNC_POLL_SECONDS):
+                if async_status_updater:
+                    async_status_updater.update(message="Polling results")
+                raw_result = self._poll(async_status_updater)
+        except Exception as e:
+            logger.error(str(e))
+            raw_result = JobStatus(success=False, error_message=str(e), attempts_status=[])
         return raw_result
 
     @abstractmethod
