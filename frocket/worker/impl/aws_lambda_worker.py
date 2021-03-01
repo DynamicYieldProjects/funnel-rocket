@@ -8,7 +8,7 @@ from frocket.worker.runners.base_task_runner import BaseTaskRunner, TaskRunnerCo
 from frocket.common.config import config
 from frocket.worker.runners.registered_runners import REGISTERED_RUNNERS
 
-config.init_logging()
+config.init_lambda_logging()
 logger = logging.getLogger(__name__)
 # Only set for newly-run Lambda instances (warm ones go straight to the handler function)
 cold_start_flag = True
