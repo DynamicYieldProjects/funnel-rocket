@@ -43,7 +43,7 @@ class RegistrationTaskRunner(BaseTaskRunner):
         self._validate_basic_cols(df)
         self._schema = self._build_schema(df)
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug('Schema:', self._schema.to_json(indent=2))
+            logger.debug(f"Schema: {self._schema.to_json(indent=2)}")
 
         if self._req.dataset.group_id_column not in self._schema.columns or \
            self._req.dataset.timestamp_column not in self._schema.columns:

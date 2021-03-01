@@ -146,6 +146,11 @@ class ConfigDict(Dict[str, str]):
             raise Exception(f"Uknown log level: {configured_level_name}")
         return level
 
+    def _quiet_boto_logging(self):
+        # botocore/boto3 can get pretty chatty, so only report warnings (e.g. connection pool pressure) and errors
+        for package_prefix in ['botocore', 'boto3', 'urllib3']:
+            boto3.set_stream_logger(name=package_prefix, level=logging.WARNING)
+
     def init_logging(self,
                      force_level: int = None,
                      force_console_output: bool = False) -> None:
@@ -166,9 +171,17 @@ class ConfigDict(Dict[str, str]):
             else:
                 logging.basicConfig(stream=sys.stdout, **base_args)
 
-            # boto<X> can be pretty chatty, so only report warnings (e.g. connection pool pressure) and above
-            for package_prefix in ['botocore', 'boto3', 'urllib3']:
-                boto3.set_stream_logger(name=package_prefix, level=logging.WARNING)
+            self._quiet_boto_logging()
+            self._log_initialized = True
+
+    def init_lambda_logging(self):
+        """
+        Lambda Python runtime already init'ed a logger, so using basicConfig() would have no effect,
+        and our log lines would have gone into /dev/oblivion. See https://stackoverflow.com/a/56579088
+        """
+        if not self._log_initialized:
+            logging.getLogger().setLevel(self.loglevel)
+            self._quiet_boto_logging()
             self._log_initialized = True
 
 
