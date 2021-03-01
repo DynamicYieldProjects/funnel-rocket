@@ -1,3 +1,13 @@
+"""
+Classic Map/Reduce-style dataset re-partitioning utility.
+
+Given a set of input files in Parquet format and a numeric column name, shuffle all rows into the given no. of parts
+(a set of numbered files or directories). The appropriate part ID for each row is set by simple 'value % num_parts' over
+the given column value.
+
+This utility is not part of Funnel Rocket package itself. Rather, it can assist in creating datasets of limited size -
+since it only runs on a single machine. It does utilize multiple CPUs, so running on a beefy VM is an option.
+"""
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pyarrow.dataset as ds
@@ -9,38 +19,27 @@ import math
 import shutil
 from multiprocessing import Pool, cpu_count
 
-'''
-Classic Map/Reduce-style code to re-partition a set of Parquet input files,
-partitioned by the given column's values into the specified number of files. 
-'''
-
-
 MAX_PART_NUMBER_DIGITS = 5
 
 
-# Helper: get dir names for partitions, with the part number padded by zeros (e.g. 'map/part-00037')
-# (makes files nicely numerically sorted, like the old Hadoop MapReduce does)
 def get_part_path(outdir_path, i):
+    """Helper for naming parts, with part number i padded by zeros (e.g. 'map/part-00037'), which makes filenames
+    naturally sorted."""
     padded_part_number = str(i).zfill(MAX_PART_NUMBER_DIGITS)
     part_part = outdir_path / 'part-{}'.format(padded_part_number)
     return part_part
 
 
-# Helper: how many worker processes to use
 def get_worker_pool_size(num_files):
-    available_cpus = max(cpu_count() - 1, 1)  # Leave one CPU alone (if there's more than one...)
+    """Returns how many worker processes to use."""
+    available_cpus = max(cpu_count() - 1, 1)  # Leave one CPU alone, if there's more than one
     num_workers = min(available_cpus, num_files)  # No need for more workers than the actual no. of files to process
     return num_workers
 
 
-'''
-MAP PHASE
-'''
-
-
-# A single map-phase task: read one input file and map its contents into N parts, using the partition_by column
 def map_worker_task(task_id, input_file_path, outdir_path, partition_by, num_parts):
-    table = pq.read_table(input_file_path, use_threads=False)  # We're using pretty much all CPUs anyway
+    """A single mapper task: read one input file and map its contents into N parts by the partition_by column."""
+    table = pq.read_table(input_file_path, use_threads=False)  # Single-threaded, as we're using all CPUs anyway
 
     # id_mod_series will hold the appropriate part number for each row in the table
     id_series = table.column(partition_by).to_pandas()
@@ -57,37 +56,37 @@ def map_worker_task(task_id, input_file_path, outdir_path, partition_by, num_par
         output_file_path = get_part_path(outdir_path, part_number) / 'from-{}.parquet'.format(input_file_path.stem)
         pq.write_table(masked_table, output_file_path)
 
-        if part_number % 100 == 0:
-            print("Task no. {} for input file {}: written {} files so far... ".format(
-                task_id, input_file_path, part_number))
+        if part_number and part_number % 100 == 0:
+            print(f"Task no. {task_id} for input file {input_file_path}: written {part_number} files so far... ")
 
 
 def map_files(args):
-    files_list = glob.glob(args.input_files, recursive=True)
+    """Run map tasks for all input files."""
+    files_list = glob.glob(args.input, recursive=True)
     if not files_list:
-        sys.exit('No input files matching pattern {}'.format(args.input_files))
+        sys.exit(f"No input files matching pattern '{args.input}'")
 
-    map_dir_path = pathlib.Path(args.map_dir)
+    map_dir_path = pathlib.Path(args.mapdir)
     existing_files = list(map_dir_path.glob('*'))
     if len(existing_files) > 0:
         if args.force:
-            print('Recreating map output dir "{}"'.format(map_dir_path))
+            print(f"Recreating map output dir '{map_dir_path}'")
             shutil.rmtree(map_dir_path)
         else:
-            sys.exit("Map output dir '{}' is not empty (consider using the --force)".format(map_dir_path))
+            sys.exit(f"Map output dir '{map_dir_path}' is not empty (consider using the --force)")
 
     map_dir_path.mkdir(parents=True, exist_ok=True)
 
     # Create sub-directory for each part - these directories are needed by all tasks that will emit their part,
     # so create them centrally here (and not inside a task)
-    for i in range(args.num_parts):
+    for i in range(args.parts):
         part_path = get_part_path(map_dir_path, i)
         if not part_path.exists():
             part_path.mkdir()
 
     pool_size = get_worker_pool_size(len(files_list))
-    print("Input files found: {}, map output dir: {}, partitions: {}, CPUs: {}, pool size: {}".format(
-            len(files_list), map_dir_path, args.num_parts, cpu_count(), pool_size))
+    print(f"Input files found: {len(files_list)}, map output dir: {map_dir_path}, target partitions: {args.parts}, "
+          f"CPUs: {cpu_count()}, pool size: {pool_size}")
 
     # Prepare a task for each input file
     pool = Pool(pool_size)
@@ -97,38 +96,31 @@ def map_files(args):
                      pathlib.Path(input_file),
                      map_dir_path,
                      args.partition_by,
-                     args.num_parts)
+                     args.parts)
         tasks.append(pool.apply_async(map_worker_task, task_args))
 
     # Actually run all tasks to completion
     [task.get() for task in tasks]
 
     # Ensure that the expected number of output files are found
-    expected_outfiles_count = len(files_list) * args.num_parts
+    expected_outfiles_count = len(files_list) * args.parts
     outfiles_found = map_dir_path.glob('part-*/*.parquet')
     actual_outfiles_count = len(list(outfiles_found))
 
     if actual_outfiles_count != expected_outfiles_count:
-        sys.exit('Expected {} map output files, but found {}'.format(
-                    expected_outfiles_count, actual_outfiles_count))
+        sys.exit(f"Expected {expected_outfiles_count} map output files, but found {actual_outfiles_count}")
 
-    print("All done! total of {} files created".format(actual_outfiles_count))
-
-
-'''
-REDUCE PHASE
-'''
+    print(f"Map stage done, total of {actual_outfiles_count} files created")
 
 
-# Each reduce task loads all files in its assigned part number, merging it into one partition
-# Note that partitions are
 def reduce_worker_task(part_map_path, part_reduce_path, rows_per_file, sort_by):
-    # Load ALL the intermediate files generated by the map phase for this partition
+    """A single reduce task: load all intermediate map output files for its assigned part number,
+    merging all rows into one partition."""
     dataset = ds.dataset(part_map_path, format="parquet")
     table = dataset.to_table()
 
     if sort_by:
-        # Go through Pandas for sorting
+        # Go through Pandas for sorting (this is heavy and very memory-hungry)
         df = table.to_pandas()
         df.sort_values(by=sort_by, inplace=True, ignore_index=True)
         # noinspection PyArgumentList
@@ -141,7 +133,6 @@ def reduce_worker_task(part_map_path, part_reduce_path, rows_per_file, sort_by):
                 length = None  # No lenght limit (see below)
             else:
                 length = rows_per_file
-                print("In slice no. {} of partition: {}".format(slice_number, part_reduce_path))  # TODO remove
 
             offset = slice_number * rows_per_file
             curr_slice = table.slice(offset, length)
@@ -151,43 +142,41 @@ def reduce_worker_task(part_map_path, part_reduce_path, rows_per_file, sort_by):
         output_file_path = str(part_reduce_path) + '.parquet'
         pq.write_table(table, output_file_path)
 
-    # TBD validity checks...
-
 
 def reduce_files(args):
-    map_dir_path = pathlib.Path(args.map_dir)
+    """Run a reduce task for each part number in the target no. of partitions."""
+    map_dir_path = pathlib.Path(args.mapdir)
     if not map_dir_path.is_dir():
-        sys.exit('Map output dir "{}" does not exists, did you run the map phase?'.format(map_dir_path))
+        sys.exit(f"Map output dir '{map_dir_path}' does not exists, did you run the map stage?")
 
     num_part_dirs = len(list(map_dir_path.glob('part-*/')))
-    if num_part_dirs != args.num_parts:
-        sys.exit('Expected {} sub-dirs under map dir, but found {}'.format(args.num_parts, num_part_dirs))
+    if num_part_dirs != args.parts:
+        sys.exit(f"Expected {args.parts} sub-dirs under map dir, but found {num_part_dirs}")
 
-    reduce_dir_path = pathlib.Path(args.reduce_dir)
-
+    reduce_dir_path = pathlib.Path(args.reducedir)
     existing_files = list(reduce_dir_path.glob('*'))
     if len(existing_files) > 0:
         if args.force:
-            print('Recreating reduce output dir "{}"'.format(reduce_dir_path))
+            print(f"Recreating reduce output dir '{reduce_dir_path}'")
             shutil.rmtree(reduce_dir_path)
         else:
-            sys.exit("Reduce output dir '{}' is not empty (consider using the --force)".format(reduce_dir_path))
+            sys.exit(f"Reduce output dir '{reduce_dir_path}' is not empty (consider using the --force)")
 
     reduce_dir_path.mkdir(parents=True, exist_ok=True)
 
     # Create sub-directory per output part - if allowing multi-file partitions
-    if args.rows_per_file:
-        for i in range(args.num_parts):
+    if args.maxrows:
+        for i in range(args.parts):
             part_path = get_part_path(reduce_dir_path, i)
             if not part_path.exists():
                 part_path.mkdir()
 
-    # Collect the input paths: we expect an existing sub-dir generated in the map phase, per each part number
+    # Collect the input paths: we expect an existing sub-dir generated in the map stage, per each part number
     paths = []
-    for i in range(args.num_parts):
+    for i in range(args.parts):
         part_path = get_part_path(map_dir_path, i)
         if not part_path.exists():
-            sys.exit('Part path {} does not exist!'.format(part_path))
+            sys.exit(f"Part path '{part_path}' does not exist!")
         paths.append(part_path)
 
     # Prepate a task per part
@@ -195,52 +184,51 @@ def reduce_files(args):
     tasks = []
     for task_number, part_path in enumerate(paths):
         part_reduce_path = get_part_path(reduce_dir_path, task_number)
-        task_args = (part_path, part_reduce_path, args.rows_per_file, args.sort_by)
+        task_args = (part_path, part_reduce_path, args.maxrows, args.sort)
         tasks.append(pool.apply_async(reduce_worker_task, task_args))
 
     # Run all tasks to completion
     [task.get() for task in tasks]
-
-
-''' Main process '''
+    print(f"Reduce stage done, output parts are in directory: {reduce_dir_path}")
 
 
 if __name__ == '__main__':  # Don't run in worker processes
-    DEFAULT_NUM_PARTS = 256
+    DEFAULT_NUM_PARTS = 16
     DEFAULT_INPUT_FILES = './data/**/*.parquet'
     DEFAULT_MAP_DIR = './map'
     DEFAULT_REDUCE_DIR = './reduce'
 
-    parser = argparse.ArgumentParser(description='Partition Parquet files into N parts, in two phases: map & reduce')
+    parser = argparse.ArgumentParser(
+        description='Partition Parquet files into N parts in two stages: map & reduce',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('partition_by', type=str,
                         help='Numeric column to partition by (e.g. userId, experimentId, ...)')
     parser.add_argument('--action', type=str,
                         choices=['all', 'map', 'reduce'], default='all',
-                        help='Whether to run just the map or reduce phases (default: both)')
-    parser.add_argument('--input_files', type=str,
+                        help='Whether to run just the map or reduce stages')
+    parser.add_argument('--input', type=str,
                         default=DEFAULT_INPUT_FILES,
-                        help='A glob-style pattern of input files to map (default {})'.format(DEFAULT_INPUT_FILES))
-    parser.add_argument('--map_dir', type=str,
+                        help='A glob-style pattern of input files to map')
+    parser.add_argument('--mapdir', type=str,
                         default=DEFAULT_MAP_DIR,
-                        help='Root directory for map output (default {})'.format(DEFAULT_MAP_DIR))
-    parser.add_argument('--reduce_dir', type=str,
+                        help='Root directory for map output')
+    parser.add_argument('--reducedir', type=str,
                         default=DEFAULT_REDUCE_DIR,
-                        help='Root directory for reduced files (default {})'.format(DEFAULT_REDUCE_DIR))
-    parser.add_argument('--num_parts', type=int,
+                        help='Root directory for reduced files')
+    parser.add_argument('--parts', type=int,
                         default=DEFAULT_NUM_PARTS,
-                        help='number of partitions to emit (default {})'.format(DEFAULT_NUM_PARTS))
+                        help='number of partitions to emit')
     parser.add_argument('--force', default=False,
                         action='store_true',
-                        help='Whether to overwrite existing files (default: false)')
-    parser.add_argument('--rows_per_file', type=int,
-                        help='Optional: split the output files by a maximum N rows per file (control file sizes)')
-    parser.add_argument('--sort_by', type=str, nargs='+',
-                        help='List of column names to sort by in REDUCE stage, separated by spaces (default: none)')
+                        help='Whether to overwrite existing files')
+    parser.add_argument('--maxrows', type=int,
+                        help='Optionally split the output files by a maximum N rows per file, to limit file size')
+    parser.add_argument('--sort', type=str, nargs='+',
+                        help='Optional space-separated list of column names to sort by in the reduce stage. '
+                        'By default, output files are not sorted. NOTE: This is memory- and compute-intensive.')
 
     args = parser.parse_args()
-
     if args.action in ['map', 'all']:
         map_files(args)
-
     if args.action in ['reduce', 'all']:
         reduce_files(args)
