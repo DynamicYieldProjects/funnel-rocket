@@ -37,6 +37,7 @@ class AggregationType(AutoNamedEnum):
     COUNT_PER_VALUE = auto()
     GROUPS_PER_VALUE = auto()
     SUM_PER_VALUE = auto()
+    MEAN_PER_VALUE = auto()
 
     @classmethod
     def from_camelcase(cls, camelcase_name: str) -> AutoNamedEnum:
