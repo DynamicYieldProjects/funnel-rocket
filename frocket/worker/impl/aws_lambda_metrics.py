@@ -1,8 +1,6 @@
 import logging
 import math
 import re
-import sys
-
 from frocket.common.metrics import MetricName, EnvironmentMetricsProvider, MetricData
 
 logger = logging.getLogger(__name__)

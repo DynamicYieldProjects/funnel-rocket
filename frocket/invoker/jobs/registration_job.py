@@ -6,7 +6,7 @@ from typing import List, Optional, cast, Dict
 from frocket.common.config import config
 from frocket.common.dataset import DatasetInfo, DatasetPartId, DatasetPartsInfo, \
     DatasetSchema, DatasetColumnType, DatasetColumnAttributes, DatasetColumn, DatasetId
-from frocket.common.helpers.storage import discover_files
+from frocket.common.helpers.storage import storage_handler_for
 from frocket.common.metrics import JobTypeLabel, DATASET_LABEL
 from frocket.common.tasks.base import ErrorMessage
 from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationJobResult, \
@@ -68,7 +68,8 @@ class RegistrationJob(Job):
 
     @staticmethod
     def _discover_parts(basepath: str, pattern: str):
-        result = discover_files(basepath, pattern)
+        handler = storage_handler_for(basepath)
+        result = handler.discover_files(pattern)
         if result.total_parts > 0:
             logger.info(f"Number of part files: {result.total_parts}, "
                         f"total size {result.total_size / (1024 ** 2):.2f}mb")
