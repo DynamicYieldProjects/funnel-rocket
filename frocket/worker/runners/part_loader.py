@@ -6,7 +6,7 @@ from typing import List, Dict, Optional, Set, NamedTuple
 from pandas import DataFrame
 import pyarrow.parquet
 from frocket.common.config import config
-from frocket.common.helpers.storage import is_remote_path, get_local_path
+from frocket.common.helpers.storage import storage_handler_for
 from frocket.common.helpers.utils import memoize
 from frocket.common.metrics import MetricName, LoadFromLabel, MetricsBag
 from frocket.common.dataset import DatasetPartId, DatasetId
@@ -76,7 +76,8 @@ class PartLoader:
                        load_as_categoricals: List[str] = None) -> DataFrame:
         self._prune_cache()
         loaded_from: Optional[LoadFromLabel] = LoadFromLabel.SOURCE
-        is_source_remote = is_remote_path(file_id.path)
+        handler = storage_handler_for(file_id.path)
+        is_source_remote = handler.remote
 
         local_path = None
         if not is_source_remote:
@@ -90,7 +91,7 @@ class PartLoader:
 
         if not local_path:
             with metrics.measure(MetricName.TASK_DOWNLOAD_SECONDS):
-                local_path = str(get_local_path(file_id.path))
+                local_path = str(handler.get_local_path(file_id.path))
 
             entry = CacheEntry()
             entry.local_path = local_path
