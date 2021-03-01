@@ -37,7 +37,8 @@ AGGREGATION_FUNCTIONS: Dict[AggregationType, ColumnAggregatorFunc] = {
     AggregationType.COUNT: lambda df, ctx: df[ctx.column].notnull().sum().item(),
     AggregationType.COUNT_PER_VALUE: lambda df, ctx: df[ctx.column].value_counts(),
     AggregationType.GROUPS_PER_VALUE: lambda df, ctx: df.groupby(ctx.column, sort=False)[ctx.group_by_column].nunique(),
-    AggregationType.SUM_PER_VALUE: lambda df, ctx: df.groupby(ctx.column, sort=False)[ctx.other_column].sum()
+    AggregationType.SUM_PER_VALUE: lambda df, ctx: df.groupby(ctx.column, sort=False)[ctx.other_column].sum(),
+    AggregationType.MEAN_PER_VALUE: lambda df, ctx: df.groupby(ctx.column, sort=False)[ctx.other_column].mean()
 }
 
 FilterFunc = Callable[[DataFrame], Series]

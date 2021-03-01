@@ -270,7 +270,7 @@ def test_logical_or():
     assert engine_result.query.matching_group_rows == (2 ** 2) + (2 ** 5)
 
 
-def test_colum_aggregations():
+def test_column_aggregations():
     data = test_create_data()
     query = {
         'conditions': [],
@@ -287,6 +287,60 @@ def test_colum_aggregations():
     assert aggs_d['count'].value == len(data)
     assert aggs_d['countPerValue'].value == {cat: 15 for cat in CATEGORIES}
     assert aggs_d['groupsPerValue'].value == {cat: 4 for cat in CATEGORIES}
+
+
+def test_other_column_aggregations():
+    data = []
+    for i in range(10):
+        d = {
+            'id': 'a',
+            'timestamp': 1,
+            'category': 'a' if i % 2 == 0 else 'b',
+            'price': i
+        }
+        data.append(d)
+    data = pd.DataFrame(data)
+    query = {
+        'conditions': [],
+        'aggregations': [
+            {
+                'column': 'category',
+                'type': 'sumPerValue',
+                'otherColumn': 'price'
+            }
+        ]
+    }
+    engine_result = expand_and_run_query(df=data, query_part=query)
+    aggs = engine_result.query.aggregations
+    '''
+cat  price
+a      0
+b      1
+a      2
+b      3
+a      4
+b      5
+a      6
+b      7
+a      8
+b      9
+    '''
+    assert aggs[0].value['a'] == 0 + 2 + 4 + 6 + 8
+    assert aggs[0].value['b'] == 1 + 3 + 5 + 7 + 9
+    query = {
+        'conditions': [],
+        'aggregations': [
+            {
+                'column': 'category',
+                'type': 'meanPerValue',
+                'otherColumn': 'price'
+            }
+        ]
+    }
+    engine_result = expand_and_run_query(df=data, query_part=query)
+    aggs = engine_result.query.aggregations
+    assert aggs[0].value['a'] == (0 + 2 + 4 + 6 + 8) / 5
+    assert aggs[0].value['b'] == (1 + 3 + 5 + 7 + 9) / 5
 
 
 def test_multi_filter_simple():
