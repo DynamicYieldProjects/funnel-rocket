@@ -1,3 +1,13 @@
+"""
+While the query schema is generally JSON-based (good for machines) rather then textual (like SQL,
+supposedly human-friendly or at least more concise), there's one exception: an optional 'relation' expression allowing
+to specify arbitrarily complex and/or relations between conditions, rather than just and/or over all.
+
+The RelationParser class validates and breaks down the expression to a list of elements. However, it does not transform
+them back into a Pandas query or similar - that is the query engine's responsibility and may change independently.
+
+Note that conditions may be represented either by index ($0, $3, etc.) or by name - for named conditions.
+"""
 import logging
 from typing import Type, List, Optional
 from parsimonious.grammar import Grammar, NodeVisitor
@@ -12,7 +22,9 @@ from frocket.common.tasks.base import ErrorMessage
 
 logger = logging.getLogger(__name__)
 
-# TODO require whitespace between conditions and wordy-operators (and,or) though not for symbol ops (&&, ||)
+# TODO backlog fix the grammar to require whitespace between conditions and wordy-operators (and,or),
+#  but not around symbol ops (&&, ||)
+# TODO backlog fix "DeprecationWarning: invalid escape sequence \$"
 RELATION_EXPRESSION_GRAMMAR = Grammar(
     """
     expression = (identifier / (open_paren ws? expression ws? close_paren)) (ws? op ws? expression)*
@@ -86,9 +98,13 @@ class ROperator(RBaseElement):
 # noinspection PyMethodMayBeStatic,PyUnusedLocal
 @dataclass
 class RelationExpressionVisitor(NodeVisitor):
+    """
+    Used by the RelationParser to build the element list.
+    Note that while the grammar is hierarchical, the resulting list isn't (no need, currently).
+    """
     ctx: RelationParserContext
 
-    def build(self, node: Node, cls: Type[RBaseElement]):
+    def _build_element(self, node: Node, cls: Type[RBaseElement]):
         # noinspection PyArgumentList
         return cls(node.text, self.ctx)
 
@@ -96,29 +112,30 @@ class RelationExpressionVisitor(NodeVisitor):
         return None  # Ignore whitespaces
 
     def visit_op(self, node: Node, visited_children):
-        return self.build(node, ROperator)
+        return self._build_element(node, ROperator)
 
     def visit_open_paren(self, node: Node, visited_children):
-        return self.build(node, RTextElement)
+        return self._build_element(node, RTextElement)
 
     def visit_close_paren(self, node: Node, visited_children):
-        return self.build(node, RTextElement)
+        return self._build_element(node, RTextElement)
 
     def visit_identifier(self, node: Node, visited_children):
-        return visited_children[0]  # Return the actual condition name / ID element
+        """Return the actual condition name / ID element (see grammar: identifier wraps conditions)."""
+        return visited_children[0]
 
     def visit_condition_name(self, node: Node, visited_children):
-        return self.build(node, RConditionName)
+        return self._build_element(node, RConditionName)
 
     def visit_condition_id(self, node: Node, visited_children):
-        return self.build(node, RConditionId)
+        return self._build_element(node, RConditionId)
 
     def generic_visit(self, node: Node, visited_children):
-        # Ignore current node, but return children (if any) as a flat list
+        """Ignore current node, but return children (if any) as a flat list."""
         flat_result = []
         for child in visited_children:
             if type(child) is list:
-                flat_result += [*child]  # Unpack child array
+                flat_result += child  # Unpack child array
             elif child:
                 flat_result.append(child)
         return flat_result if len(flat_result) > 0 else None

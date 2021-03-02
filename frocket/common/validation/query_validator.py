@@ -25,7 +25,20 @@ logger = logging.getLogger(__name__)
 
 # TODO doc asserts
 class QueryValidator:
+    """
+    Validate a query, and *expand* as needed:
+
+    The query schema as documented externally allows for various shorthand notations and for some "sensible" defaults
+    to be ommitted. However, the query engine itself expects the full notation. To hide this complexity from the engine,
+    all transformations are done here, and the 'expanded' query is returned in the result -
+    that's the version that should be passed to query tasks rather than the user-supplied one.
+
+    'assert' is used in various places in code where some conditions are expected to be already validated, but if not -
+    we want the code to crash.
+    """
+
     def __init__(self, source_query: dict, dataset: DatasetInfo = None, short_schema: DatasetShortSchema = None):
+        """Unless calling expand_and_validate() in schema_only=True more, dataset and its schema must be passed."""
         self._source_query = source_query
         self._expanded_query = None
         self._dataset = dataset
@@ -36,6 +49,11 @@ class QueryValidator:
         self._relation_elements = None
 
     def expand_and_validate(self, schema_only: bool = False) -> QueryValidationResult:
+        """
+        Validates and applies any transformations.
+        In schema_only=True mode, only 'static' validation is done, meaning the existence of columns and their types
+        is not checked against the actual dataset the user wishes to query.
+        """
         try:
             if not schema_only and not (self._dataset and self._short_schema):
                 raise QueryValidationError(
@@ -66,7 +84,7 @@ class QueryValidator:
                                          used_conditions=self._used_conditions,
                                          named_conditions=self._condition_mapping.names,
                                          relation_elements=self._relation_elements,
-                                         warnings=None)  # TODO Later: support warnings
+                                         warnings=None)  # TODO backlog: support warnings/hints to the user
         except Exception as e:
             if not isinstance(e, QueryValidationError):
                 logger.exception("Unexpected error")
@@ -233,9 +251,15 @@ class QueryValidator:
         # TODO return a warning on unused conditions (when doing warnings mechanism)
         self._used_conditions = parser.used_conditions
 
-    # TODO warn client when query timeframe fully outside dataset timeframe
     def _validate_timeframe(self, dataset_mintime: float = None, dataset_maxtime: float = None):
-
+        """
+        If a timeframe object is included in the query (either from, to, or both), validate that to > from,
+        but also that the timestamps seem to be consistent with the dataset's timestamps.
+        Currently, Funnel Rocket itself is not opinionated re. the timestamp resolution (seconds? milliseconds? second
+        fractions as decimal places after the dot?), and only validates that the no. of digits seems ok.
+        TODO backlog (optional?) strict timestamp specification
+        TODO backlog when warnings are supported, warn client when query timeframe is fully outside dataset timeframe
+        """
         def validate_scale(ts_in_query, ts_in_dataset, dataset_ts_name: str):
             if len(str(int(ts_in_query))) != len(str(int(ts_in_dataset))):
                 message = f"Given timestamp {ts_in_query} doesn't appear to be in same scale as " \
@@ -265,6 +289,7 @@ class QueryValidator:
             raise Exception("Run validation first")
 
     def diff_from_source(self, colorize: bool = False) -> List[str]:
+        """Handy utility for manual tests: show a nice diff between given and expanded queries, just like Git."""
         self._fail_if_not_ran()
         diff = difflib.unified_diff(
             a=json.dumps(self._source_query, indent=2).splitlines(),
@@ -284,7 +309,7 @@ class QueryValidator:
         return lines
 
 
-# For running validations manually
+# For running validations manually, including detailed diff's (source vs. expanded query)
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Manually run QueryValidator')

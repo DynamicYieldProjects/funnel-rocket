@@ -1,12 +1,23 @@
+"""
+A collection of callback functions which the QueryValidator uses to extarct, validate and transform query elements,
+with the kind help of PathVisitor class.
+
+Functions which return a value are used to replace the given object with a different one,
+which is handled by PathVisitor in its 'modifiable' mode.
+
+Since callbacks are regular functions (not methods), and there's a bunch of them, they're in a separate file from
+the QueryValidator class.
+
+asserts are used where processing elements which should be already validated (so failures should be bugs).
+"""
 from typing import Optional
 from frocket.common.validation.consts import DEFAULT_TARGET, AGGR_TYPES_WITH_OTHER_COLUMN, \
     DEFAULT_AGGREGATIONS, TARGET_TYPES_WITH_INCLUDE_ZERO, TARGET_OPS_SUPPORTING_INCLUDE_ZERO
-
-# TODO doc assert and what's all these
 from frocket.common.validation.error import ValidationErrorKind, QueryValidationError
 
 
 def _to_verbose_filter(fltr) -> Optional[dict]:
+    """If a condition filter is in short-hand notation (list), convert to verbose notation."""
     assert type(fltr) in [list, dict]
     if type(fltr) is list:
         assert len(fltr) == 3
@@ -14,6 +25,7 @@ def _to_verbose_filter(fltr) -> Optional[dict]:
 
 
 def _to_verbose_target(target) -> Optional[dict]:
+    """If a condition target is in short-hand notation (list), convert to verbose notation."""
     assert type(target) in [list, dict]
     if type(target) is list:
         assert len(target) in [3, 4]
@@ -63,6 +75,10 @@ def _expand_aggregations(col_aggregations: list) -> Optional[list]:
 
 
 def _validate_or_set_include_zero(cond: dict) -> None:
+    """
+    'includeZero' attribute of conditions may be tricky to get right.
+    This function validates that its usage makes sense, and sets the correct default where it's ommitted.
+    """
     assert type(cond) is dict
     if not ('filter' in cond or 'filters' in cond):
         return  # Skip sequence condition (and possibly other future types without a target)

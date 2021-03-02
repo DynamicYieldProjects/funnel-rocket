@@ -12,6 +12,7 @@ class QueryValidationResult(SerializableDataClass):
     error_message: Optional[str] = None
     error_kind: Optional[ValidationErrorKind] = None
     expanded_query: Optional[dict] = None
+    # TODO backlog support non-critical warning/hints to user (e.g. conditions unused by relation expression)
     warnings: Optional[List[str]] = None
     used_columns: Optional[List[str]] = None
     used_conditions: Optional[List[str]] = None
