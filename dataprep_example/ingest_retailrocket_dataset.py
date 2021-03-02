@@ -1,8 +1,8 @@
-import argparse
 import sys
 import time
-from contextlib import contextmanager
+import argparse
 from pathlib import Path
+from contextlib import contextmanager
 import pandas as pd
 from pandas import DataFrame
 
@@ -11,7 +11,7 @@ PROPS_FILE_1 = 'item_properties_part1.csv'
 PROPS_FILE_2 = 'item_properties_part2.csv'
 INPUT_FILENAMES = {EVENTS_FILE, PROPS_FILE_1, PROPS_FILE_2}
 ITEM_PROPERTY_COLUMNS = {'categoryid', 'available', '790', '888'}
-EXPECTED_EVENT_COUNT = 2500516
+EXPECTED_EVENT_COUNT = 2_500_516
 
 
 def progress_msg(msg: str):

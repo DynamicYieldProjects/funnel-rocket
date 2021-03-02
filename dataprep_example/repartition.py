@@ -5,8 +5,15 @@ Given a set of input files in Parquet format and a numeric column name, shuffle 
 (a set of numbered files or directories). The appropriate part ID for each row is set by simple 'value % num_parts' over
 the given column value.
 
+This is a mandatory requirement for using datasets in Funnel Rocket, since it ensures that all rows of each specific
+user/group ID (or any other identifier you wish to partition by) are found in a single file only, thus no shuffle
+is necessary at query time.
+
 This utility is not part of Funnel Rocket package itself. Rather, it can assist in creating datasets of limited size -
-since it only runs on a single machine. It does utilize multiple CPUs, so running on a beefy VM is an option.
+since it only runs on a single machine. It does utilize multiple CPUs, so running on a beefy VM is an option for ad-hoc
+larger jobs. For a robust & scalable solution, using PySpark or the like is advised.
+
+TODO consider a distributed re-partitioning feature in Funnel Rocket (atm it's a read-only tool)
 """
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -114,8 +121,12 @@ def map_files(args):
 
 
 def reduce_worker_task(part_map_path, part_reduce_path, rows_per_file, sort_by):
-    """A single reduce task: load all intermediate map output files for its assigned part number,
-    merging all rows into one partition."""
+    """
+    A single reduce task: load all intermediate map output files for its assigned part number,
+    merging all rows into one partition.
+
+    TODO to limit memory usage in real-world jobs, read files iteratively rather than all at once
+    """
     dataset = ds.dataset(part_map_path, format="parquet")
     table = dataset.to_table()
 
@@ -222,7 +233,8 @@ if __name__ == '__main__':  # Don't run in worker processes
                         action='store_true',
                         help='Whether to overwrite existing files')
     parser.add_argument('--maxrows', type=int,
-                        help='Optionally split the output files by a maximum N rows per file, to limit file size')
+                        help='Optionally split the output files by a maximum N rows per file, to limit file size. '
+                             'In this mode each part is a directory with one or more files, rather than a single file.')
     parser.add_argument('--sort', type=str, nargs='+',
                         help='Optional space-separated list of column names to sort by in the reduce stage. '
                         'By default, output files are not sorted. NOTE: This is memory- and compute-intensive.')
