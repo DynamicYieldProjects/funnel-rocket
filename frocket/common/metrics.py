@@ -1,3 +1,12 @@
+"""
+Base types for metrics support.
+
+This was designed with Prometheus conventions & requirements (which aligns pretty well with OpenMetrics, surprise
+surprise), however these classes are generally useful with other systems. This is specifically true, IMHO,
+since good Prometheus compatibility means stricter definitions, e.g always use the same label set for a
+given metric (rather than free for all whenever you report it), specify the *unit* of the metric as suffix, limit the
+cardinality of label values, etc.
+"""
 import logging
 import time
 from abc import ABCMeta, abstractmethod
@@ -11,10 +20,12 @@ from frocket.common.helpers.utils import memoize
 logger = logging.getLogger(__name__)
 
 
-# The purpose of MetricLabelEnum is to easily set a label to one of its allowed (enum) values.
-# The label name is inferred from the class name (minus the 'Label' suffix).
-# Label names and values are transformed to snake-case to match the understated Prometheus style.
 class MetricLabelEnum(AutoNamedEnum):
+    """
+    Base class for easily setting labels to metrics - the label name being inferred from the enum class name,
+    and the value from the member name. Label names and values are transformed to snake-case to match the understated
+    Prometheus style.
+    """
     # noinspection PyUnusedLocal
     def __init__(self, *args):
         self.__class__._set_label_name()
@@ -22,32 +33,39 @@ class MetricLabelEnum(AutoNamedEnum):
 
     @classmethod
     def _set_label_name(cls):
+        """Label name is based on the class name, so needs to be done once."""
         if hasattr(cls, 'label_name'):
             return
         key = cls.__name__
-        # Remove suffix if exists. TODO When moving to Python 3.9 use removesuffix()
+        # Remove suffix if exists. TODO backlog when moving to Python 3.9 use removesuffix()
         key = key[:-len('Label')] if key.endswith('Label') else key
         cls.label_name = underscore(key)
 
 
 class ComponentLabel(MetricLabelEnum):
+    """Label for specifying which system component is reporting a metric."""
     INVOKER = auto()
     WORKER = auto()
     APISERVER = auto()
 
 
 class WorkerStartupLabel(MetricLabelEnum):
+    """Serverless worker types have a cold-start/warm-start distinction, which is meaning when monitoring timing."""
     COLD = auto()
     WARM = auto()
 
 
 class LoadFromLabel(MetricLabelEnum):
+    """Whether part files are loaded from origin, or some of the possible cache layers."""
     SOURCE = auto()
     DISK_CACHE = auto()
     MEMORY_CACHE = auto()
 
 
 class PartSelectMethodLabel(MetricLabelEnum):
+    """For jobs supporting part selection by the worker side, we want to monitor whether the worker has successfully
+    selected a preferred (locally cached) part, or whether it fell back to choosing a 'random' available part due to
+    either having no relevant cached parts, or because they were already taken by another worker."""
     SET_BY_INVOKER = auto()
     SPECIFIC_CANDIDATE = auto()
     RANDOM_NO_CANDIDATES = auto()
@@ -60,6 +78,8 @@ class JobTypeLabel(MetricLabelEnum):
 
 
 class MeasuredUnit(EnumSerializableByName):
+    """Each metric has a unit name as its suffix, which impacts the actual metric type to be created, and make life
+    easier for human operators."""
     # noinspection PyUnusedLocal
     def __init__(self, *args):
         super().__init__()
@@ -88,6 +108,8 @@ DATASET_LABEL = 'dataset'
 
 
 class MetricName(EnumSerializableByName):
+    """All metrics must be defined as members and be associated with a single reporting component
+    (to prevent confusion). Any additional metric-specific labels should also be defined at creation."""
     def __init__(self,
                  component: ComponentLabel,
                  unit: MeasuredUnit = None,
@@ -113,11 +135,17 @@ class MetricName(EnumSerializableByName):
     ASYNC_POLL_SECONDS = ComponentLabel.INVOKER
 
 
+# Main metric for work duration (scope is a job for the invoker, a single task in a job for the worker)
 COMPONENT_DURATION_METRIC: Dict[ComponentLabel, MetricName] = {
     ComponentLabel.WORKER: MetricName.TASK_TOTAL_RUN_SECONDS,
     ComponentLabel.INVOKER: MetricName.INVOKER_TOTAL_SECONDS
 }
 
+# There's a standard common set of labels for *all* metrics, then another set depending on the component.
+# TODO backlog rethink this set: on one hand, having a common set allows filtering by label values across metrics
+#  (thus preventing mismatches when looking at graphs). On the other, this inflates the 'cardinality' of metrics by
+#  a lot (each extra labels with, say, 3 possible values, means up to x3 the no. of unique label sets that Prometheus
+#  would need to track per metrics. Perhaps this should be configurable...
 ALL_COMPONENT_COMMON_LABELS: List[MetricLabel] = [ComponentLabel, SUCCESS_LABEL, DATASET_LABEL, JobTypeLabel]
 
 COMPONENT_COMMON_LABELS: Dict[ComponentLabel, List[MetricLabel]] = {
@@ -125,10 +153,12 @@ COMPONENT_COMMON_LABELS: Dict[ComponentLabel, List[MetricLabel]] = {
     ComponentLabel.INVOKER: [*ALL_COMPONENT_COMMON_LABELS]
 }
 
+# Label values can be accepted as numbers, but are then stored as text (which is how metric systems get them)
 LabelsDict = Dict[str, str]
 
 
 def label_to_str(label: Union[MetricLabel, Type[MetricLabelEnum]]) -> str:
+    """Given either a string, a MetricLabel enum *member or class* - return the label name"""
     if type(label) is str:
         return label
     elif isinstance(label, MetricLabelEnum):
@@ -157,11 +187,13 @@ for m in MetricName:
 
 @dataclass(frozen=True)
 class MetricData:
+    """A instance of a reported metric - name, value and optional metric-specific labels."""
     name: MetricName
     value: float
     labels: Optional[LabelsDict] = None
 
     def with_added_labels(self, added_labels: LabelsDict):
+        """Add "inherited" labels from the component level/all components level."""
         if self.labels:
             for k in added_labels.keys():
                 if self.labels.get(k, None) is not None:
@@ -174,37 +206,45 @@ class MetricData:
 
 
 class SourceAndMetricTuple(NamedTuple):
+    """For passing along a metric with the specific source which reported it (e.g. specific task names)."""
     source: str
     metric: MetricData
 
 
 class EnvironmentMetricsProvider(metaclass=ABCMeta):
+    """A base class for providing metrics relevant to the runtime environment (AWS Lambda, generic processes,
+    and future runtimes), used by the worker. Not all providers may support all possible metrics."""
     def finalize_metrics(self, run_duration: float = None) -> List[MetricData]:
         metrics = [self._memory_bytes(), self._cost_dollars(run_duration)]
         return [m for m in metrics if m]
 
     @abstractmethod
     def _memory_bytes(self) -> Optional[MetricData]:
+        """Runtime environment-dependent implementation for total physical memory (whether used or free"""
         pass
 
     @abstractmethod
     def _cost_dollars(self, duration: float = None) -> Optional[MetricData]:
+        """environment-specific approximate cost calculation - if possible to get."""
         pass
 
 
 class MetricsBag:
+    """A MetricsBag object accompanies a job (at the invoker level) or a task (at the worker level) along its lifecycle,
+    being propagated to all relevant modules through the process. Metrics & common labels are reported through it."""
     def __init__(self, component: ComponentLabel, env_metrics_provider: EnvironmentMetricsProvider = None):
         self._component: ComponentLabel = component
         self._metrics: Dict[MetricName, MetricData] = {}
         self._env_metrics_provider = env_metrics_provider
         self._finalized = False
-        self._labels: LabelsDict = {}
+        self._labels: LabelsDict = {}  # Labels (value->name) common to all metrics in this bag, rather than one metric
         self.set_label_enum(component)
 
     def set_label(self, name: str, value: Union[str, int, float, bool]):
         self._do_set_label(name, value)
 
     def set_label_enum(self, e: MetricLabelEnum):
+        """Easier, less error-prone method for setting labels - just pass the appropriate enum member."""
         self._do_set_label(e, e.label_value)
 
     def _do_set_label(self, label: MetricLabel, value):
@@ -237,6 +277,8 @@ class MetricsBag:
             logger.debug(f"Set {data}")
 
     def measure(self, name: MetricName):
+        """Start a 'context manager' for measuring a block of code to the given metric. When the code block ends,
+        its duration will be automatically added to this bag."""
         return MeasuredBlock(self, name)
 
     @property
@@ -244,11 +286,14 @@ class MetricsBag:
         return self._labels.get(SUCCESS_LABEL, None)
 
     def finalize(self, success: bool, added_labels: LabelsDict = None) -> List[MetricData]:
+        """Prepare metrics for shipping (from worker back to invoker, through the data store). No further metrics
+        can be collected on this bag, for consistency."""
         self.fail_if_finalized()
         self.set_label(SUCCESS_LABEL, success)
         self._add_env_metrics()
         self._finalized = True
 
+        # The returned metrics get all inherited labels from this bag
         common_labels = {**(added_labels or {}),
                          **self._labels}
         result = [m.with_added_labels(common_labels)
@@ -278,8 +323,13 @@ class MetricsBag:
         return self._labels.get(label_to_str(label), None)
 
 
-# TODO set additional labels etc.? + DOC how to use + LATER consider automatic exception capture into label
 class MeasuredBlock:
+    """
+    See MetricsBag.measure() method above: measure a code block and report its duration back to the parent bag,
+    as the given metric's value.
+    TODO backlog consider capturing any exceptions in the code block before re-raising them,
+     so a success=False label can be applied to this metric.
+    """
     def __init__(self, parent: MetricsBag, name: MetricName):
         self._parent = parent
         self._name = name

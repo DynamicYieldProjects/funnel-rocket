@@ -6,12 +6,11 @@ from typing import List, Type, Dict, Any, Union, Optional
 from datetime import datetime
 import dataclasses_json
 import marshmallow
+from dataclasses_json import dataclass_json, LetterCase
 
 # TODO Organize & doc
 
 # As suggested in dataclasses_json's docs, store datetime in ISO format to ensure timezone consistency (UTC)
-from dataclasses_json import dataclass_json, LetterCase
-
 dataclasses_json.global_config.encoders[datetime] = datetime.isoformat
 dataclasses_json.global_config.decoders[datetime] = datetime.fromisoformat
 dataclasses_json.global_config.mm_fields[datetime] = marshmallow.fields.DateTime(format='iso')
