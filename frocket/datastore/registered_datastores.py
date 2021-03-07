@@ -16,8 +16,8 @@ BLOBSTORE_CLASSES = {
 }
 
 
-# TODO Consider thread-safe needs - in the store itself actually? (double creation is less an issue)
-#  RedisStore itself is thanks to its underlying connection (and no other state), but there may be others
+# TODO backlog consider thread-safety here: while RedisStore is thread-safe and having more than one is ok, future
+#  implementations may not be? (or should be required to)
 def _get_store(store_kind: str, store_mapping: dict):
     store_class = store_mapping[config.get(store_kind).lower()]
     store = store_class(role=store_kind)

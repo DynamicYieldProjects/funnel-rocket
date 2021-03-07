@@ -8,6 +8,8 @@ BLOB_MAX_TTL = config.int('blobstore.max.ttl')
 
 
 class Blobstore:
+    """Simple interface for storing and fetching arbitrary binary data, for ephemeral transport over the network.
+    The data is assumed to always have a default TTL - it's not a permanent or big data store."""
     @abstractmethod
     def write_blob(self, data: bytes, ttl: int = None, tag: str = None) -> BlobId:
         pass

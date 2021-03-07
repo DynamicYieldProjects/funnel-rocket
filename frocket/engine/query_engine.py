@@ -1,3 +1,14 @@
+"""
+Implementation of queries (conditions, aggregations, funnel) with Pandas, over a single DataFrame.
+
+The QueryEngine is agnostic to the wider system in which it runs - it is handed a DataFrame object and an already
+validated query (with any shorthand notations and ommitted values expanded to the elaborate version), and does its work.
+It should not import any code from the invoker/worker layers, and should remain testable as a stand-alone component.
+
+TODO backlog get rid of any conditions/aggregations that are using composable strings (df.query()),
+ although the query schema is validated in various layers rather than any client input naively taken as is.
+"""
+
 import json
 import logging
 import math
@@ -52,7 +63,7 @@ class QueryEngine:
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"Got query: {json.dumps(full_query, indent=2)}")
 
-        # First stage: run query conditions, uf any
+        # First stage: run query conditions, if any
         conditions = PathVisitor(full_query, 'query.conditions').list()
         if conditions:
             relation_query = self._build_relation_query(full_query)
@@ -166,11 +177,11 @@ class QueryEngine:
 
     @staticmethod
     def _single_filter_query_string(f: dict) -> str:
-        # Back-ticks around column name allows names which aren't valid Python identifiers TODO test
+        # Back-ticks around column name allows names which aren't valid Python identifiers
         assert '`' not in f['column']  # Sanity/safety
         safe_column_name = f"`{f['column']}`"
 
-        # Add quotes around string values TODO test single-quotes in string
+        # Add quotes around string values
         value = f['value']
         if type(value) is str:
             value = value.replace("'", "\\'")
