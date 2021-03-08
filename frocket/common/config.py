@@ -47,8 +47,8 @@ DEFAULTS = {
     "invoker.retry.lost.interval": "20",  # TODO doc depends on normal performance bounds
     "worker.self.select.enabled": "true",
     "worker.reject.age": "60",
-    "metrics.export.lastrun": "",  # TODO doc
     "metrics.export.prometheus": "true",
+    "metrics.export.lastrun": "",  # TODO doc
     "metrics.buckets.default": "0.1, 0.5, 1, 5, 25, 100, 1000",
     "metrics.buckets.seconds": "0.05, 0.1, 0.5, 1, 2, 5, 10, 15",
     "metrics.buckets.dollars": "0.01, 0.05, 0.1, 0.5, 1, 2",
@@ -60,6 +60,8 @@ DEFAULTS = {
     "log.file": "",
     "log.level": "info",
     "log.format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+    "apiserver.admin.actions": "true",
+    "apiserver.error.details": "true",
     "apiserver.prettyprint": "true",
     "apiserver.stream.poll.interval.ms": "10",
     "apiserver.stream.write.interval.ms": "250",

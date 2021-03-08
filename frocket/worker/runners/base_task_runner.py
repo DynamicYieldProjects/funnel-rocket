@@ -1,3 +1,6 @@
+"""
+Base class for running a task in a worker - to be inherited for concerete task runners.
+"""
 import logging
 import time
 from abc import abstractmethod
@@ -16,6 +19,7 @@ DEFAULT_PREFLIGHT_DURATION_MS = config.int("part.selection.preflight.ms")
 
 
 class TaskRunnerContext:
+    """simple dependency provider... (for easier testing)."""
     def __init__(self,
                  metrics: MetricsBag,
                  private_part_loader: PartLoader = None,

@@ -7,7 +7,7 @@ instead of requiring special model classes. On top of that, a few extra capabili
 """
 import dataclasses
 from collections import Counter
-from dataclasses import dataclass, fields, field, Field
+from dataclasses import dataclass, fields
 from enum import Enum
 from typing import List, Type, Dict, Any, Union, Optional
 from datetime import datetime
@@ -35,20 +35,6 @@ dataclasses_json.global_config.decoders[int] = lambda v: ensure_vtype(v, int)
 dataclasses_json.global_config.decoders[float] = lambda v: ensure_vtype(v, float, fallback_cls=int)
 dataclasses_json.global_config.decoders[bool] = lambda v: ensure_vtype(v, bool)
 
-# There is infrastrucure here for declaring which dataclass fields are always safe to return ("public" fields),
-# vs. fields that may leak various degress of implementation detail (file paths, etc.). 3
-# Currently, however, the API server is hard-coded to be in public mode, until the usefullness of this feature,
-# and making sure it's well enforced, are evaluated.
-API_PUBLIC_FIELD = 'api_public'
-API_PUBLIC_METADATA = {API_PUBLIC_FIELD: True}
-
-
-def api_public_field(**kwargs) -> Field:
-    """Shortcut to create a dataclass field definition with the API_PUBLIC_METADATA marker."""
-    assert 'metadata' not in kwargs  # Not supporting merging metadata for now
-    kwargs['metadata'] = API_PUBLIC_METADATA
-    return field(**kwargs)
-
 
 def reducable(cls):
     """
@@ -72,27 +58,18 @@ class SerializableDataClass(dataclasses_json.DataClassJsonMixin):
     Base class for all serializable classes. Since it's a dataclass, then construction, equality and hashing come out-
     of-the-box. Always immutable (frozen=True) to prevent coding errors and allow Python to safely generate __hash__().
     """
-    @classmethod
-    def api_public_fields(cls) -> List[str]:
-        """Return list of fields marked as public (see notes above)."""
-        result = getattr(cls, '_api_public_fields', None)
-        if not result:
-            result = [f.name for f in fields(cls) if f.metadata.get(API_PUBLIC_FIELD, False)]
-            cls._api_public_fields = result  # Cache list
-        return result
 
-    def to_api_response_dict(self, public_fields_only: bool) -> dict:
-        """Before the API server jsonifies are response, do some cleanups: remove None values and empty dicts,
-        stringify enums (so a later json.dumps doesn't fail)."""
+    def to_api_response_dict(self) -> dict:
+        """
+        Before the API server jsonifies are response, do some cleanups: remove None values and empty dicts,
+        stringify enums (so a later json.dumps doesn't fail).
+        TODO backlog support public/non-public mode? (including in nested objects)
+        """
         def prepare_dict(src: dict, allowed_fields: List[str] = None) -> dict:
             res = {}
             for k, v in src.items():
                 if v is None:
                     continue
-                # TODO support removing non-public fields (including in nested objects!),
-                #  note that field name k is now already camelCased
-                # elif allowed_fields and (k not in allowed_fields):
-                #    continue
                 if isinstance(v, dict):
                     if len(v) == 0:
                         continue
@@ -103,7 +80,6 @@ class SerializableDataClass(dataclasses_json.DataClassJsonMixin):
                     res[k] = v
             return res
 
-        # allowed_fields = self.api_public_fields() if public_fields_only else None
         d = prepare_dict(self.to_dict())
         return d
 

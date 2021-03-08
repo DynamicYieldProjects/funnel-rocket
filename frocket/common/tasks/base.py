@@ -7,7 +7,7 @@ from enum import auto
 from typing import Optional, Dict, List, NamedTuple
 from dataclasses import dataclass, field
 from frocket.common.metrics import MetricData
-from frocket.common.serializable import SerializableDataClass, API_PUBLIC_METADATA, AutoNamedEnum
+from frocket.common.serializable import SerializableDataClass, AutoNamedEnum
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,6 @@ class BaseTaskRequest(SerializableDataClass):
 
 class TaskStatus(AutoNamedEnum):
     def __init__(self, *args):
-        # TODO backlog have a clear & simple way to both use auto() and pass extra arguments
         self.ended = args[0].startswith('ENDED_')
 
     QUEUED = auto()
@@ -148,8 +147,8 @@ class TaskAttemptsInfo:
 class BaseApiResult(SerializableDataClass):
     """ The minimal result from invoker_api operations which return a status, but not necessarily
     run a job (invokes tasks via workers)."""
-    success: bool = field(metadata=API_PUBLIC_METADATA)
-    error_message: Optional[str] = field(metadata=API_PUBLIC_METADATA)
+    success: bool
+    error_message: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -197,8 +196,8 @@ class JobStats(SerializableDataClass):
 @dataclass(frozen=True)
 class BaseJobResult(BaseApiResult):
     """Concrete jobs' result classes inherit from this class."""
-    request_id: str = field(metadata=API_PUBLIC_METADATA)
-    stats: JobStats = field(metadata=API_PUBLIC_METADATA)
+    request_id: str
+    stats: JobStats
 
 
 @dataclass(frozen=True)

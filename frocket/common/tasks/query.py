@@ -1,12 +1,12 @@
 """
 Query job's task classes
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import auto
 from typing import Optional, List, Dict, Union, cast
 import inflection
 from frocket.common.dataset import DatasetInfo, DatasetPartId
-from frocket.common.serializable import AutoNamedEnum, enveloped, SerializableDataClass, API_PUBLIC_METADATA, reducable
+from frocket.common.serializable import AutoNamedEnum, enveloped, SerializableDataClass, reducable
 from frocket.common.tasks.base import BaseTaskRequest, BaseTaskResult, BaseJobResult
 
 
@@ -127,5 +127,5 @@ class QueryTaskResult(BaseTaskResult):
 
 @dataclass(frozen=True)
 class QueryJobResult(BaseJobResult):
-    query: Optional[QueryConditionsResult] = field(metadata=API_PUBLIC_METADATA)
-    funnel: Optional[FunnelResult] = field(metadata=API_PUBLIC_METADATA)
+    query: Optional[QueryConditionsResult]
+    funnel: Optional[FunnelResult]

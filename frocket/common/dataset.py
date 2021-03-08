@@ -4,7 +4,7 @@ from enum import auto
 from datetime import datetime, timezone
 from typing import Optional, List, Dict
 from dataclasses import dataclass, field
-from frocket.common.serializable import SerializableDataClass, AutoNamedEnum, api_public_field
+from frocket.common.serializable import SerializableDataClass, AutoNamedEnum
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ class DatasetId(SerializableDataClass):
     2. As an alias to the current version (datasets are only metadata, you can register the same physical files N times)
     3. If the datafiles were found to be incomplete/invalid, and after fixing the issue you want to invalidate caching.
     """
-    name: str = api_public_field()
-    registered_at: datetime = api_public_field()
+    name: str
+    registered_at: datetime
 
     @classmethod
     def now(cls, name: str):
@@ -58,9 +58,9 @@ class DatasetInfo(SerializableDataClass):
     """
     basepath: str
     total_parts: int
-    id: DatasetId = api_public_field()
-    group_id_column: str = api_public_field()  # The column by which the dataset is partitioned, and grouping is done.
-    timestamp_column: str = api_public_field()  # The column by which timeframe conditions and funnels are run.
+    id: DatasetId
+    group_id_column: str  # The column by which the dataset is partitioned, and grouping is done.
+    timestamp_column: str  # The column by which timeframe conditions and funnels are run.
 
 
 @dataclass(frozen=True)
@@ -127,22 +127,22 @@ class DatasetColumn(SerializableDataClass):
 @dataclass(frozen=True)
 class DatasetShortSchema(SerializableDataClass):
     """Schema, the short version - typically all you may need."""
-    columns: Dict[str, DatasetColumnType] = api_public_field()
-    min_timestamp: float = api_public_field()
-    max_timestamp: float = api_public_field()
+    columns: Dict[str, DatasetColumnType]
+    min_timestamp: float
+    max_timestamp: float
     # In files created by Pandas with its metadata intact in the Parquet file, columns marked as categoricals.
-    source_categoricals: List[str] = api_public_field(default=None)
+    source_categoricals: List[str] = field(default=None)
     # Columns detected during registration to be good candidates for explicitly loading as categoricals (by PyArrow).
-    potential_categoricals: List[str] = api_public_field(default=None)
+    potential_categoricals: List[str] = field(default=None)
 
 
 @dataclass(frozen=True)
 class DatasetSchema(SerializableDataClass):
-    group_id_column: str = api_public_field()
-    timestamp_column: str = api_public_field()
-    columns: Dict[str, DatasetColumn] = api_public_field()
+    group_id_column: str
+    timestamp_column: str
+    columns: Dict[str, DatasetColumn]
     # Just the names->dtypes of all columns not (currently) supported.
-    unsupported_columns: Dict[str, str] = api_public_field()
+    unsupported_columns: Dict[str, str]
 
     def short(self) -> DatasetShortSchema:
         """Make short from full."""
