@@ -1,3 +1,11 @@
+"""
+Calculate physical memory & cost for AWS Lambda-based workers.
+
+Important note re. Lambda billing: although this is not explicitly stated and subject to change, you are not charged for
+the duration in which a cold-started Lambda loads up till the point when the actual handler is called -
+meaning, all imports are "free"! this means that cold-started Lambdas mainly impact clock-time latency but typically
+won't inflate cost to a similar degree. This is in line with how the task duration is measured w/o cold-start imports.
+"""
 import logging
 import math
 import re
@@ -5,6 +13,7 @@ from frocket.common.metrics import MetricName, EnvironmentMetricsProvider, Metri
 
 logger = logging.getLogger(__name__)
 
+# TODO backlog setup a recurring task to check for pricing changes, so this can be updated.
 DEFAULT_PRICE_GB_SEC = 0.0000166667
 REGION_PRICING = {
     "eu-south-1": 0.0000195172,  # Milan
@@ -13,7 +22,9 @@ REGION_PRICING = {
     "af-south-1": 0.0000221,  # Capetown
     "ap-east-1": 0.00002292  # Hong-kong
 }
-# Assume the actual run takes this amount of seconds more than what's been measured
+# Assume the actual run takes this amount of seconds more than what's been measured,
+# e.g. time spent in decoding the task reqeust, and time still to spend on writing results (incl. these metrics...)
+# to datastore.
 LAMBDA_TIME_OVERHEAD = 0.008  # 8ms, a conservative value based on a few observations
 
 
@@ -23,7 +34,8 @@ class AwsLambdaMetricsProvider(EnvironmentMetricsProvider):
         assert lambda_context.__class__.__name__ == 'LambdaContext'
         self._lambda_context = lambda_context
 
-        # ARN example: arn:aws:lambda:us-west-2:123456789012:function:my-function
+        # What region are we in? figure out by the full ARN in the context
+        # (ARN example: arn:aws:lambda:us-west-2:123456789012:function:my-function)
         arn_parts = lambda_context.invoked_function_arn.split(':')
         region = arn_parts[3]
         if re.match(r'\w+-\w+-\d+', region):

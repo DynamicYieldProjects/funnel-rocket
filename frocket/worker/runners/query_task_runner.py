@@ -1,3 +1,6 @@
+"""
+Execute a single query task.
+"""
 import logging
 import time
 from typing import List, cast, Optional
@@ -53,6 +56,8 @@ class QueryTaskRunner(BaseTaskRunner):
         self._task_attempt_id = TaskAttemptId(part_id.part_idx, task_attempt_no)
 
     def _select_part_myself(self):
+        """See configuration guide for 'preflight' concept. In general, that's a configurable time period in self-select
+        part mode, where 'warm' workers can select the candidates they wish without interruption."""
         time_left_in_preflight = self._ctx.preflight_duration_seconds - BaseTaskRunner.time_since_invocation(self._req)
         candidates = self._ctx.part_loader.get_cached_candidates(self._req.dataset.id)
         sleep_time = 0
@@ -68,7 +73,7 @@ class QueryTaskRunner(BaseTaskRunner):
         # If a worker got some candidates, we still gonna try to grab them even if preflight time has ended
         selected_part = self._ctx.datastore.self_select_part(self._req.request_id, self._req.attempt_no, candidates)
         if not selected_part.part_id:
-            # TODO not supposed to happen, unless there's a retry mechanism gone awry
+            # Not supposed to happen, unless there's a retry mechanism gone awry
             raise Exception("Got no part for me!")
 
         if candidates:
@@ -94,9 +99,13 @@ class QueryTaskRunner(BaseTaskRunner):
         self._ctx.metrics.set_metric(MetricName.SCANNED_GROUPS, df[self._req.dataset.group_id_column].nunique())
         return df
 
-    # A reminder here that the query timeframe affects not just conditions/sequences, but *also aggregations* -
-    # hence it can be used to filter rows (and this quite probably whole users) from being loaded at all.
     def _predicate_pushdown_filters(self):
+        """
+        Build PyArrow-compatible pushdown predicates to pass the part loader.
+        An important reminder here is that any filter applied would affect not just conditions/sequences, but also
+        any defined aggregations - meaning it's suitable for limiting scope to the (optional) query timeframe,
+        but should be evaluated carefully for any other optimizations.
+        """
         filters = []
         timeframe = self._req.query.get('timeframe', None)
         if timeframe:

@@ -1,3 +1,6 @@
+"""
+Invoke tasks by enqueing them in the datastore. Not much to do here :-)
+"""
 from frocket.invoker.impl.async_invoker import AsyncInvoker
 
 

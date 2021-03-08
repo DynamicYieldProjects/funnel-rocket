@@ -1,3 +1,6 @@
+"""
+Load and cache parts (data files).
+"""
 import logging
 import time
 import os
@@ -34,7 +37,7 @@ class PartLoader:
     def __init__(self):
         self._setup()
 
-    # Support re-initialization for testing
+    # Support re-initialization and overriding the configured size, for testing
     def _setup(self, disk_cache_max_size: float = None):
         if self._cache:
             for entry in self._cache.values():
@@ -64,7 +67,7 @@ class PartLoader:
             try:
                 os.remove(lru_entry.local_path)
             except OSError:
-                logger.exception('Failed to delete file!')  # TODO consider: disable any further caching
+                logger.exception('Failed to delete file!')  # TODO backlog consider disabling any further caching
             del self._cache[lru_key]
             curr_size_mb = self.cache_current_size_mb
 
@@ -81,7 +84,7 @@ class PartLoader:
 
         local_path = None
         if not is_source_remote:
-            local_path = file_id.path
+            local_path = file_id.path  # No caching for local files
         else:
             if file_id in self._cache:
                 local_path = self._cache[file_id].local_path
@@ -91,7 +94,7 @@ class PartLoader:
 
         if not local_path:
             with metrics.measure(MetricName.TASK_DOWNLOAD_SECONDS):
-                local_path = str(handler.get_local_path(file_id.path))
+                local_path = str(handler.get_local_path(file_id.path))  # Download to a local temp file
 
             entry = CacheEntry()
             entry.local_path = local_path
@@ -115,6 +118,7 @@ class PartLoader:
         return df
 
     def get_cached_candidates(self, dataset_id: DatasetId) -> Optional[Set[DatasetPartId]]:
+        """Do we have cached parts for this DatasetId, that can be used to self-select parts?"""
         logger.debug(f"Looking for cached candidates matching: {dataset_id}")
         candidates = None
         if self._cache:
@@ -126,4 +130,5 @@ class PartLoader:
 
 @memoize
 def shared_part_loader() -> PartLoader:
+    """This is used by default, but can be overriden in tests."""
     return PartLoader()
