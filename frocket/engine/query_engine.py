@@ -140,7 +140,7 @@ class QueryEngine:
             group_sums = matching_groups_df[target['column']].sum()
             target_expression = f"group_sums {target['op']} {target['value']}"
             logger.debug(f"Evaluating target: '{target_expression}'. Group sums are for column '{target['column']}'")
-            result_series = eval(target_expression)  # TODO move to numexpr engine?
+            result_series = eval(target_expression)  # TODO backlog move to numexpr engine?
             result_series = result_series[result_series]  # Filter the series to rows whose value is True
             logger.debug(f"Group with sum matching target: {len(result_series)}")
 

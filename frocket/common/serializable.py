@@ -125,7 +125,7 @@ class SerializableDataClass(dataclasses_json.DataClassJsonMixin):
 
     @staticmethod
     def reduce_lists(lists: Union[List[list], List[None]]) -> Optional[list]:
-        """A helper for inheritor classes implementing @reducable, for reducing a list field of other reducables."""
+        """A helper for subclasses implementing @reducable, for reducing a list field of other reducables."""
         if all(lst is None for lst in lists):
             return None
         else:

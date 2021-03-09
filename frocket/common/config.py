@@ -8,7 +8,7 @@ Specifically for Funnel Rocket, the env is easily set for AWS Lambdas decoupled 
 To override the default value of 'redis.port', set the env variable FROCKET_REDIS_PORT.
 See the reference documentation for details of all settings.
 
-TODO either switch to a "real" config package, or polish the API and None/empty values handling based on actual usage.
+TODO backlog switch to a "real" config package OR polish the API and None/empty values handling based on actual usage.
 """
 import os
 import logging

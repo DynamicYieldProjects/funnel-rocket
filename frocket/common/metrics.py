@@ -85,12 +85,14 @@ class MeasuredUnit(EnumSerializableByName):
         super().__init__()
         self.suffix = f"_{self.name}"
 
+    # COUNT is special in that we're measuring occurences of something (a natural number, using a histogram is N/A)
     COUNT = auto()
     SECONDS = auto()
     ROWS = auto()
     GROUPS = auto()
     BYTES = auto()
     DOLLARS = auto()
+    # OTHER is assumed to be something that's not a 'count of things'
     OTHER = auto()
 
     @staticmethod

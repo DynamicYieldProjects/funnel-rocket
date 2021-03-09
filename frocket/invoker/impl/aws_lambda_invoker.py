@@ -1,3 +1,28 @@
+"""
+Invoke tasks by invoking an AWS Lambda function asynchronously.
+
+This is a great feature of Lamdba, which implictly manages a queue of invocation for you with configurable retention
+(probably based on SQS). As long as the concurrent invocations limit in your account/burst limit of the AWS region are
+not reached, AWS will launch Lambdas for queued invocation immediately, with no meaningful delay. This also prevents
+getting rate-limited on momentary invocation spikes.
+
+A few important notes:
+
+1. As noted in the setup guide, the retry count for the Lambda function *should be set to zero*, as it's the invoker's
+job to launch retries with slightly different arguments, based on its own configuration, with logic that is agnostic
+to whether the actual invoker is using Lambdas or anything else (which does not have its optional retry feature).
+
+2. Unfortunately, there's no API for batch Lambda invocation, so we're invoking one by one with multiple threads -
+and still the time to invoke all tasks can add up to 1-2 seconds or more.
+TODO backlog optimize! this also hurts caching as not all tasks get their fair chance to pick a locally cached part.
+
+3. The InvokeAsync() Lambda API is considered deprecated and replaced by the 'InvocationType' parameter in Invoke().
+However, the InvokeAsync API currently seems to take about half the time to return! Which one to use is configurable.
+
+TODO backlog stress-test queue limits till reaching rate limiting (status 429).
+TODO backlog for each invocation, add its actual invoke time as parameter
+ (now we only measure time since invocation of all tasks started)
+"""
 import logging
 import time
 import concurrent.futures
@@ -10,23 +35,20 @@ from frocket.common.tasks.base import BaseTaskRequest, BaseApiResult
 from frocket.invoker.impl.async_invoker import AsyncInvoker
 from frocket.common.config import config
 
-# TODO Later: handle Lambda service throttling
-# TODO Later: add actual invoke time of each Lambda (rather than when invocation of all tasks started)
-
 logger = logging.getLogger(__name__)
 
 DEBUG_PRINT_PAYLOADS = config.bool("invoker.lambda.debug.payload")
-# While invoke_async is deprecated, it has actually shown better performance at scale - TODO re-test and tweak
-LEGACY_INVOKE_ASYNC = config.bool("invoker.lambda.legacy.async")
+LEGACY_INVOKE_ASYNC = config.bool("invoker.lambda.legacy.async")  # See notes at top of module
 LAMBDA_ASYNC_OK_STATUS = 202
 LAMBDA_STATUS_FIELD = 'Status' if LEGACY_INVOKE_ASYNC else 'StatusCode'
 
 
 def _worker_task(req: BaseTaskRequest, client: BaseClient, lambda_name: str) -> BaseApiResult:
+    """Run by the thread pool below."""
     # noinspection PyBroadException
     try:
         result = None
-        json_payload = Envelope.seal_to_json(req)
+        json_payload = Envelope.seal_to_json(req)  # Encodes the actual object and its type, for correct decoding later.
         if DEBUG_PRINT_PAYLOADS:
             logger.debug(json_payload)
 
@@ -57,10 +79,11 @@ class AwsLambdaInvoker(AsyncInvoker):
                      f", no. of invoker threads: {num_threads}")
         futures = []
         start_invoke_time = time.time()
+        # TODO backlog consider lifecycle of the thread pool
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
             for req in requests:
                 futures.append(executor.submit(_worker_task, req, client, lambda_name))
-            futures = concurrent.futures.as_completed(futures)
+            futures = concurrent.futures.as_completed(futures)  # Wait till all complete!
             executor.shutdown()
 
         error_message = None

@@ -124,7 +124,7 @@ def run_streamable(sync_func: Callable[[], BaseApiResult] = None,
     try:
         @stream_with_context
         def generate_stream(tracker):
-            # TODO use the newer AsyncJobStatus.generator()
+            # TODO backlog use the newer AsyncJobStatus.generator()
             while True:
                 update_available = tracker.wait()
                 if not tracker.wait_time_remaining:

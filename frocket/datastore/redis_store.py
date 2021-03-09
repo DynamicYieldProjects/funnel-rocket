@@ -107,7 +107,7 @@ class RedisStore(Datastore, Blobstore):
         res = self._redis.hget(key, dataset_name)
         return cls.from_json(res) if res else None
 
-    # TODO later monitor and limit queue size (if no workers are active to consume it, or they fail to start)
+    # TODO backlog monitor and limit queue size (if no workers are active to consume it, or they fail to start)
     def enqueue(self, requests, queue=DEFAULT_QUEUE):
         queue_key = f"{QUEUES_PREFIX}:{queue}"
 

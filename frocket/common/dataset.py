@@ -96,7 +96,7 @@ class DatasetColumnType(AutoNamedEnum):
 @dataclass(frozen=True)
 class DatasetColumnAttributes(SerializableDataClass):
     """
-    The 'full' information on each column. TODO use polymorphism? (needs support for de-serializing the right type)
+    The 'full' information on each column. TODO backlog use polymorphism? (needs support in de-serialization)
 
     For columns which were either saved by Pandas as categoricals, or are identified during registration to be such,
     store a mapping of top N values (configurable) to their their normalized share in the dataset. Since registration

@@ -1,3 +1,7 @@
+"""
+This is the "Funnel Rocket" frontend API - wrappedby the CLI & API server, and may be embeddable in other apps.
+Clients are not expected to bypass this API (call the datastore directly, initialize an invoker, etc.)
+"""
 import concurrent.futures
 import logging
 import time
@@ -17,11 +21,12 @@ from frocket.invoker.impl.registered_invokers import new_invoker
 logger = logging.getLogger(__name__)
 executor = concurrent.futures.ThreadPoolExecutor()
 
-# TODO Later: configurable timeout per job type (or fallback)
+# TODO backlog allow configurable timeout per job type (async or not)
 ASYNC_MAX_WAIT = config.int("invoker.run.timeout") * 1.1  # Adding a bit of grace around the invoker
 
 
 def _unregister_safety_interval() -> int:
+    """How long after a dataset was last used to block unregister (can be set to zero, or overidden with force=True)."""
     interval = config.get('unregister.last.used.interval', None)
     if not interval:  # Not defined, or empty string (explicit '0' is truthy)
         interval = config.int('invoker.run.timeout') * 2
@@ -39,6 +44,8 @@ def register_dataset(args: RegisterArgs) -> RegistrationJobResult:
 
 
 def register_dataset_async(args: RegisterArgs, set_max_wait: bool = True) -> AsyncJobTracker:
+    """The async version starts the invoker in a separate thread and then returns, handing back
+    an AsyncJobTracker to poll for progress/completion."""
     def worker(register_args, async_status):
         invoker = new_invoker(RegistrationJob(register_args))
         return invoker.run(async_status)
@@ -94,6 +101,7 @@ def expand_and_validate_query(dataset: DatasetInfo, query: dict) -> QueryValidat
 def _build_query_job(dataset: DatasetInfo,
                      query: dict,
                      validation_result: QueryValidationResult) -> QueryJob:
+    """If the query was already validated, skip re-validating."""
     if validation_result:
         assert validation_result.success
         assert query in [validation_result.source_query, validation_result.expanded_query]
@@ -126,6 +134,8 @@ def run_query_async(dataset: DatasetInfo,
                     query: dict,
                     set_max_wait: bool = True,
                     validation_result: QueryValidationResult = None) -> AsyncJobTracker:
+    """The async version starts the invoker in a separate thread and then returns, handing back
+    an AsyncJobTracker to poll for progress/completion."""
     def worker(job_builder, async_status):
         invoker = new_invoker(job_builder)
         return invoker.run(async_status)

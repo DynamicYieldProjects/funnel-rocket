@@ -1,5 +1,5 @@
 import logging
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 from typing import Dict, Counter, List, NamedTuple, Optional
 from frocket.common.metrics import MetricsBag, ComponentLabel, MetricName, MetricData, SourceAndMetricTuple, LabelsDict
 from frocket.common.tasks.base import TaskAttemptId, TaskStatus, BaseTaskResult, \
@@ -15,11 +15,22 @@ from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 logger = logging.getLogger(__name__)
 
 
-class BaseInvoker:
-    def __init__(self, job_builder: Job):
-        self._job_builder = job_builder
+class BaseInvoker(metaclass=ABCMeta):
+    """
+    BaseInvoker defined the basic logic of invoking jobs using the concrete Job subclass it's initialized with.
+
+    However, this class does not contain the logic for how to actually 'get workers to do stuff' and collect results,
+    which can possibly be done in various ways. That part is handled by AsyncInvoker and its own subclasses
+    (WorkQueueInvoker, AwsLambdaInvoker, and future ones). It is ofc possible to also implement a SyncInvoker subclass
+    (and as its subclasses have either regular Lambda invocation, calls to HTTP APIs, etc.)
+
+    See also the Job class documentation for the workflow from the job's perspective.
+    """
+    def __init__(self, job: Job):
+        self._job = job
+        # Generate a new unique request ID and also hand it to the job instance
         self._request_id = self.new_request_id()
-        self._job_builder.request_id = self._request_id
+        self._job.request_id = self._request_id
         self._datastore = get_datastore()
         self._metrics = MetricsBag(component=ComponentLabel.INVOKER,
                                    env_metrics_provider=GenericEnvMetricsProvider())
@@ -27,11 +38,13 @@ class BaseInvoker:
     # noinspection PyBroadException
     def run(self, async_status_updater: AsyncJobStatusUpdater = None) -> BaseJobResult:
         try:
+            # The run itself
             with self._metrics.measure(MetricName.INVOKER_TOTAL_SECONDS):
                 final_job_status, all_task_results, latest_task_results = \
                     self._run_to_completion(async_status_updater)
 
-            job_labels = self._job_builder.metric_labels
+            # Post-run: collect metrics, build job result
+            job_labels = self._job.metric_labels
             final_metrics = self._metrics.finalize(success=final_job_status.success,
                                                    added_labels=job_labels)
             # Note that metrics are collected for all task attempts, successful and failed
@@ -50,13 +63,13 @@ class BaseInvoker:
                                                      metrics_frame=None)
                 logger.exception('Run failed')
             except Exception:
-                logger.exception('Failed to a "success=False" result via the job builder')
+                logger.exception('Failed to set a "success=False" result via the job builder')
                 run_result = BaseJobResult(success=False, error_message='Unexpected error',
                                            request_id=self._request_id, stats=JobStats())
 
         # In case some lost tasks are still running, they may still "resurrect" some keys with their own data -
         # though the job is done as far as the invoker is concerned.
-        # TODO look for any "old junk" to periodically prune, based on its timestamped request IDs
+        # TODO backlog periodic "old junk" cleaner (can look for outdated request IDs, which are timestamped)
         self._datastore.cleanup_request_data(self._request_id)
 
         if async_status_updater:
@@ -69,15 +82,15 @@ class BaseInvoker:
         latest_task_results: List[BaseTaskResult] = []
 
     def _run_to_completion(self, async_status_updater) -> RunCompletionResult:
-        # First step: call the job builder to run any preparation code which needs to run invoker-side,
-        # and might take a bit of time or fail
+        # First step: call the job to run any preparation code which needs to run invoker-side,
+        # might take a bit of time and might also fail (e.g. dataset files discovery)
         try:
-            error_message = self._job_builder.prerun(async_status_updater)
+            error_message = self._job.prerun(async_status_updater)
         except Exception as e:
             logger.exception(f"Prerun failed: {e}")
             error_message = str(e)
 
-        if error_message:
+        if error_message:  # Failed already at pre-run, before any tasks were invoked
             final_job_status = JobStatus(success=False, error_message=error_message, attempts_status=[])
             return self.RunCompletionResult(final_job_status)
 
@@ -86,11 +99,11 @@ class BaseInvoker:
         task_requests = self.__build_initial_tasks()
         if async_status_updater:
             async_status_updater.update(stage=AsyncJobStage.RUNNING)
-        job_status = self._do_run(task_requests, async_status_updater)
-        all_task_results = self._datastore.task_results(self._request_id)
+        job_status = self._do_run(task_requests, async_status_updater)  # Calls subclass!
+        all_task_results = self._datastore.task_results(self._request_id)  # Read results
 
-        # Third step: finishing up: sanity check, and call job builder again now that results are in
-        # The job builder can now process and/or validate task results taken together, and may still fail the run.
+        # Third step: finishing up: sanity check, and call job again now that results are in.
+        # The job can now process and/or validate task results taken together, and may still fail the run.
 
         if async_status_updater:
             async_status_updater.update(stage=AsyncJobStage.FINISHING)
@@ -98,9 +111,9 @@ class BaseInvoker:
         latest_task_results = self.latest_results_only(job_status, all_task_results)
         if job_status.success:
             successful_tasks = [tr for tr in latest_task_results if tr.status == TaskStatus.ENDED_SUCCESS]
-            assert (len(successful_tasks) == self._job_builder.total_tasks())
+            assert (len(successful_tasks) == self._job.total_tasks())
 
-        final_job_status = self._job_builder.complete(job_status, latest_task_results, async_status_updater)
+        final_job_status = self._job.complete(job_status, latest_task_results, async_status_updater)
         return self.RunCompletionResult(final_job_status=final_job_status,
                                         all_task_results=all_task_results,
                                         latest_task_results=latest_task_results)
@@ -109,14 +122,17 @@ class BaseInvoker:
     def _do_run(self,
                 task_requests: List[BaseTaskRequest],
                 async_status_updater: AsyncJobStatusUpdater = None) -> JobStatus:
+        """Actually invoke the tasks and return with a status when they are complete."""
         pass
 
     def __build_initial_tasks(self) -> List[BaseTaskRequest]:
-        requests = self._job_builder.build_tasks()
-        parts_to_publish = self._job_builder.dataset_parts_to_publish()
+        requests = self._job.build_tasks()
+        # If relevant, publish dataset parts for self-selection by workers
+        parts_to_publish = self._job.dataset_parts_to_publish()
         if parts_to_publish:
             assert all([req.invoker_set_task_index is None for req in requests])
 
+        # All tasks' status is always set to QUEUED before actually invoking them
         attempt_ids = [TaskAttemptId(task_index=req.invoker_set_task_index or i) for i, req in enumerate(requests)]
         self._datastore.update_task_status(self._request_id, attempt_ids, TaskStatus.QUEUED)
 
@@ -131,7 +147,7 @@ class BaseInvoker:
         attempt_no = self._datastore.increment_attempt(self._request_id, task_index)
         attempt_id = TaskAttemptId(task_index, attempt_no)
 
-        req = self._job_builder.build_retry_task(attempt_no, task_index)
+        req = self._job.build_retry_task(attempt_no, task_index)
         self._datastore.update_task_status(self._request_id, attempt_id, TaskStatus.QUEUED)
         return req
 
@@ -140,13 +156,14 @@ class BaseInvoker:
                            latest_task_results: List[BaseTaskResult],
                            metrics_frame: Optional[MetricsFrame]) -> BaseJobResult:
 
-        # Collect errors from invoker and tasks (only from latest attempts, not from recovered attempts)
+        # Collect errors from invoker and tasks (only from latest attempts)
         full_error_message = final_job_status.error_message
         task_errors: List[str] = [res.error_message for res in latest_task_results if res.error_message]
         if len(task_errors) > 0:
             full_error_message = f"{full_error_message or 'No errors in invoker'}. Task errors: {task_errors}"
-        stats = build_stats(metrics_frame, self._job_builder.parts_info()) if metrics_frame else None
+        stats = build_stats(metrics_frame, self._job.parts_info()) if metrics_frame else None
 
+        # Collect the common 'base' attributes and pass them to the job, to use as **args in init'ing the result object
         base_attributes = BaseJobResult(
             request_id=self._request_id,
             success=final_job_status.success,
@@ -154,7 +171,7 @@ class BaseInvoker:
             stats=stats).\
             shallowdict(include_none=True)
 
-        run_result = self._job_builder.build_result(
+        run_result = self._job.build_result(
             base_attributes, final_job_status, latest_task_results)
         return run_result
 
@@ -162,6 +179,7 @@ class BaseInvoker:
     def __build_metrics(job_labels: LabelsDict,
                         invoker_metrics: List[MetricData],
                         all_task_results: Dict[TaskAttemptId, BaseTaskResult]) -> MetricsFrame:
+        """Build a unified list of all reported metrics from the invoker and all tasks."""
         all_metrics: List[SourceAndMetricTuple] = \
             [SourceAndMetricTuple(source='invoker', metric=m) for m in invoker_metrics]
 
@@ -172,15 +190,14 @@ class BaseInvoker:
 
         return MetricsFrame(all_metrics)
 
-    # Get results only for the single latest attempt per each task
     @classmethod
     def latest_results_only(cls, job_status: JobStatus,
                             all_task_results: Dict[TaskAttemptId, BaseTaskResult]) -> List[BaseTaskResult]:
-
+        """Get tasks results only for the single latest attempt per each task."""
         latest_attempts = [ts.latest_attempt for ts in job_status.attempts_status]
         results = [result for attempt_id, result in all_task_results.items()
                    if attempt_id in latest_attempts]
-        # Prevent possible erratic behavior down the line by making order predictable
+        # Prevent possible erratic behavior down the line by making order predictable (by task index)
         return sorted(results, key=lambda result: result.task_index)
 
     @classmethod

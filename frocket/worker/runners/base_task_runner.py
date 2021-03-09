@@ -1,5 +1,5 @@
 """
-Base class for running a task in a worker - to be inherited for concerete task runners.
+Base class for running a task in a worker - to be subclassed for concerete task runners.
 """
 import logging
 import time

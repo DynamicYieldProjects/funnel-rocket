@@ -49,7 +49,7 @@ class StorageHandler:
 
     @abstractmethod
     def _list_files(self, pattern: str) -> List[FileBaseInfo]:
-        """Override in inheritors"""
+        """Override in subclasses"""
         pass
 
     def discover_files(self, pattern: str) -> DatasetPartsInfo:
