@@ -1,3 +1,7 @@
+"""
+Transform a given list of metrics from multiple sources (invoker, workers) into one DataFrame, for easy analysis.
+Export the data into file and/or Prometheus, by configuration.
+"""
 import logging
 from typing import List, Dict, Union
 import pandas as pd
@@ -12,9 +16,10 @@ METRIC_SOURCE_COLUMN = 'source'
 METRIC_NAME_COLUMN = 'metric'
 METRIC_VALUE_COLUMN = 'value'
 
-PANDAS_FLOAT_FORMAT = '{:.5f}'
+PANDAS_FLOAT_FORMAT = '{:.5f}'  # No pesky scientific notation ;-)
 pd.options.display.float_format = PANDAS_FLOAT_FORMAT.format
 
+# 'Last run' file, if defines, stores the most recent job's metrics as a file in CSV or Parquet format (by extension)
 EXPORT_LASTRUN_FILE = config.get('metrics.export.lastrun', None)
 EXPORT_TO_PROMETHEUS = config.bool('metrics.export.prometheus')
 
@@ -29,14 +34,21 @@ class MetricsFrame:
         self._build_df()
 
     def _build_df(self):
+        """
+        Build the DataFrame: each row is one reported metric, but the DF is created with columns. Hence, we're creating
+        columns here rather than rows.
+        """
         metric_source_column = self._sources
-        metric_name_column = [m.name.name for m in self._metrics]
-        metric_value_column = [m.value for m in self._metrics]
+        metric_name_column = [m.name.name for m in self._metrics]  # Metric names column
+        metric_value_column = [m.value for m in self._metrics]     # Metric values column
 
+        # Init empty columns for all possible label names.
+        # Cells not not filled (see below) will remain empty (and possibly even entire columns)
         label_columns: Dict[str, List[Union[str, None]]] = {}
         for label_name in ALL_LABEL_NAMES:
             label_columns[label_name] = [None] * len(self._metrics)
 
+        # Fill labels columns with what labels are actually set per metric
         for i, metric in enumerate(self._metrics):
             for label_name, label_value in metric.labels.items():
                 label_columns[label_name][i] = label_value

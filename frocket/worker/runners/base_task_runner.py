@@ -1,3 +1,6 @@
+"""
+Base class for running a task in a worker - to be subclassed for concerete task runners.
+"""
 import logging
 import time
 from abc import abstractmethod
@@ -16,11 +19,14 @@ DEFAULT_PREFLIGHT_DURATION_MS = config.int("part.selection.preflight.ms")
 
 
 class TaskRunnerContext:
+    """simple dependency provider... (for easier testing)."""
     def __init__(self,
                  metrics: MetricsBag,
                  private_part_loader: PartLoader = None,
                  preflight_duration_ms: int = None):
         self._metrics = metrics
+        # By default, files are loaded and cached by a re-usable loaded.
+        # Having a 'private' one allows testing in isolation
         self._part_loader = private_part_loader or shared_part_loader()
         if preflight_duration_ms is None:
             preflight_duration_ms = DEFAULT_PREFLIGHT_DURATION_MS
@@ -65,34 +71,38 @@ class BaseTaskRunner:
                  ctx: TaskRunnerContext):
         self._req = req
         self._ctx = ctx
-        # TODO important this should be initialized by default (unless not known - make it nicer)
+        # TODO backlog initialize the attempt_id on init, if available (n/a here in self-select part mode)
         self._task_attempt_id: Optional[TaskAttemptId] = None
 
     def run(self) -> BaseTaskResult:
         error_message, engine_result = None, None
-
         with self._ctx.metrics.measure(MetricName.TASK_TOTAL_RUN_SECONDS):
             try:
                 self._ctx.metrics.set_metric(MetricName.INVOKE_TO_RUN_SECONDS,
                                              self.time_since_invocation(self._req))
 
-                self._do_run()
+                self._do_run()  # Call concrete class to do the actual work
                 final_status = TaskStatus.ENDED_SUCCESS
             except Exception as e:
                 final_status = TaskStatus.ENDED_FAILED
                 error_message = str(e)
                 logger.exception('Task FAILED!')
 
+        # Post-run: extracting the task metrics, building the concrete result object
         final_metrics = self._ctx.metrics.finalize(success=(final_status == TaskStatus.ENDED_SUCCESS))
+        # First, set the base attributes in a dict as kind of a 'skeleton' response - then pass it to the concrete
+        # task runner to pass as **args to the concrete result class
         base_attributes = BaseTaskResult(
             task_index=self._task_attempt_id.task_index,
             status=final_status,
             error_message=error_message,
             metrics=final_metrics).shallowdict(include_none=True)
-        result = self._build_result(base_attributes)
+        result = self._build_result(base_attributes)  # Call concrete class
 
-        # TODO Later have an optional secondary channel to report failures,
-        #  when there is no attempt ID / no datastore connected
+        # If the job failed to get a task attempt ID assigned to it (self-select failed),
+        # or if the datastore is not available - task status and result cannot be written
+        # TODO backlog consider having an optional secondary channel to report such failures
+        #  (aside from centralized logging?)
         if self._task_attempt_id:
             self._ctx.datastore.write_task_result(self._req.request_id, self._task_attempt_id, result)
         else:
@@ -109,7 +119,8 @@ class BaseTaskRunner:
     def _do_run(self):
         pass
 
-    # TODO doc: this is expected to still work even if _do_run failed
     @abstractmethod
     def _build_result(self, base_attributes: dict):
+        """This method is still called by run() above even if _do_run() has raised an exception - having a sane
+        result object is important even if a failed one."""
         pass

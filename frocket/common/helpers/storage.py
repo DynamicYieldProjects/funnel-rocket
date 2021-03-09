@@ -1,3 +1,14 @@
+"""
+Simple abstraction of local & remote filesystems.
+
+Currently supports either a local filesystem (for non-distributed usage, or potentially a fast network share)
+and S3 (or S3-compatible object stores such as MinIO, which is used for running tests).
+Additional protocols are welcome.
+
+TODO backlog: support pagination for S3 listing (so more than 1,000 files per dataset)
+TODO backlog: support auto-identification of numbering pattern in dataset files, so the full list of filenames
+ would not have to reside in the datastore
+"""
 import logging
 import re
 import tempfile
@@ -13,12 +24,9 @@ from frocket.common.dataset import DatasetPartsInfo, PartNamingMethod
 
 logger = logging.getLogger(__name__)
 
-# TODO support pagination for S3 (for more than 1,000 files)
-# TODO Later: support numeric pattern? (or discover it)
-# TODO convert relative paths to absolute, ensure no paths in pattern
-
 
 class StorageHandler:
+    """Simple abstraction of a storage protocol."""
     class FileBaseInfo(NamedTuple):
         relpath: str
         size: int
@@ -29,20 +37,25 @@ class StorageHandler:
 
     @classmethod
     def valid(cls, path: str) -> bool:
+        """For validation of a path prior to instantiating the handler - a nicety instead of exceptions later,
+        to be overriden where appropriate."""
         return True
 
     @property
     @abstractmethod
     def remote(self) -> bool:
+        """This affects the caching behavior used by workers (see part_loader.py)."""
         pass
 
     @abstractmethod
     def _list_files(self, pattern: str) -> List[FileBaseInfo]:
+        """Override in subclasses"""
         pass
 
     def discover_files(self, pattern: str) -> DatasetPartsInfo:
         files = self._list_files(pattern)
         files.sort(key=lambda fi: fi.relpath)
+        # TODO backlog implement PartNamingMethod.RUNNING_NUMBER for compact metadata in large datasets
         parts_info = DatasetPartsInfo(naming_method=PartNamingMethod.LIST,
                                       total_parts=len(files),
                                       total_size=sum([fi.size for fi in files]),
@@ -52,6 +65,10 @@ class StorageHandler:
 
     @abstractmethod
     def _local_path(self, fullpath: str) -> str:
+        """
+        If the filesystem is remote, download and return a local copy.
+        Files should be cleaned-up by the caller which controls the caching behavior.
+        """
         pass
 
     def get_local_path(self, fullpath: str) -> str:
@@ -62,6 +79,7 @@ class StorageHandler:
 
 
 class FileStorageHanler(StorageHandler):
+    """Super-simple local filesystem handler"""
     @property
     def remote(self):
         return False
@@ -80,6 +98,7 @@ class FileStorageHanler(StorageHandler):
 
 
 class S3StorageHanler(StorageHandler):
+    """S3 filesystem handler, supports datasets directly under the bucket or within a sub-directory."""
     S3_PATH_REGEX = re.compile(r"^s3://([a-zA-Z0-9_\-.]+)/([a-zA-Z0-9_\-./]*)$")
 
     def __init__(self, path: str):
@@ -101,6 +120,7 @@ class S3StorageHanler(StorageHandler):
     def _list_files(self, pattern):
         path_in_bucket = self._path_in_bucket_normalized
         logger.info(f"Listing files in S3 with bucket {self._bucket} and prefix {path_in_bucket}...")
+        # TODO backlog support pagination
         s3response = self._client().list_objects_v2(Bucket=self._bucket, Prefix=path_in_bucket)
 
         filename_start_idx = len(path_in_bucket)
@@ -144,6 +164,10 @@ PROTOCOL_TO_HANDLER = {
 
 
 def storage_handler_for(path: str, throw_if_missing: bool = True) -> Optional[StorageHandler]:
+    """
+    Instantiate the appropriate handler for the given path.
+    Paths without explicit protocol are considered local.
+    """
     path_and_protocol = re.match(PATH_WITH_PROTOCOL_RE, path)
     if path_and_protocol:
         method_name = path_and_protocol.groups()[0]

@@ -1,3 +1,9 @@
+"""
+A worker that gets its tasks by a blocking dequeue from the datastore. Doesn't get any simpler -
+but is easily scalable, and requires no load balancer or orchestrator (except for the queue's atomic guarantees).
+
+TODO backlog having a cache-friendly task assignment would require more work, if it makes sense to do.
+"""
 import logging
 from frocket.common.metrics import MetricsBag, WorkerStartupLabel, ComponentLabel
 from frocket.common.tasks.base import BaseTaskRequest
@@ -25,6 +31,9 @@ def handle(req: BaseTaskRequest) -> None:
 
 
 def main_loop():
+    # TODO backlog currently workers that encounter an unexpected data format will crash rather than continuing to
+    #  consume and (probably) fail. This has a pro (outdated worker versions fail fast), but of course also cons -
+    #  consider the desired/configurable behavior (e.g. crash after N unexpected errors?)
     try:
         while True:
             logger.info('Waiting for work...')

@@ -17,9 +17,11 @@ from frocket.invoker.jobs.job import Job
 
 logger = logging.getLogger(__name__)
 
-VALIDATION_SAMPLE_RATIO = config.float('validation.sample.ratio')
-VALIDATION_MAX_SAMPLES = config.int('validation.sample.max')
+VALIDATION_SAMPLE_RATIO = config.float('validation.sample.ratio')  # Ratio of sample size to dataset total parts
+VALIDATION_MAX_SAMPLES = config.int('validation.sample.max')  # Hard limit on on. of samples
+# How many 'top N' values to store in schema for categoricl fields
 CATEGORICAL_TOP_COUNT = config.int('dataset.categorical.top.count')
+# To be included in Top N list, a value should have at least this ratio of occurences to total row count
 CATEGORICAL_TOP_MIN_PCT = config.float('dataset.categorical.top.minpct')
 
 
@@ -33,9 +35,12 @@ class RegistrationJob(Job):
         self._final_schema = None
 
     def prerun(self, async_updater=None):
+        # Before validation tasks are run, finc out which parts (files) there are in the given path
         if async_updater:
             async_updater.update(message=f"Discovering files in {self._args.basepath}")
 
+        # TODO backlog run file discovery in a worker task, not directly by the invoker, for better separation of
+        #  concerns and *permissions* (invoker won't need list permission to remote storage)
         parts_info = self._discover_parts(self._args.basepath, self._args.pattern)
         if parts_info.total_parts == 0:
             return f"No files found at {self._args.basepath}"
@@ -50,6 +55,7 @@ class RegistrationJob(Job):
         else:
             mode = self._args.validation_mode
 
+        # The dataset will be persisted to datastore once registration completes successfully
         dataset = DatasetInfo(id=DatasetId.now(self._args.name),
                               basepath=self._args.basepath,
                               total_parts=parts_info.total_parts,
@@ -57,7 +63,6 @@ class RegistrationJob(Job):
                               timestamp_column=self._args.timestamp_column)
 
         self._sampled_parts = self._choose_sampled_parts(dataset, parts_info, mode)
-
         self._dataset = dataset
         self._parts_info = parts_info
         self._validate_uniques = validate_uniques
@@ -68,7 +73,7 @@ class RegistrationJob(Job):
 
     @staticmethod
     def _discover_parts(basepath: str, pattern: str):
-        handler = storage_handler_for(basepath)
+        handler = storage_handler_for(basepath)  # Returns the appropriate storage handler based on the path format
         result = handler.discover_files(pattern)
         if result.total_parts > 0:
             logger.info(f"Number of part files: {result.total_parts}, "
@@ -81,11 +86,13 @@ class RegistrationJob(Job):
     def _choose_sampled_parts(dataset: DatasetInfo,
                               parts: DatasetPartsInfo,
                               mode: DatasetValidationMode) -> List[DatasetPartId]:
+        """Determine the list of parts to sample, and return as DatasetPartIds"""
         if mode == DatasetValidationMode.SINGLE:
             chosen_indexes = [0]
         elif mode == DatasetValidationMode.FIRST_LAST:
             chosen_indexes = [0, parts.total_parts - 1]
         else:
+            # In SAMPLE mode, always include first & last part, plus zero..VALIDATION_MAX_SAMPLES extra parts
             preselected = [0, parts.total_parts - 1]
             chosen_indexes = sample_from_range(range_max=parts.total_parts,
                                                sample_ratio=VALIDATION_SAMPLE_RATIO,
@@ -116,7 +123,7 @@ class RegistrationJob(Job):
         request = RegistrationTaskRequest(
             request_id=self._request_id,
             invoke_time=time.time(),
-            invoker_set_task_index=task_index,
+            invoker_set_task_index=task_index,  # Task index & part are always set by invoker in this job
             attempt_no=attempt_no,
             dataset=self._dataset,
             part_id=self._sampled_parts[task_index],
@@ -124,6 +131,8 @@ class RegistrationJob(Job):
         return request
 
     def complete(self, job_status, latest_task_results, async_updater=None):
+        """Now that all individual tasks have completed, check for consistency between task results, and build the
+        aggregated schema."""
         if not job_status.success:
             return job_status
 
@@ -190,7 +199,7 @@ class RegistrationJob(Job):
             new_columns[name] = DatasetColumn(name=name, dtype_name=col.dtype_name,
                                               coltype=col.coltype, colattrs=new_attrs)
 
-        # TODO Later consider unsupported column merging (whose list and types can differ between sampled files)
+        # TODO backlog consider merging list of unsupported columns from all sampled parts
         return DatasetSchema(columns=new_columns,
                              unsupported_columns=full_schemas[0].unsupported_columns,
                              group_id_column=full_schemas[0].group_id_column,

@@ -1,14 +1,24 @@
+"""
+A simple config class based on a dict filled with default values, overridable by env. variables.
+
+There is no support for a config file here, as my personal experience shows managing such files for different
+environments tends to be clunky, while env variables are supported by pretty much everything (but YMMV).
+Specifically for Funnel Rocket, the env is easily set for AWS Lambdas decoupled from the packaged code.
+
+To override the default value of 'redis.port', set the env variable FROCKET_REDIS_PORT.
+See the reference documentation for details of all settings.
+
+TODO backlog switch to a "real" config package OR polish the API and None/empty values handling based on actual usage.
+"""
 import os
 import logging
 import sys
 from typing import Dict
-
 import boto3
 import botocore
 
-# TODO Switch to a "real" config package, standardize behavior on none/empty values
-
 ENV_CONFIG_PREFIX = "FROCKET"
+# All default values are specified as strings, just as they may be specified in env variables.
 DEFAULTS = {
     "datastore": "redis",
     "blobstore": "redis",  # TODO doc optional separate redis config of any property
@@ -23,7 +33,7 @@ DEFAULTS = {
     "dataset.categorical.top.count": "20",
     "dataset.categorical.top.minpct": "0.01",
     "dataset.categorical.potential.use": "true",
-    "part.selection.preflight.ms": "200",  # TODO document: 0 means no preflight
+    "part.selection.preflight.ms": "200",  # TODO doc 0 means no preflight
     "invoker": "work_queue",
     "invoker.run.timeout": "60",
     "invoker.async.poll.interval.ms": "25",
@@ -34,28 +44,30 @@ DEFAULTS = {
     "invoker.lambda.legacy.async": "true",
     "invoker.retry.max.attempts": "3",
     "invoker.retry.failed.interval": "3",
-    "invoker.retry.lost.interval": "20",  # TODO document: depends on normal performance bounds
+    "invoker.retry.lost.interval": "20",  # TODO doc depends on normal performance bounds
     "worker.self.select.enabled": "true",
     "worker.reject.age": "60",
-    "metrics.export.lastrun": "",  # TODO change and doc
     "metrics.export.prometheus": "true",
+    "metrics.export.lastrun": "",  # TODO doc
     "metrics.buckets.default": "0.1, 0.5, 1, 5, 25, 100, 1000",
     "metrics.buckets.seconds": "0.05, 0.1, 0.5, 1, 2, 5, 10, 15",
     "metrics.buckets.dollars": "0.01, 0.05, 0.1, 0.5, 1, 2",
     "metrics.buckets.bytes": "1048576, 16777216, 67108864, 134217728, 268435456",
     "metrics.buckets.groups": "100, 1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 500_000_000",
     "metrics.buckets.rows":   "100, 1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 500_000_000",
-    "worker.disk.cache.size.mb": "256",  # TODO document: 0 means no caching
+    "worker.disk.cache.size.mb": "256",  # TODO doc 0 means no caching
     "stats.timing.percentiles": "0.25, 0.5, 0.75, 0.95, 0.99",
     "log.file": "",
     "log.level": "info",
     "log.format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+    "apiserver.admin.actions": "true",
+    "apiserver.error.details": "true",
     "apiserver.prettyprint": "true",
     "apiserver.stream.poll.interval.ms": "10",
     "apiserver.stream.write.interval.ms": "250",
     "validation.sample.max": "10",
     "validation.sample.ratio": "0.1",
-    "unregister.last.used.interval": "30",  # TODO comment out & doc - default is invoker.run.timeout * 2
+    "unregister.last.used.interval": "30",  # TODO doc (& change?) - default is invoker.run.timeout * 2
     "aggregations.top.default.count": "10",
     "aggregations.top.grace.factor": "2.0",
     "aws.endpoint.url": "",
@@ -74,8 +86,8 @@ class ConfigDict(Dict[str, str]):
         super().__init__(seq, **kwargs)
         self._log_initialized = False
 
-    # Convert environment variable such as "FROCKET_REDIS_HOST" to key "redis.host"
     def add_env_config(self, prefix: str) -> None:
+        """Convert environment variable such as "FROCKET_REDIS_HOST" to key "redis.host"."""
         for key, value in os.environ.items():
             value = value.strip()
             if key.startswith(prefix + '_') and len(value) > 0:
@@ -108,6 +120,16 @@ class ConfigDict(Dict[str, str]):
         return value or None
 
     def aws_client_settings(self, service: str = None) -> dict:
+        """
+        Get the basic arguments for boto3.client(), to be unpacked into arguments by **aws_client_settings([service]).
+
+        If service argument (e.g. 's3', 'lambda') is given, try first to read a value specific to that service,
+        then fallback to reading a non service-specific value. If that one does not exist, boto would use its default
+        mechanism of looking for env variables and configuration files.
+
+        Having per-service settings if useful for (a) mocking the different services by separate tools (== endpoints),
+        and (b) if using access keys rather than IAM roles, specifying service-specific keys.
+        """
         aws_to_config_keys = {
             'region_name': 'aws.region',
             'endpoint_url': 'aws.endpoint.url',
@@ -118,10 +140,15 @@ class ConfigDict(Dict[str, str]):
         return settings
 
     def aws_config_dict(self, service: str = None) -> dict:
+        """
+        Returns values for initializing a boto Config object, to be unpacked by **aws_config_dict([service]).
+        This is similar to the above method, except that these are values to init the optional config object with.
+        """
         max_pool_connections = self._get_for_service('aws.max.pool.connections', service) or None
         connect_timeout = self._get_for_service('aws.connect.timeout', service) or None
         read_timeout = self._get_for_service('aws.read.timeout', service) or None
         max_retries = self._get_for_service('aws.retries.max.attempts', service) or None
+        # For mocking purposes only!
         no_sign_requests = self._value_is_true(self._get_for_service('aws.no.signature', service))
 
         config = {
@@ -136,6 +163,7 @@ class ConfigDict(Dict[str, str]):
 
     @staticmethod
     def to_env_variable(key: str) -> str:
+        """A helper for tests - enabling passing env variables to a sub-process with the current config value."""
         return ENV_CONFIG_PREFIX + '_' + key.replace('.', '_').upper()
 
     @property
@@ -147,7 +175,7 @@ class ConfigDict(Dict[str, str]):
         return level
 
     def _quiet_boto_logging(self):
-        # botocore/boto3 can get pretty chatty, so only report warnings (e.g. connection pool pressure) and errors
+        """botocore/boto3 can get pretty chatty, so only report warnings (e.g. connection pool pressure) and errors."""
         for package_prefix in ['botocore', 'boto3', 'urllib3']:
             boto3.set_stream_logger(name=package_prefix, level=logging.WARNING)
 
@@ -169,15 +197,15 @@ class ConfigDict(Dict[str, str]):
                 print(f"Logging to file {use_filename}")
                 logging.basicConfig(filename=use_filename, **base_args)
             else:
-                logging.basicConfig(stream=sys.stdout, **base_args)
+                logging.basicConfig(stream=sys.stdout, **base_args)  # Please don't all go to stderr...
 
             self._quiet_boto_logging()
             self._log_initialized = True
 
     def init_lambda_logging(self):
         """
-        Lambda Python runtime already init'ed a logger, so using basicConfig() would have no effect,
-        and our log lines would have gone into /dev/oblivion. See https://stackoverflow.com/a/56579088
+        Lambda Python runtime already init'ed a logger, so using basicConfig() as above would have no effect,
+        and our precious log lines would have gone into /dev/oblivion. See https://stackoverflow.com/a/56579088
         """
         if not self._log_initialized:
             logging.getLogger().setLevel(self.loglevel)

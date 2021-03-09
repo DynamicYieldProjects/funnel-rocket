@@ -15,8 +15,15 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncInvoker(BaseInvoker):
-    def __init__(self, job_builder: Job):
-        super().__init__(job_builder)
+    """
+    Subclassing BaseInvoker to implement an async. invocation:
+    first, enqueue tasks; then, poll waiting for successful completion. Handle retries according to configuration, and
+    fail on timeout if necessary.
+    NOTE: this class is also abstract, as it doesn't handle how tasks are actually enqueued. See concrete subclasses
+    WorkQueueInvoker and AwsLambdaInvoker.
+    """
+    def __init__(self, job: Job):
+        super().__init__(job)
         self._run_timeout_seconds = config.int("invoker.run.timeout")
         self._poll_interval_seconds = config.int("invoker.async.poll.interval.ms") / 1000
         self._log_interval_seconds = config.int("invoker.async.log.interval.ms") / 1000
@@ -26,6 +33,7 @@ class AsyncInvoker(BaseInvoker):
 
     def _do_run(self, task_requests: List[BaseTaskRequest],
                 async_status_updater: AsyncJobStatusUpdater = None):
+        """Implementing abstract BaseInvoker._do_run() as a dual-stage process: enqueue, then poll."""
         try:
             with self._metrics.measure(MetricName.ASYNC_ENQUEUE_SECONDS):
                 if async_status_updater:
@@ -44,22 +52,26 @@ class AsyncInvoker(BaseInvoker):
 
     @abstractmethod
     def _enqueue(self, requests: List[BaseTaskRequest]) -> None:
+        """Actual invocation method left to subclasses"""
         pass
 
     def _poll(self, async_status_updater: AsyncJobStatusUpdater = None) -> JobStatus:
-        total_tasks = self._job_builder.total_tasks()
+        """Once tasks were enqueued, the polling mechanism is shared to all subclasses: status is read from the
+        datastore and analyzed."""
+        total_tasks = self._job.total_tasks()
         poll_start_time = time.time()
         last_log_time = poll_start_time
         error_message = None
 
         while True:
+            # TODO backlog to prevent the small-ish drift, sleep only the remaining time to the next 'tick'
             sleep(self._poll_interval_seconds)
             poll_running_time = time.time() - poll_start_time
 
-            # Fetch current state
+            # Fetch current state - for each task index, take it latest attempt only (if more than one)
             attempts_status = self._get_attempts_status()
             latest_status_values = [at.latest_update.status for at in attempts_status]
-            status_counts = Counter(latest_status_values)
+            status_counts = Counter(latest_status_values)  # Counts instances by TaskStatus member
             parts_ended_ok = status_counts[TaskStatus.ENDED_SUCCESS]
 
             if async_status_updater:
@@ -137,7 +149,7 @@ class AsyncInvoker(BaseInvoker):
         # Read status of ALL attempts, and init a list of per-task attempt summaries
         tasks_status = self._datastore.tasks_status(self._request_id)
 
-        attempts_status = [TaskAttemptsInfo(task_index) for task_index in range(self._job_builder.total_tasks())]
+        attempts_status = [TaskAttemptsInfo(task_index) for task_index in range(self._job.total_tasks())]
         for attempt_id, status_update in tasks_status.items():
             attempts_status[attempt_id.task_index].add(attempt_id, status_update)
 

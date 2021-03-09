@@ -18,6 +18,20 @@ class WorkerSelectedPart(SerializableDataClass):
 
 
 class Datastore(metaclass=ABCMeta):
+    """
+    Interface to the data store, which holds:
+
+    * The list, metadata and schema of all registered datasets
+    * For running jobs:
+      * Task statuses and results
+      * Atomic attempt counter for retried tasks
+      * For jobs running in mode PartSelectionMode.SELECTED_BY_WORKER, the manifest of available tasks to select from.
+      * When the system is configured to use the 'work_queue' invoker (rather than 'aws_lambda'), the datastore also
+        provides the queue through which tasks are enqueued by the invoker and picked up by the workers, like a very
+        simplistic queue management system.
+
+    The datastore is not for storing the actual dataset or other persistent large data.
+    """
     @abstractmethod
     def write_dataset_info(self, dataset: DatasetInfo, parts: DatasetPartsInfo, schema: DatasetSchema) -> None:
         pass

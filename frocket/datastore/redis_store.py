@@ -27,6 +27,15 @@ BLOB_KEY_PREFIX = f"{FROCKET_KEY_PREFIX}blob"
 
 
 class RedisStore(Datastore, Blobstore):
+    """
+    Implementation of both Datastore and Blobstore interfaces with Redis.
+
+    Note that each of these interfaces can be configured to use its own host/port/logical DB, or they could use the
+    same one (see configuration guide).
+
+    The underlying Redis object is thread-safe, and since this class has no mutable state,
+    it is also considered thread-safe. However, running in a multi-threaded model has not been seriously tested yet.
+    """
     ConverterFunc = Callable[[str], Any]
 
     class ScopedKey(Enum):
@@ -65,7 +74,7 @@ class RedisStore(Datastore, Blobstore):
             dskey = dataset.id.name
             pipe.hset(DATASETS_HASH_KEY, dskey, dataset.to_json())
             pipe.hset(DS_PARTS_HASH_KEY, dskey, parts.to_json())
-            pipe.hset(SCHEMAS_HASH_KEY, dskey, schema.to_json())  # TODO make more compact in storage
+            pipe.hset(SCHEMAS_HASH_KEY, dskey, schema.to_json())  # TODO backlog make more compact for storage
             pipe.hset(SHORT_SCHEMAS_HASH_KEY, dskey, schema.short().to_json())
             pipe.hdel(DS_LAST_USED_HASH_KEY, dskey)
             pipe.execute()
@@ -98,13 +107,13 @@ class RedisStore(Datastore, Blobstore):
         res = self._redis.hget(key, dataset_name)
         return cls.from_json(res) if res else None
 
-    # TODO Later monitor and limit queue size
+    # TODO backlog monitor and limit queue size (if no workers are active to consume it, or they fail to start)
     def enqueue(self, requests, queue=DEFAULT_QUEUE):
         queue_key = f"{QUEUES_PREFIX}:{queue}"
 
         with self._redis.pipeline() as pipe:
             for req in requests:
-                pipe.lpush(queue_key, Envelope.seal_to_json(req))
+                pipe.lpush(queue_key, Envelope.seal_to_json(req))  # See Envelope class - enables polymorphism
             pipe.execute()
 
     def dequeue(self, queue=DEFAULT_QUEUE, timeout=DEFAULT_DEQUEUE_WAIT_TIME):
@@ -194,6 +203,7 @@ class RedisStore(Datastore, Blobstore):
 
     def self_select_part(self, reqid, attempt_round, candidates=None):
         set_key = self.ScopedKey.JOB_PUBLISHED_PARTS.build(reqid, attempt_round)
+        # Try selecting one of this worker's candidates, if any
         if candidates:
             for candidate in candidates:
                 cand_string = candidate.to_json()
@@ -201,7 +211,7 @@ class RedisStore(Datastore, Blobstore):
                 if removed_count == 1:
                     return WorkerSelectedPart(part_id=candidate, random=False, task_attempt_no=attempt_round)
 
-        res = self._redis.spop(set_key)
+        res = self._redis.spop(set_key)  # Fallback to taking a random task
         if res:
             part_id = cast(DatasetPartId, DatasetPartId.from_json(res.decode()))
             return WorkerSelectedPart(part_id=part_id, random=True, task_attempt_no=attempt_round)

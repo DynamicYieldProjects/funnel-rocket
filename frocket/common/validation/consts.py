@@ -1,14 +1,16 @@
+"""
+Consts and types for the query validation package
+TODO backlog create a nice enum for all query keywords
+"""
 import json
 import os
 import re
 from pathlib import Path
 from typing import Dict, NamedTuple
-
 from frocket.common.dataset import DatasetColumnType
-
-# TODO nice enum for query keywords
 from frocket.common.validation.path_visitor import PathVisitor
 
+# JSON Schema file
 QUERY_SCHEMA_LOCATION = Path(os.path.dirname(__file__)) / '../../resources/query_schema.json'
 QUERY_SCHEMA = json.load(open(QUERY_SCHEMA_LOCATION, 'r'))
 
@@ -59,8 +61,8 @@ class QueryConditionsMap(NamedTuple):
     names: Dict[str, int]
 
 
-# TODO move where?
 def map_condition_names(query: dict) -> QueryConditionsMap:
+    """Map named conditions (which is optional) to the condition ID (index in conditions list)."""
     conditions = PathVisitor(query, 'query.conditions').list()
     names = {cond['name'].strip().lower(): i
              for i, cond in enumerate(conditions) if 'name' in cond}

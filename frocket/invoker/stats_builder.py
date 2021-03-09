@@ -1,3 +1,7 @@
+"""
+Build JobStats (returned to the client after job completion) - based mostly on the DataFrame of collected metrics from
+the invoker and all workers.
+"""
 import logging
 import sys
 from typing import Optional, Union, List, Dict
@@ -13,10 +17,11 @@ from frocket.common.metrics import MetricName, ComponentLabel, SUCCESS_LABEL, Me
 
 logger = logging.getLogger(__name__)
 
-TASK_COMPLETION_GRANULARITY_SECONDS = 0.25
+TASK_COMPLETION_GRANULARITY_SECONDS = 0.25  # Data series of task success over time is measured in this resolution
 TIMING_PERCENTILES = [float(pct) for pct in config.get('stats.timing.percentiles').split(',')]
-MIN_METRICS_FOR_PERCENTILES = 20
-MIN_METRICS_FOR_99_PERCENTILE = 100
+MIN_METRICS_FOR_PERCENTILES = 20  # Below this sample count, don't return percentiles
+MIN_METRICS_FOR_99_PERCENTILE = 100  # Below this count, don't return 99th percentile
+# List of keys to pull from Pandas' describe()
 TIMING_DESCRIBE_KEYS = ['min', 'mean', 'max'] + [f"{int(pct*100)}%" for pct in TIMING_PERCENTILES]
 
 
@@ -42,7 +47,7 @@ def build_stats(frame: MetricsFrame, parts_info: DatasetPartsInfo = None) -> Job
         total_tasks=total_tasks,
         failed_tasks=failed_tasks,
         task_success_over_time=_task_success_over_time(successful_task_rows_df)
-        # TODO later add: lost_task_retries
+        # TODO backlog add: lost_task_retries as counted by the invoker; support sync. invokers?
     )
 
     # Worker stats
@@ -55,7 +60,7 @@ def build_stats(frame: MetricsFrame, parts_info: DatasetPartsInfo = None) -> Job
         invoke_latency=_timing_stats(successful_task_rows_df, MetricName.INVOKE_TO_RUN_SECONDS),
         load_time=_timing_stats(successful_task_rows_df, MetricName.TASK_TOTAL_LOAD_SECONDS),
         total_time=_timing_stats(successful_task_rows_df, MetricName.TASK_TOTAL_RUN_SECONDS)
-        # TODO later add: loaded_column_types
+        # TODO backlog add: loaded_column_types - mapping of column type to count, which affects load time
     )
 
     job_stats = JobStats(
@@ -68,6 +73,8 @@ def build_stats(frame: MetricsFrame, parts_info: DatasetPartsInfo = None) -> Job
 
 
 def _task_success_over_time(task_rows_df: DataFrame) -> Dict[float, int]:
+    """Return a sparse series of data points - for each time slot (e.g. 0.25 secs) since the job started, return how
+    many tasks completed successfully in that slot. Non-cumulative, does not include zeros."""
     task_duration_rows = _filter_by_metrics(
         task_rows_df, metrics=[MetricName.INVOKE_TO_RUN_SECONDS, MetricName.TASK_TOTAL_RUN_SECONDS])
     task_durations = task_duration_rows.groupby(METRIC_SOURCE_COLUMN)[METRIC_VALUE_COLUMN].sum()
@@ -78,6 +85,7 @@ def _task_success_over_time(task_rows_df: DataFrame) -> Dict[float, int]:
 
 def _cache_performance(task_rows_df: DataFrame) -> Dict[str, int]:
     return {
+        # Note the 'source' is always the case for locally-loaded files, in which case caching is N/A.
         'source': _count_tasks(_filter_by_label(task_rows_df, LoadFromLabel.SOURCE)),
         'diskCache': _count_tasks(_filter_by_label(task_rows_df, LoadFromLabel.DISK_CACHE))
     }
@@ -130,6 +138,8 @@ def _filter_by_success(df: DataFrame, value: bool = True) -> DataFrame:
 
 
 def _count_tasks(task_rows_df: DataFrame) -> int:
+    """Each task attempt (e.g. task index 117, attempt 2) has a unique name in the source column, which ofc appears in
+    multiple rows. This count the unique count of task attempt IDs in the given DF."""
     return task_rows_df[METRIC_SOURCE_COLUMN].nunique()
 
 

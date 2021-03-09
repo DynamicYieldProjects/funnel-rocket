@@ -1,3 +1,8 @@
+"""
+This is the most generic implementation for getting runtime-environment metrics:
+it does not assume we know the cost of the host machine for the request duration,
+and getting physical memory size should generally work on Linux variants and OS X versions.
+"""
 import logging
 import os
 from frocket.common.metrics import EnvironmentMetricsProvider, MetricData, MetricName
@@ -11,7 +16,7 @@ class GenericEnvMetricsProvider(EnvironmentMetricsProvider):
         try:
             mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
         except ValueError:
-            # Fallback to sysctl in case that os.sysconf('SC_PHYS_PAGES') fails on OS X
+            # Fallback to sysctl in case that os.sysconf('SC_PHYS_PAGES') fails on OS X (seems version specific)
             # noinspection PyBroadException
             try:
                 stream = os.popen('sysctl hw.memsize')

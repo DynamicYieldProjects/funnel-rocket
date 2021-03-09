@@ -20,7 +20,7 @@ jobs:
         id: cache-venv
         with:
           path: ./venv/
-          key: ${{ runner.os }}-venvcache-${{ hashFiles('./requirements.txt','./test-requirements.txt','./setup.py') }}
+          key: ${{ runner.os }}-venv-cache-${{ hashFiles('./requirements.txt','./test-requirements.txt','./setup.py') }}
 
       - name: Build virtual environment and install dependencies
         run: |

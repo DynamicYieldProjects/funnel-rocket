@@ -1,3 +1,4 @@
+"""For everything but the kitchen sink."""
 import functools
 import math
 import random
@@ -19,6 +20,7 @@ def terminal_green(message: str) -> str:
 
 
 def memoize(obj):
+    """Standard issue memoization decorator for caching function results (which don't need invalidation)."""
     cache = obj._cache = {}
 
     @functools.wraps(obj)
@@ -31,12 +33,15 @@ def memoize(obj):
     return memoizer
 
 
-# Given a range of numbers in 0..range_max, return random samples.
-# Count of samples is set by sample_ratio, up to max_samples. If preselected is passed, include these indexes first.
 def sample_from_range(range_max: int,
                       sample_ratio: float,
                       max_samples: int,
                       preselected: Optional[List[int]]) -> List[int]:
+    """
+    Given a range of numbers in 0..range_max, return random samples.
+    Count of samples is set by sample_ratio, up to max_samples.
+    If preselected is passed, include these indexes first.
+    """
     available_indexes = list(range(range_max))
     sample_count = min(math.floor(range_max * sample_ratio), max_samples)
 
@@ -58,6 +63,7 @@ def timestamped_uuid(prefix: str = None) -> str:
 
 
 def ndarray_to_bytes(arr: np.ndarray) -> bytes:
+    """Use PyArrow's feather format as a compute- and space-efficient format for serializing NumPy arrays."""
     df = pd.DataFrame(data={'arr': arr})
     buf = BytesIO()
     # noinspection PyTypeChecker

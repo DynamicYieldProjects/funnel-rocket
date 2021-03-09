@@ -1,3 +1,6 @@
+"""
+implementation of CLI commands.
+"""
 import argparse
 import json
 import sys

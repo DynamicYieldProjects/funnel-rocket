@@ -1,13 +1,17 @@
-from dataclasses import dataclass, field
+"""
+Query job's task classes
+"""
+from dataclasses import dataclass
 from enum import auto
 from typing import Optional, List, Dict, Union, cast
 import inflection
 from frocket.common.dataset import DatasetInfo, DatasetPartId
-from frocket.common.serializable import AutoNamedEnum, enveloped, SerializableDataClass, API_PUBLIC_METADATA, reducable
+from frocket.common.serializable import AutoNamedEnum, enveloped, SerializableDataClass, reducable
 from frocket.common.tasks.base import BaseTaskRequest, BaseTaskResult, BaseJobResult
 
 
 class PartSelectionMode(AutoNamedEnum):
+    """Whether the invoker sets the task_index or the worker selects it from available tasks in the datastore."""
     SET_BY_INVOKER = auto()
     SELECTED_BY_WORKER = auto()
 
@@ -16,10 +20,14 @@ class PartSelectionMode(AutoNamedEnum):
 @dataclass(frozen=True)
 class QueryTaskRequest(BaseTaskRequest):
     dataset: DatasetInfo
+    # String columns to load as Pandas categoricals, as performance optimization. These columns are detected during
+    # dataset registration. Not needed for columns already of categorical type in files saved by Pandas.
     load_as_categoricals: Optional[List[str]]
     mode: PartSelectionMode
+    # If (and only if) mode=SET_BY_INVOKER, the invoker also sets the dataset part index to query
+    # Note that task_index not necessarily equals part ID
     invoker_set_part: Optional[DatasetPartId]
-    used_columns: List[str]
+    used_columns: List[str]  # Which columns to actually load (as optimization), as analyzed by QueryValidator.
     query: dict
 
 
@@ -53,12 +61,15 @@ AggrValueMap = Dict[str, AggrValue]
 class AggregationResult(SerializableDataClass):
     column: str
     type: str
+    # For some aggregation types ('count') the value is a single number. In others (the '<X>perValue' ones), value is
+    # a dict of column value->aggregated number
     value: Optional[Union[AggrValue, AggrValueMap]]
-    top: Optional[int]
-    name: Optional[str]
+    top: Optional[int]  # Relevant for values of type dict
+    name: Optional[str]  # Only set if the user has set a custom name for this aggregation
 
     @classmethod
     def _reduce_fields(cls, serializables):
+        """See: SerializableDataClass."""
         all_values = [e.value for e in cast(List[AggregationResult], serializables)]
         # Reduce either a primitive values or a dicts of counters
         if isinstance(all_values[0], dict):
@@ -71,8 +82,8 @@ class AggregationResult(SerializableDataClass):
 @reducable
 @dataclass(frozen=True)
 class QueryConditionsResult(SerializableDataClass):
-    matching_groups: int
-    matching_group_rows: int
+    matching_groups: int  # e.g. user ID
+    matching_group_rows: int  # All rows of the matching groups, whether that row matches a condition or not
     aggregations: Optional[List[AggregationResult]]
 
     @classmethod
@@ -117,5 +128,5 @@ class QueryTaskResult(BaseTaskResult):
 
 @dataclass(frozen=True)
 class QueryJobResult(BaseJobResult):
-    query: Optional[QueryConditionsResult] = field(metadata=API_PUBLIC_METADATA)
-    funnel: Optional[FunnelResult] = field(metadata=API_PUBLIC_METADATA)
+    query: Optional[QueryConditionsResult]
+    funnel: Optional[FunnelResult]

@@ -1,3 +1,10 @@
+"""
+Run the dataset registration task for a single part.
+
+The task's job is to validate *a single file only*, return its validity & schame, and optionally return the list of
+unique group IDs in the files so that the job object (on the invoker side) can then validate schema & uniques ACROSS
+the sampled files.
+"""
 import logging
 import math
 from typing import cast, Optional
@@ -15,7 +22,10 @@ from frocket.common.validation.consts import CONDITION_COLUMN_PREFIX
 from frocket.worker.runners.base_task_runner import BaseTaskRunner, TaskRunnerContext
 
 logger = logging.getLogger(__name__)
-TOP_GRACE_FACTOR = 1.3  # TODO doc: how many actual top values to return, so they can be aggregated between parts...
+# The top values for categoricals as recorded in the schema are approximate, as we're not reading all dataset files
+# to get exact counts, nor return a complete list of value->counts per file. Instead, there's a simple factor over the
+# amount of configured top values length which each task returns.
+TOP_GRACE_FACTOR = 1.5
 
 
 class RegistrationTaskRunner(BaseTaskRunner):
@@ -24,13 +34,12 @@ class RegistrationTaskRunner(BaseTaskRunner):
         super().__init__(req, ctx)
         self._req = cast(RegistrationTaskRequest, req)
         self._part_id = self._req.part_id
-        self._task_attempt_id = TaskAttemptId(req.invoker_set_task_index, req.attempt_no)  # TODO handle in base
+        self._task_attempt_id = TaskAttemptId(req.invoker_set_task_index, req.attempt_no)  # TODO backlog handle nicer
         self._schema = None
         self._uniques_blob_id = None
         self._warnings = []
-
-        # TODO invoker should set these (and all other config which is really invoker-controlled),
-        #  meanwhile set as instance attributes so they can be read from request.
+        # See configuration guide for these values
+        # TODO backlog pass these configuration attrs from the invoker, so they can be controlled there
         self._categorical_ratio = config.float('dataset.categorical.ratio')
         self._categorical_top_count = math.floor(config.int('dataset.categorical.top.count') * TOP_GRACE_FACTOR)
 
@@ -54,6 +63,7 @@ class RegistrationTaskRunner(BaseTaskRunner):
             logger.info(f"Wrote unique group IDs to blob ID: {self._uniques_blob_id}")
 
     def _validate_basic_cols(self, df: DataFrame):
+        # Validate presence & content of the group ID & timestamp columns, which are mandatory in any dataset
         col_names = df.dtypes.index.tolist()
         group_id_colname = self._req.dataset.group_id_column
         ts_colname = self._req.dataset.timestamp_column
@@ -76,12 +86,9 @@ class RegistrationTaskRunner(BaseTaskRunner):
             raise Exception(f"Column {ts_colname} has NaN values")
         logger.info(f"Column {ts_colname} was found, is numeric and without NaN values")
 
-    # TODO Later: check datetime fields in Parquet->Pandas
     def _build_schema(self, df: DataFrame) -> DatasetSchema:
         columns = {}
         unsupported_columns = {}
-
-        # TODO return warnings on issues (as generic capability)
         all_columns = {name: df[name] for name in df.columns.tolist()}
         for name, series in all_columns.items():
             # noinspection PyBroadException
@@ -112,7 +119,7 @@ class RegistrationTaskRunner(BaseTaskRunner):
         coltype = None
         colattrs = None
         if is_categorical_dtype(series.dtype):
-            actual_dtype = series.cat.categories.dtype
+            actual_dtype = series.cat.categories.dtype  # e.g. str for a categorical string column
         else:
             actual_dtype = series.dtype
 
@@ -140,7 +147,7 @@ class RegistrationTaskRunner(BaseTaskRunner):
             return v is None or type(v) is str
 
         # If the validated file was created with Pandas, it might already have categorical columns -
-        # in which case the .apply() call below also returns a categorical type that will need conversion
+        # in which case the .apply() call below also returns a categorical type that will need conversion to bool
         if is_string_dtype(series.dtype) or \
                 (is_categorical_dtype(series.dtype) and is_string_dtype(series.cat.categories.dtype)):
             # If the series has a mix of strings and other types, Pandas may think it's a string column -

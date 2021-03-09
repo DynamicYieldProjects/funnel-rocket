@@ -1,4 +1,21 @@
+"""
+Simple CLI for Funnel Rocket.
+
+This is currently a wrapper over invoker_api directly (meaning that the CLI process is the invoker), rather than
+calling an API server - meaning that it does not rely on a running server, but needs the same permissions (listing files
+in remote storage, access to Redis as datastore, optionally being able to invoke Lambdas).
+
+This makes the CLI more suitable for onboarding and evaluation, but in production it's preferable to use the API
+(for a better permissions model and centralized monitoring/logging, if nothing else).
+
+The CLI does provide a few optional flags which make it also suitable for automating jobs:
+* --nopretty returns JSON object/s without any captions
+* --notrim and --nocolor prevents data from bein shortened or surrounded by ANSI color codes
+* The log level is controllbable, and all log lines have a prefix making them easy to ignore.
+"""
 import argparse
+# TODO backlog don't import any frocket modules but a carefully selected set which does not then import heavy packages
+#  or initialize mechanisms. This is only partially done now (see import at end of file).
 from frocket.common.config import config
 from frocket.common.tasks.registration import DatasetValidationMode, REGISTER_DEFAULT_VALIDATION_MODE, \
     REGISTER_DEFAULT_FILENAME_PATTERN, REGISTER_DEFAULT_VALIDATE_UNIQUES
