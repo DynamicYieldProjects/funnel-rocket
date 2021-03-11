@@ -407,5 +407,78 @@ def test_string_operators():
             ]
         }
         engine_result = expand_and_run_query(df=data, query_part=query)
-        print(engine_result)
         assert engine_result.query.matching_group_rows == expectation
+
+def test_sequence_condition():
+    data = []
+    for i in range(5):
+        d = [
+            # user 'a' will have this sequence of categories: 0 1 2 3 4
+            {
+            'id': 'a',
+            'timestamp': i,
+            'category': i,
+            'price': 1
+        },
+            # user 'b' will have this sequence of categories: 0 1 -1 -1 -1
+        {
+            'id': 'b',
+            'timestamp': i,
+            'category': i if i < 2 else -1,
+            'price': 2
+        },
+            # user 'c' will have this sequence of categories: 4 3 2 1 0
+        {
+            'id': 'c',
+            'timestamp': i,
+            'category': 4 - i,
+            'price': 3
+        }
+        ]
+        data.extend(d)
+    data = pd.DataFrame(data)
+    query = {
+        'conditions': [
+            {
+                "sequence": [
+                    {
+                        "filter": ["category", "==", 0]
+                    },
+                    {
+                        "filter": ["category", "<=", 2]
+                    },
+                    {
+                        "filter": ["category", "<", 0]
+                    }
+                ]
+            }
+        ],
+        'aggregations': [{'column': 'price'}]
+    }
+    engine_result = expand_and_run_query(df=data, query_part=query)
+    # only user b fits the query
+    assert engine_result.query.matching_groups == 1
+    assert '2' in engine_result.query.aggregations[-1].value
+    query = {
+        'conditions': [
+            {
+                "sequence": [
+                    {
+                        "filter": ["category", ">=", 3]
+                    },
+                    {
+                        "filter": ["category", "<=", 2]
+                    },
+                    {
+                        "filter": ["category", "==", 0]
+                    }
+                ]
+            }
+        ],
+        'aggregations': [{ 'column': 'price'}]
+    }
+    engine_result = expand_and_run_query(df=data, query_part=query)
+    # this time it's user c
+    assert engine_result.query.matching_groups == 1
+    assert '3' in engine_result.query.aggregations[-1].value
+
