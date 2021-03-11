@@ -258,7 +258,6 @@ funnel-rocket % docker-compose up -d
 Starting funnel-rocket_storage-redis_1 ... done
 ```
 ### Containerised dev environment
-* Funnel Rocket can be built as a docker image by running: `docker build -f docker/Dockerfile . -t dynamicyield/frocket`
 * Run `docker-compose up`, to build and start a `frocket` worker service running on docker with needed dependencies, such as redis.
 * Run `docker-compose up --scale funnel-rocket-worker=2` to start multiple workers. 
  
@@ -271,7 +270,7 @@ Starting funnel-rocket_storage-redis_1 ... done
 ### Preparing the Example Dataset
 
 To give you a sense of how to prepare a dataset, here are the steps to download a public e-commerce dataset from Kaggle, 
-optimize it for querying with the help of a readymade script.
+optimize it for querying with the help of a ready-made script.
 
 Unfortunately, this dataset is fairly obfuscated so it's hard to know what various IDs used stand for. Thus, the 
 ingestion script only brings over a few columns.
@@ -279,21 +278,19 @@ ingestion script only brings over a few columns.
 1. Download the [dataset files](https://www.kaggle.com/retailrocket/ecommerce-dataset/) from Kaggle - free registration 
 is required. Extract the files to a new directory. By default, the ingestion script reads and writes from the directory
   `scratch/` under the repository root (this directory name is listed in `.gitignore`).
-2. From the repository root directory, run `python frocket/dataprep/ingest_retailrocket_dataset.py`. If you're not using 
-the default `scratch` folder, add the argument `-h` for usage notes.
+2. From the repository root directory, run `python dataprep_example/ingest_retailrocket_dataset.py scratch`.
+   1.  Add the argument `-h` for usage notes
 3. This script will:
-3.1 Read the approx. 2.5 million user events in `events.csv`
-3.2 Load the two auxiliary product properties files and inner-join them with the user events DataFrame based on the 
-'itemid' column. This de-normalizes the events data so that relevant product attributes can be looked for without any 
-needing any joins at query time - which are not supported.
-3.3 Convert a few columns to a more efficient data type: making `available` a boolean column, convert the (probable) 
-product price column to float, and last but not least: cast a few string fields to the 
-[categorical data type](https://pandas.pydata.org/pandas-docs/stable/user_guide/categorical.html). 
-3.4 Finally, the script saves the file as `retailrocket.parquet` in the target folder.
+   1.  Read the approx. 2.5 million user events in `events.csv`
+   2.  Load the two auxiliary product properties files and inner-join them with the user events DataFrame based on the `itemid` column. 
+   3.  This de-normalizes the events data so that relevant product attributes can be looked for without needing any joins at query time - which are not supported.
+   4. Convert a few columns to a more efficient data type: making `available` a boolean column, convert the (probable) product price column to float, and last but not least: cast a few string fields to the [categorical data type](https://pandas.pydata.org/pandas-docs/stable/user_guide/categorical.html).
+   5. Finally, the script saves the file as `retailrocket.parquet` in the target folder.
 4. We now have a single file with all 2.5 million rows. To make queries parallel, let's partition it into eight parts based
 on the 'visitorid' column, with the supplied utility `repartition_dataset.py`
+
 ```
-(.venv) funnel-rocket % python frocket/dataprep/repartition_dataset.py --input_files scratch/retailrocket.parquet --num_parts 8 --force visitorid
+(.venv) funnel-rocket % python dataprep_example/repartition.py --parts 8 --input scratch/retailrocket.parquet --parts 8 --force visitorid
 Input files found: 1, map output dir: map, partitions: 8, CPUs: 4, pool size: 1
 Task no. 0 for input file scratch/retailrocket.parquet: written 0 files so far... 
 All done! total of 8 files created
