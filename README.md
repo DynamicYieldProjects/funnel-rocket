@@ -12,36 +12,32 @@
 
 ## What's This About?
 
-Funnel Rocket is a query engine that was purpose-built to efficiently run a specific type of query:
+Funnel Rocket is a query engine built to efficiently run a specific type of query:
 
-Given large datasets of user activity (pageviews, events, clicks, etc.), find the users whose activities meet a specific
-condition set, optionally with a **specific order of events and time constraints**, and return various aggregations over
-the matching group. It can also perform a full funnel analysis, in which user counts and aggregations are 
-returned for each step in the sequence.
+Given a large dataset of user activity (pageviews, events, clicks, etc.), find the users whose activities meet a specific
+condition set, optionally with a **specific order of events and time constraints**, and return multiple metrics on the matching group.
 
-This is not a rare need for website and app operators, yet is still a challenge to do with standard tools in terms of 
-compute needs, time to run and cost. With current SQL and NoSQL databases (choose your poison), the queries you'd need to 
-write are relatively complex and prone to bugs. Another route you may take
-is through batch processing, limiting you "baked" queries that cannot be tweaked ad-hoc by the end user.
+The engine can also perform a full funnel analysis, in which user counts and aggregations are returned for each step in the sequence.
 
-To more exactly frame the challenge: first, you need to perform a very high cardinality grouping first (dozens of millions 
-of groups or more, each one being for a single user), and then run multiple passes over each group to execute all conditions 
-in the desired order.
+If you're a vendor oferring analytics, personalization, content or product recommendations, etc. you may wish to offer such query capability
+to each of your customers, allowing ad-hoc data exploration to better understand user behavior and define audience groups. 
 
-While datasets do need some preparation to be efficiently queryable, we've tried to minimize the effort needed - read
-on below for more. 
+However, such queries are still a challenge to build with existing tools (SQL or NoSQL). The're not only tricky to get right, but are pretty hard to optimize for performance and cost to run & operate. At a high level, executing such a query requires you to first perform a high cardinality grouping first (100 million users => 100 million groups), then run multiple passes over each of these group to execute all conditions in the desired order. An alternative method is to "pre-bake" results by batch processing, thus limiting what freedom your users have to explore the data.
 
-Though the original aim was very specific (to replace an aging solution), we've found that the codebase can be easily
-extended to perform many more use-cases focused on large scale user-centric data processing (it doesn't really need to be users,
-of course) - and do so in a fashion that's very fast to scale, with low resource overhead, little management and lower cost. 
+The original aim of this tool was very specific: replacing an aging solution, but we've found it can be easily extended to perform many more use-cases around large scale user-centric data processing (or other entities, of course). 
 
-## The Technology Used, or: Clusters are Hard, and Cloud Native isn't (only) a Buzzword
+Funnel Rocket certainly does not match the expressiveness and flexibility of mature query engines or batch processing frameworks, but for what it offers we've found that's it's very fast to scale with low resource and management overhead, amounting to significantly lower TCO. 
 
-This tool is basically bringing together a few excellent, proven components that do all the heavy lifting:
+Your datasets do need some preparation to be efficiently queryable, but we've made an effort to minimize the effort needed (with more to come). 
+
+## The Technology Used, or: Clusters are Hard
+
+Funnel Rocket is basically the bringing together a few excellent, proven components which do most of the heavy lifting.
 
 ### 1. Pandas
 The concept of the *DataFrame* doesn't need much introduction, and allows for runnning complex transformations at ease with
-good performance (if you're mindful enough). Coupled with Apache Arrow (also by the industrious @wesm) you also get great Parquet support. 
+good performance (if you're mindful enough). Coupled with Apache Arrow (also by the industrious @wesm) you also get great Parquet support, while Numba offers a path to squeezing significantly better compute performance at critical points. 
+
 Pandas itself is a library running within a single process, but tools such as Dask and PySpark have brought either the library itself 
 or its core abstractions to the distributed domain. 
 
@@ -50,27 +46,26 @@ inevitable periodic issues can get very time-consuming. When something breaks, i
 virtually any technology would reach some unexpected size/load threshold and  start performing poorly or behaving erratically.
 
 Scaling usually leaves a lot to be desired: the cluster either has "too much" resources sitting idle, or not enough to handle
-temporal load spikes. That translates into a lot of money at scale. There's no no silver bullet, of course, yet we can take a stab at the problem from another angle:
+temporal load spikes. That translates into a lot of money at scale. 
 
-### 1. Serverless
-(currently supporting AWS Lambda, other integrations welcome)
+There's no no silver bullet, of course, yet we can take a stab at the problem from another angle: serverless.
 
-People tend to be split on serverless, for a bunch of reasons right and wrong. What we've found with AWS Lambda (a bit to our surprise
-as well!) is a mature, reliable and (yes) fast enough service which can scale to hundreds or thousands of cores almost immediately. 
-The price per GB/second (or vCPU/second) is indeed higher in this model, but since you pay only for "actual work" done, it is very fitting for 
-bursty on-demand jobs - in our case, queries. You also spend relatively very little time on operations.
+### 2. Serverless
+*Currently supporting AWS Lambda, other integrations welcome.*
 
-For a tool that's measured in single digit seconds rather than milliseconds, they turned up to be good enough. If you're seeing the users
-of your web UI progressively tweak their queries, warm start and some smart data caching go along way to speed up things further. Plus,
-you can always 'pre-bake' some default/common queries beforehand using the non-serverless mode - see below.
+People tend to be split on serverless, for a bunch of reasons. We've found AWS Lambda to be mature, reliable and (yes) fast enough service which can scale to hundreds or thousands of cores almost immediately. 
 
-Funnel Rocket uses the asynchronous Lambda invocation API, making it much easier to launch hunderds+ of jobs quickly.
-Your invocation reqeusts are put into a queueing mechanism, which adds no meaningful latency in normal operation, yet prevents most cases of rate limiting.
+The compute cost per GB/second (or vCPU/second) is indeed higher in this model, but you pay only for actual processing time: from the time your handler starts till it ends. You're billed in millisecond granularity, excluding any compute time it took the underlying VM or your process to reach the state where the handler can start its work. Thus, it is very fitting for bursty on-demand jobs. You also spend relatively very little time on operations.
+
+For a tool that's measured in seconds rather than milliseconds, Lambda turned up to be good enough (even aiming for the low single digits). 
+If customers tend progressively tweak their queries while exploring, then *warm start* and a bit of smart data caching go a long way to speed up subsequent queries even further, to 2-3 seconds total in our tests. You can always 'pre-bake' some default/common queries beforehand using the non-serverless mode - see below.
+
+Funnel Rocket uses the asynchronous Lambda invocation API, making it much easier to launch hundreds+ of jobs quickly. Invocation reqeusts are put into a queueing mechanism, which adds no meaningful latency in normal operation yet prevents most cases of rate limiting.
 
 Of course, having multiple distributed jobs and tasks in flight, handling retries, etc. still takes some management infrastructure. 
 Luckily, there's Redis.
 
-### 3. Redis, and the Lightweight Cluster Option
+### 3. Redis and the Lightweight Cluster Option
 The versatility of Redis data structures makes it a natural choice for handling lightweight metadata, work queues, real-time 
 status tracking and more. There is a range of managed offerings to choose from which won't break the bank, as this use case 
 only requires a modest amount of RAM.
@@ -79,19 +74,18 @@ Other than for managing metadata on datasets, Redis is used in two more ways:
 
 1. For tracking and storing the status and outputs of all individual tasks, since the invoker (server) does not rely on synchronous responses.
 
-2. Optionally, to **support a non-serverless deployment option where Redis also acts as a work queue** from which 
+2. **To support a non-serverless deployment option where Redis also acts as a work queue** from which 
 long-running worker processes fetch tasks. 
 
 This latter option is a pretty easy to set up: each worker is a simple single-threaded process which anonymously 
-fetches work from a shared queue, with no additional cluster management or load balancing required. The underlying Redis
-list is in effect "the manager", with processes taking tasks off the list at their own pace, based on what scale you currently have.
+fetches work from a shared queue, no additional cluster management or load balancing required. Processes take tasks off a Redis list at their own pace, based on what scale you currently have.
 
-A good use for this deployment option is for pre-baking the "default" queries that end-uses see when they login to your web UI: you can
-schedule a nightly process which scales up nodes, runs all such queries on cheap spots, store the results and scale down. That
-way, you only utilize lambdas when users start exploring beyond the default view.
+You can combine both deployment modes, using this mode for pre-baking default/common queries on cheap spot instances (in AWS jargon), storing the results and scaling down to zero. That way, you only utilize lambdas when users start exploring beyond the default view.
 
 Both deployment options push much of the complexity into battle-tested tools. Both depend on Redis as their single stateful component.
 Thus, running a muti-zone Redis setup is recommended in production. In the worst case, you'd need to re-register all active datasets.
+
+For more on the design and components of Funnel Rocket, [click here](./docs/design.md).
 
 ## Preparing Data for Querying
 
@@ -115,19 +109,13 @@ Assuming your dataset is not already partitioned that way, you can use (Py)Spark
 For example, with PySpark call [DataFrame.repartition()](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.repartition.html)
 and save the resulting dataset.
 
-A standalone utility for data repartitioning is [included in this repo](https://github.com/DynamicYieldProjects/funnel-rocket-oss/blob/main/dataprep_example/repartition.py).
+A standalone utility for data repartitioning is [included in this repo](./dataprep_example/repartition.py).
 It is non-distributed but can use all available CPUs, so you can prepare datasets up to a reasonable size on larger machines.
 
-Aim to have files size in the range of 20-150mb. 
+Aim to have files size in the range of 20-150mb. See the [Operations Guide](./docs/operating.md) for more.
 
-See the [Operations Guide] for more (https://github.com/DynamicYieldProjects/funnel-rocket-oss/docs/operating.md)
+## Getting Started - CONTINUE from here...
 
-## Components
-
-
-**TBD chart...**
-
-## Getting Started
 ### Local Installation
 1. Clone this repo.
 2. Ensure you have Python version >= 3.8 installed. Typically, this version should be installed side-by-side with the default Python version bundled with your OS, which might be a much older version.
