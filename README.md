@@ -1,14 +1,3 @@
-<p align="left">
-  <a href="#">
-    <img src="https://github.com/DynamicYieldProjects/funnel-rocket-oss/workflows/Tests/badge.svg" />
-  </a>
-</p>
-
-![Alt Funnel Rocket Logo](./docs/logo.png)
-<p align="center">
-  <img src="./docs/logo.png" width="348" height="172">
-</p>
-
 # Funnel Rocket
 
 ## What's This About?
