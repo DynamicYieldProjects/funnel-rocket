@@ -10,7 +10,7 @@
 
 # Funnel Rocket
 
-## What's This About?
+## Intro
 
 Funnel Rocket is a query engine built to efficiently run a specific type of query:
 
@@ -19,26 +19,28 @@ condition set, optionally with a **specific order of events and time constraints
 
 The engine can also perform a full funnel analysis, in which user counts and aggregations are returned for each step in the sequence.
 
+### The Challenge
+
 If you're a vendor oferring analytics, personalization, content or product recommendations, etc. you may wish to offer such query capability
 to each of your customers, allowing ad-hoc data exploration to better understand user behavior and define audience groups. 
 
 However, such queries are still a challenge to build with existing tools (SQL or NoSQL). The're not only tricky to get right, but are pretty hard to optimize for performance and cost to run & operate. At a high level, executing such a query requires you to first perform a high cardinality grouping first (100 million users => 100 million groups), then run multiple passes over each of these group to execute all conditions in the desired order. An alternative method is to "pre-bake" results by batch processing, thus limiting what freedom your users have to explore the data.
 
+### Project Scope
+
 The original aim of this tool was very specific: replacing an aging solution, but we've found it can be easily extended to perform many more use-cases around large scale user-centric data processing (or other entities, of course). 
 
 Funnel Rocket certainly does not match the expressiveness and flexibility of mature query engines or batch processing frameworks, but for what it offers we've found that's it's very fast to scale with low resource and management overhead, amounting to significantly lower TCO. 
 
-Your datasets do need some preparation to be efficiently queryable, but we've made an effort to minimize the effort needed (with more to come). 
-
-## The Technology Used, or: Clusters are Hard
+## The Technology Used (or: Clusters are Hard)
 
 Funnel Rocket is basically the bringing together a few excellent, proven components which do most of the heavy lifting.
 
 ### 1. Pandas
 The concept of the *DataFrame* doesn't need much introduction, and allows for runnning complex transformations at ease with
-good performance (if you're mindful enough). Coupled with Apache Arrow (also by the industrious @wesm) you also get great Parquet support, while Numba offers a path to squeezing significantly better compute performance at critical points. 
+good performance (if you're mindful enough; *Numba* can help in the performance-critical parts). Coupled with *Apache Arrow* (also by the industrious @wesm) you also get great Parquet support. 
 
-Pandas itself is a library running within a single process, but tools such as Dask and PySpark have brought either the library itself 
+Pandas itself is a library running within a single process, but tools such as *Dask* and *PySpark* have brought either the library itself 
 or its core abstractions to the distributed domain. 
 
 However, operating distributed cluster for data processing engines gets pretty tricky as you grow. Deploying, scaling and fixing the 
@@ -73,8 +75,7 @@ only requires a modest amount of RAM.
 Other than for managing metadata on datasets, Redis is used in two more ways:
 
 1. For tracking and storing the status and outputs of all individual tasks, since the invoker (server) does not rely on synchronous responses.
-
-2. **To support a non-serverless deployment option where Redis also acts as a work queue** from which 
+1. **To support a non-serverless deployment option where Redis also acts as a work queue** from which 
 long-running worker processes fetch tasks. 
 
 This latter option is a pretty easy to set up: each worker is a simple single-threaded process which anonymously 
@@ -96,8 +97,7 @@ or in S3 and compatible object stores (e.g. MinIO). **TBD:** add more storage sy
 
 1. A **group ID** column: a string or numeric column with the user ID / user hash / other group ID, with no null values. 
    All query conditions are performed in the scope of each group. The column name is set by the client, per dataset.
-
-2. A **timestamp** column: either int or float, typically a Unix timestamp in the granularity of your data (e.g. int64 of seconds
+1. A **timestamp** column: either int or float, typically a Unix timestamp in the granularity of your data (e.g. int64 of seconds
    or milliseconds, float of seconds.microseconds, etc.). Currently, Funnel Rocket does not impose a format, as long as it's consistent.
 
 ### Partitioning by the Group ID column
@@ -114,15 +114,23 @@ It is non-distributed but can use all available CPUs, so you can prepare dataset
 
 Aim to have files size in the range of 20-150mb. See the [Operations Guide](./docs/operating.md) for more.
 
-## Getting Started - CONTINUE from here...
+## Getting Started
+### Run with Docker
 
-### Local Installation
-1. Clone this repo.
-2. Ensure you have Python version >= 3.8 installed. Typically, this version should be installed side-by-side with the default Python version bundled with your OS, which might be a much older version.
-3. Create a virtual environment with your tool of choice - either `virtualenv` or `pipenv`.
+1. Clone this repo and `cd` into it.
+1. `docker-compose up` would take a few minutes to run the first time, as it builds the needed images:
+   1. **frocket/frocket** image - used to run both the API server or Redis queue-based worker(s), in separate containers
+   1. **frocket/local-lambda** image - for local testing purposes, simulates Funnel Rocket worker(s) running within the AWS Lambda environment (based on [docker-lambda](https://github.com/lambci/docker-lambda)). This worker is not used by default by the API server, but the can be modified by uncommenting `- FROCKET_INVOKER=aws_lambda` in the `docker-compose.yml` file. It is also called directly by unit tests regardless of API server configuration.
+   1. Docker will also download and start **Redis** as the datastore, and a **MinIO** container to locally test S3-based datasets.
+# CONTINUE from here...
+
+
+
+4. Ensure you have Python version >= 3.8 installed. Typically, this version should be installed side-by-side with the default Python version bundled with your OS, which might be a much older version.
+5. Create a virtual environment with your tool of choice - either `virtualenv` or `pipenv`.
      3. To use the classic virtualenv, run: `python 3.8 -m venv venv`, and then activate it with: `source venv/bin/activate`.
-4. Run `pip install .` to install dependencies.
-5. Additionally, to modify source files and have changes reflected, install the package in development mode: 
+6. Run `pip install .` to install dependencies.
+7. Additionally, to modify source files and have changes reflected, install the package in development mode: 
 `pip install -e .`
 6. Local development depends on a running redis. 
 You may start a local one by running: 
