@@ -93,14 +93,14 @@ For more on the design and components of Funnel Rocket, [click here](./docs/desi
 Funnel Rocket currently supports Parquet files only, located under the same base path either on a locally-mounted filesystem
 or in S3 and compatible object stores (e.g. MinIO). **TBD:** add more storage systems and file formats.
 
-### Mandatory columns
+### Mandatory Columns
 
 1. A **group ID** column: a string or numeric column with the user ID / user hash / other group ID, with no null values. 
    All query conditions are performed in the scope of each group. The column name is set by the client, per dataset.
 1. A **timestamp** column: either int or float, typically a Unix timestamp in the granularity of your data (e.g. int64 of seconds
    or milliseconds, float of seconds.microseconds, etc.). Currently, Funnel Rocket does not impose a format, as long as it's consistent.
 
-### Partitioning by the Group ID column
+### Partitioning by the Group ID Column
 
 For Funnel Rocket to be fast and simple, the data should be organized so that each file includes a unique set of users, 
 with all rows for a specific user located in the same file. This means an expensive shuffle step can be avoided at query time. 
@@ -114,13 +114,13 @@ It is non-distributed but can use all available CPUs, so you can prepare dataset
 
 Aim to have files size in the range of 20-150mb. See the [Operations Guide](./docs/operating.md) for more.
 
-## Running
+## Running Locally
 
-### Run locally with docker-compose
+### Run with docker-compose
 
 This is the easiest and most complete option, as it includes a local S3-based object store, an AWS Lambda-like environment and Redis which Funnel Rocket is configured to use.
 
-#### Starting up docker-compose
+#### Launching Services
 
 Clone this repo and `cd` into it.
 
@@ -139,7 +139,7 @@ Run `docker-compose up`. This will start the following services:
 
 To make jobs run faster, you can scale the no. of workers, e.g. `docker-compose up --scale frocket-queue-worker=4`. Workers only take about 50-60mb RAM each.
 
-#### Testing the docker-compose setup
+#### Testing the Setup
 
 The best way to fully validate your setup is to run automated tests with `pytest` against it, which requires also installing Funnel Rocket as a package:
 
@@ -148,9 +148,9 @@ The best way to fully validate your setup is to run automated tests with `pytest
 1. Install packages required for tests: `pip install -r test-requirements.txt`
 1. Run `./test-docker-compose.sh`. This takes care to set environment variables for tests to connect to the running docker-compose services.
 
-### Run locally on the host
+### Run on the Host
 
-#### Installing the package
+#### Installing
 
 To install the latest package from PyPI:
 
@@ -166,7 +166,7 @@ Make sure you have Redis running locally. This is usually easy to do with your p
 
 Funnel Rocket can be configured to use a non-default logical DB (meaning, > db 0) by setting `export FROCKET_REDIS_DB=<logical db number>`. All keys written by Funnel Rocket are prefixed by 'frocket:'. To configure this prefix and for more settings [see here](./docs/operating.md).
 
-#### Running the Worker and API server
+#### Running the Worker and API Server
 
 To run a worker waiting on the Redis queue for tasks: `python -m frocket.worker.impl.queue_worker`.
 You should see the following output:
@@ -178,29 +178,39 @@ You can launch a few of these in the background, to speed up jobs.
 
 To run the API server with the Flask built-in server: `FLASK_APP=frocket.apiserver python -m flask run` (not for production use; the Docker image uses gunicorn with multiple processes).
 
-#### Running tests
+#### Testing the Setup
 
 To run tests you'd need the source code and requirements installed locally first - see the section _'Installing the package'_ above.
+Most tests require an S3-compatible store for testing. 
 
-# CONTINUE from here... most tests require S3 so at least that!
+You can start MinIO via `docker-compose start mock-s3` (it's pretty lightweight), or alternatively other real/mock S3 services. Assuming you've run the MinIO service as suggested, run `SKIP_LOCAL_LAMBDA_TESTS=true pytest tests/ -vv`
 
-### Querying an Example Dataset
-Link to [example](./docs/example-dataset.md)
+With other services, set the following environment variables to their approriate values first: `MOCK_S3_URL`, `MOCK_S3_USER` and `MOCK_S3_SERCET`.
 
-### Running in Production
-Link to [guide](./docs/operating.md)
-Note the cost estimation
-Note the caching in the design doc
+## Creating & Querying an Example Dataset
 
-### Lambda Limits - TBD (in operations guide?)
-Lambda limits (concurrency, memory/CPU, storage, network)
-per region / provisioned
+Follow [this guide](./docs/example-dataset.md) to learn more on preparing, registering and querying a real dataset.
 
-## FAQ - TBD
+## Running in Production
 
-Q: Are there no other established tools to perform such queries?
-Q: What happens if Redis fails?
+For detailed instructions on how to configure, deploy and monitor Funnel Rocket in a production AWS environment, see the [Operations Guide](./docs/operating.md).
 
-## License details
+## High Level Roadmap
 
-## Main TODOs
+* Features: Extend support for column types: datetime, lists of primitives, exact/contains lookup in delimited string fields
+* Features: Implement gaps in conditions, mostly around sequences: step *did not happen*, min/max duration between steps.
+* Features: Basic UI for running a query with schema validation. Potentially ad-hoc schema generation per dataset.
+* Performance: integrate currently-experimental Numba code for critical points in code (needs to be AOT-compiled for Lambda, requires arch-dependent release and always a Python-only fallback), such as isin().
+* Data preparation/Performance: support re-partitioning by group ID as a job. Consider incremental re-partitioning (as new data comes in). Preparing the data by Funnel Rocket also allows applying some important performance optimizations, which are currently experimental
+  * Encode list columns as bitsets for superfast conditions, transparent to the client (up to limited cardinality; requires encoding of dictionary in Parquet metadata of each file)
+  * Ensure any columns which are good candidates for categorical representation are stored as such (have a dictionary in the Parquet file)
+  * Convert non-optimized file formats to Parquet (or Apache Arrow's Feather file format).
+* Deployment: automated method/s for AWS Lambda deployment
+* Deployment: provide k8s chart/operator and scaling metrics for a non-serverless deployment
+* Support more cloud providers
+
+## Maintenance
+
+This project is actively developed by Elad Rosenheim and Avshalom Manevich.  Special thanks to: Omri Keefe (@omrisk) for CI work, Gidi Vigo for the logo.
+
+Funnel Rocket is licensed under Apache License 2.0.
