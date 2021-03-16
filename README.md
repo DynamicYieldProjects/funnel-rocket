@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img alt="Funnel Rocket logo" src="./docs/logo.png" width="348" height="172">
+  <img alt="Funnel Rocket logo" src="./docs/logo-blue.svg" width="350">
 </p>
 
 # Funnel Rocket
