@@ -7,6 +7,7 @@ if [[ "$APISERVER_UP_LINE" == "" ]]; then
 fi
 
 export TEST_REDIS_PORT=6380
+export FROCKET_INVOKER=aws_lambda
 export FROCKET_LAMBDA_AWS_NOSIGN=true
 export FROCKET_LAMBDA_AWS_ENDPOINT_URL=http://localhost:9001
 export FROCKET_LAMBDA_AWS_REGION=us-east-1

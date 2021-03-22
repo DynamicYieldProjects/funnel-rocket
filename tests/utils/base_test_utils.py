@@ -3,9 +3,8 @@ import tempfile
 from typing import List, Type
 from frocket.common.metrics import MetricName, MetricData, MetricLabelEnum
 
-IN_GITHUB_WORKFLOW = "GITHUB_WORKFLOW" in os.environ
-SKIP_SLOW_TESTS = os.environ.get('SKIP_SLOW_TESTS', "False").lower() == 'true' or IN_GITHUB_WORKFLOW
-SKIP_LOCAL_LAMBDA_TESTS = os.environ.get('SKIP_LOCAL_LAMBDA_TESTS', "False").lower() == 'true'
+SKIP_SLOW_TESTS = os.environ.get('SKIP_SLOW_TESTS', "False").lower() == 'true'
+SKIP_LAMBDA_TESTS = os.environ.get('SKIP_LAMBDA_TESTS', "False").lower() == 'true'
 # noinspection PyProtectedMember,PyUnresolvedReferences
 TEMP_DIR = tempfile._get_default_tempdir()
 

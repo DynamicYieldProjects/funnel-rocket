@@ -9,7 +9,7 @@ from frocket.common.metrics import MetricsBag, ComponentLabel, LoadFromLabel
 from tests.utils.dataset_utils import new_test_dataset, are_test_dfs_equal, clean_loader_cache, TestColumn, BASE_TIME, \
     TIME_SHIFT
 from frocket.worker.runners.part_loader import shared_part_loader, FilterPredicate
-from tests.utils.mock_s3_utils import SKIP_MOCK_S3_TESTS
+from tests.utils.mock_s3_utils import SKIP_S3_TESTS
 
 
 def test_local_non_cached():
@@ -102,7 +102,7 @@ def validate_load(file_id: DatasetPartId, original_df: pandas.DataFrame, expecte
     assert metrics.label_value(LoadFromLabel) == expected_load_from.label_value
 
 
-@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_remote_caching():
     with clean_loader_cache():
         with new_test_dataset(4) as test_ds:
@@ -134,7 +134,7 @@ def test_remote_caching():
             assert shared_part_loader().cache_len == 3
 
 
-@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_cache_size():
     num_parts = 4
     with new_test_dataset(num_parts) as test_ds:
@@ -189,7 +189,7 @@ def test_cache_size():
             assert parts_in_cache == part_ids[-len(parts_in_cache):]
 
 
-@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_get_candidates():
     # Creating 3 different DatasetIds (two of them with same name but different reg. data),
     # and ensure that parts are cached as different files (although source path in S3 is similar),

@@ -28,9 +28,11 @@ However, such queries are still a challenge to build with existing tools (SQL or
 
 ### Project Scope
 
-The original aim of this tool was very specific: replacing an aging solution, but we've found it can be easily extended to perform many more use-cases around large scale user-centric data processing (or other entities, of course). 
+The original aim of this tool was very specific: replacing an aging solution. 
+However, it can be easily extended to perform many more use-cases around large scale user-centric data processing (or other entities, of course). 
 
-Funnel Rocket certainly does not match the expressiveness and flexibility of mature query engines or batch processing frameworks, but for what it offers we've found that's it's very fast to scale with low resource and management overhead, amounting to significantly lower TCO. 
+Funnel Rocket certainly does not match the expressiveness and flexibility of mature query engines or batch processing frameworks. 
+For what it does offer, though, we've found it to be very fast to scale with a low management overhead. This amounts to significantly lower TCO. 
 
 ## The Technology Used (or: Clusters are Hard)
 
@@ -57,10 +59,15 @@ There's no no silver bullet, of course, yet we can take a stab at the problem fr
 
 People tend to be split on serverless, for a bunch of reasons. We've found AWS Lambda to be mature, reliable and (yes) fast enough service which can scale to hundreds or thousands of cores almost immediately. 
 
-The compute cost per GB/second (or vCPU/second) is indeed higher in this model, but you pay only for actual processing time: from the time your handler starts till it ends. You're billed in millisecond granularity, excluding any compute time it took the underlying VM or your process to reach the state where the handler can start its work. Thus, it is very fitting for bursty on-demand jobs. You also spend relatively very little time on operations.
+The cost of compute per GB/second (or vCPU/second) is indeed higher in this model, but you pay only for actual processing time: from the time your handler starts till it ends. 
+You're billed in millisecond granularity, excluding the time it took your process to load and reach the state where the handler starts its work. 
+Thus, it is very fitting for bursty on-demand jobs. You also spend relatively very little time on operations.
 
 For a tool that's measured in seconds rather than milliseconds, Lambda turned up to be good enough (even aiming for the low single digits). 
-If customers tend progressively tweak their queries while exploring, then *warm start* and a bit of smart data caching go a long way to speed up subsequent queries even further, to 2-3 seconds total in our tests. You can always 'pre-bake' some default/common queries beforehand using the non-serverless mode - see below.
+In many cases, queries such as the ones the Funnel Rocket servers are run by intermediate- to advanced-level customers, 
+who tend to progressively tweak their queries over the same underlying dataset. 
+For subsequent queries, the combination of *warm* Lambda functions plus a bit of data caching further speeds up things significantly, to 2-3 seconds total in our tests. 
+You can always 'pre-bake' some default/common queries beforehand using the non-serverless mode - see below.
 
 Funnel Rocket uses the asynchronous Lambda invocation API, making it much easier to launch hundreds+ of jobs quickly. Invocation reqeusts are put into a queueing mechanism, which adds no meaningful latency in normal operation yet prevents most cases of rate limiting.
 
@@ -96,7 +103,7 @@ or in S3 and compatible object stores (e.g. MinIO). **TBD:** add more storage sy
 ### Mandatory Columns
 
 1. A **group ID** column: a string or numeric column with the user ID / user hash / other group ID, with no null values. 
-   All query conditions are performed in the scope of each group. The column name is set by the client, per dataset.
+   All query conditions are performed in the scope of each group. The column name is set by the client, per each dataset.
 1. A **timestamp** column: either int or float, typically a Unix timestamp in the granularity of your data (e.g. int64 of seconds
    or milliseconds, float of seconds.microseconds, etc.). Currently, Funnel Rocket does not impose a format, as long as it's consistent.
 
@@ -118,7 +125,7 @@ Aim to have files size in the range of 20-150mb. See the [Operations Guide](./do
 
 ### Run with docker-compose
 
-This is the easiest and most complete option, as it includes a local S3-based object store, an AWS Lambda-like environment and Redis which Funnel Rocket is configured to use.
+This is the most complete option, as it includes a local S3-based object store, an AWS Lambda-like environment and Redis which Funnel Rocket is configured to use.
 
 #### Launching Services
 
@@ -146,7 +153,7 @@ The best way to fully validate your setup is to run automated tests with `pytest
 1. Make sure you have Python 3.8+ as the default python in your environment. Using _virtualenv_ or _conda_, etc. for isolation is of course encouraged.
 1. Install the package from local sources: `pip install -e .`.
 1. Install packages required for tests: `pip install -r test-requirements.txt`
-1. Run `./test-docker-compose.sh`. This takes care to set environment variables for tests to connect to the running docker-compose services.
+1. Run `./test-docker-compose.sh`. This script takes care to set environment variables for tests to connect to the running docker-compose services.
 
 ### Run on the Host
 
@@ -190,24 +197,24 @@ With other services, set the following environment variables to their approriate
 ## Creating & Querying an Example Dataset
 
 Follow [this guide](./docs/example-dataset.md) to learn more on preparing, registering and querying a real dataset.
-
+    
 ## Running in Production
 
 For detailed instructions on how to configure, deploy and monitor Funnel Rocket in a production AWS environment, see the [Operations Guide](./docs/operating.md).
 
 ## High Level Roadmap
 
-* Features: Extend support for column types: datetime, lists of primitives, exact/contains lookup in delimited string fields
-* Features: Implement gaps in conditions, mostly around sequences: step *did not happen*, min/max duration between steps.
-* Features: Basic UI for running a query with schema validation. Potentially ad-hoc schema generation per dataset.
-* Performance: integrate currently-experimental Numba code for critical points in code (needs to be AOT-compiled for Lambda, requires arch-dependent release and always a Python-only fallback), such as isin().
-* Data preparation/Performance: support re-partitioning by group ID as a job. Consider incremental re-partitioning (as new data comes in). Preparing the data by Funnel Rocket also allows applying some important performance optimizations, which are currently experimental
+* **Functionality**: Extend support for column types: datetime, lists of primitives, lookup in delimited string fields
+* **Functionality**: Implement gaps in conditions, mostly around sequences/funnels: step *did not happen*, min/max duration between steps.
+* **Functionality**: Provide a basic UI for running a query with schema validation. Potentially ad-hoc schema generation per a given dataset.
+* **Performance**: Integrate currently-experimental Numba code for critical points in code (needs to be AOT-compiled for Lambda, requires arch-dependent release and always a Python-only fallback), such as isin().
+* **Data preparation/Performance**: Support re-partitioning by group ID as a job. Consider incremental re-partitioning (as new data comes in). Preparing the data by Funnel Rocket also allows applying some important performance optimizations, which are currently experimental
   * Encode list columns as bitsets for superfast conditions, transparent to the client (up to limited cardinality; requires encoding of dictionary in Parquet metadata of each file)
   * Ensure any columns which are good candidates for categorical representation are stored as such (have a dictionary in the Parquet file)
   * Convert non-optimized file formats to Parquet (or Apache Arrow's Feather file format).
-* Deployment: automated method/s for AWS Lambda deployment
-* Deployment: provide k8s chart/operator and scaling metrics for a non-serverless deployment
-* Support more cloud providers
+* **Deployment**: Automated method/s for AWS Lambda deployment
+* **Deployment**: Provide k8s chart/operator and scaling metrics for a non-serverless deployment
+* **Deployment**: Support more cloud providers
 
 ## Maintenance
 
