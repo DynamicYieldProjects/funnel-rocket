@@ -200,7 +200,7 @@ cost of 0.5-2 cents per each query, depending on its size and complexity.
 
 ## Running Some Basic Queries
 
-### A Few aggregations First
+### A Few Aggregations First
 
 Before starting to write any conditions, let's collect a bit of intel first about the `event` column which specifies the type of 
 user activity per each row, and get a breakdown of activity types.
@@ -639,6 +639,6 @@ In fancier words, this is a predicate that's pushed down to the Parquet driver l
 
 ## Where to Go From Here
 
-Learn how to deploy & condigure serverless (or server-full?) workers in production with the [Operations Guide](./operating.md).
+Learn how to deploy & configure serverless (or server-full?) workers in production with the [Operations Guide](./operating.md).
 
 Review the full [query spec](./query-spec.md).
