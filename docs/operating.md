@@ -21,7 +21,6 @@ Whether you choose the former or the latter, you will need to have:
 There is no direct communication between the two components - all requests are done via Redis, and in the case of using Lambdas also
 the AWS API.
 
-
 ### Redis
 
 Running Redis in production can be done in multiple ways. In AWS, one of the easiest ways is to use Elasticache. 
@@ -44,12 +43,7 @@ The port, host and (optionally) logical DB of the Redis server are configured vi
 Make sure the node has network access to your Redis instance in port 6379, whether both are in the same VPC and Security 
 Group or not (using `telnet <redis-host> 6379` is a simple way to check).
 
-##### 2. Invoking Lambdas
-
-If you're using Lambda-based workers, give the API Server a permission to invoke Lambda functions (but not otherwise modify them).
-The server should be given a `lambda:InvokeFunction` IAM permission to the specific function, by its ARN.
-
-##### 3. Remote Storage
+##### 2. Remote Storage
 
 The API Server nodes should have a `s3:ListBucket` IAM permission to the bucket/s where datasets reside.
 
@@ -66,6 +60,14 @@ and certainly not any permission to modify objects or buckets. It does not need 
 In future releases, we plan to delegate dataset file listing to workers as well - meaning that the API Server itself will not need *any* 
 permissions to remote storage. Any optional features for transforming datasets would necessitate giving limited write permissions
 to workers (but not the API Server) to write a modified copy of the data but not replace it.
+
+##### 3. Invoking Lambdas
+
+To use Lambda-based workers, grant the API Server the `lambda:InvokeFunction` IAM permission to invoke Lambda functions 
+(preferably, only the specific one by limiting the IAM policy to the function's ARN).
+
+Two other things you'll need to do is grant the Lambda function itself the needed permissions, and set `FROCKET_INVOKER=aws_lambda` for the API Server.
+Both are covered further down this guide.
 
 #### Using the Docker Image
 
@@ -122,6 +124,11 @@ The process will connect to the configured Redis server (see configuration refer
 
 ## Running AWS Lambda-Based Workers
 
+### On the Invoker Side
+
+The default invoker implementation is through Redis queues. To switch to Lambda, set the env. variable `FROCKET_INVOKER=aws_lambda` where
+you run the API Server (or the CLI directly).
+
 ### No Automation Yet
 Currently, we do not offer an automated method for deploying Funnel Rocket as a Lambda function but only the packaging of files.
 
@@ -136,6 +143,8 @@ Ideas, code and non AWS-specific implementations are welcome.
 
 ### Setting the Environment
 
+Here's what to do in terms of networking & security - before you actually create the Lambda function.
+
 #### VPC Assignment
 
 Determine the **VPC and Security Group** to assign to the Lambda. Since your Redis instance is most probably only visible within a VPC 
@@ -143,52 +152,175 @@ Determine the **VPC and Security Group** to assign to the Lambda. Since your Red
 
 In the past, instantiation of Lambda functions within a VPC incured a heavy performance penalty on cold starts, 
 but **this is no longer the case**. The network setup only runs once, and you pay no penalty later. 
-It is highly recommended to assign all available subnets in the VPC to the Lambda (typically in multiple AZ's) so it can 
+It is highly recommended assigning all available subnets in the VPC to the Lambda (typically in multiple AZ's) so it can 
 run as many function instances as it needs.
    
 #### S3 Access
 
-Unlike VM's running in a VPC, Lambda functions and some other need a special 
-2. The Lambda function will also need to access S3. While VMs running in a VPC generally don't need any special setup to 
-access S3, various AWS managed services, including Lambda, do need an [Endpoint Gateway](https://console.aws.amazon.com/vpc/home#Endpoints:sort=vpcEndpointId) 
-set up their VPC and configured to expose the S3 service. Fortunately, that normally takes just a few clicks in the console.
-The endpoint handles routing, but not permissions - you will still need to define the right IAM permissions:
-
-3. Create an IAM Role for the Lambda:
- 
-3.1 First, we'll need an IAM policy allowing read-only access to the bucket/s where datasets are stored (using one of 
-the built-in AWS-managed policies such as 'AmazonS3FullAccess' or 'AmazonS3ReadOnlyAccess' is not advisable!). 
-[Create a new policy](https://console.aws.amazon.com/iam/home#/policies) with a JSON payload similar to this:
-
-```
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "VisualEditor0",
-            "Effect": "Allow",
-            "Action": [
-                "s3:Get*",
-                "s3:List*"
-            ],
-            "Resource": "arn:aws:s3:::<bucket-name>"
-        }
-    ]
-}
-```
-
-3.2 Now, create an IAM Role itself, with two policies attached: the policy you've just created above for S3 access, plus 
-the AWS-managed role `AWSLambdaVPCAccessExecutionRole` - which any Lambda requires for running in a VPC.
+1. Unlike VM's running in a VPC, **Lambda functions need a special gateway for routing requests to S3**. In the VPC defined for the Lambda,
+create an new [Endpoint Gateway](https://console.aws.amazon.com/vpc/home#Endpoints:sort=vpcEndpointId) 
+for S3. Fortunately, that typically doesn't need any special configuration.
+   
+2. Create an IAM Role for the Lambda function holding two policies:
+   1. The AWS-managed policy `AWSLambdaVPCAccessExecutionRole` which any Lambda requires for running in a VPC.
+   1. A policy allowing read-only access to the bucket/s holding the dataset - which you've probably already created for
+      the API Server, as described above. Generally, avoid using AWS-managed policies for S3 access as-is without further
+      limiting access to the ARNs of the needed buckets (and paths within them, if needed).
 
 ### Packaging the Lambda Layer and Function
 
-### Deploying the Function
+[Packages required by Funnel Rocket](../requirements.txt) far outweigh the size of the project codebase, and the list changes only infrequently. 
+For that reason, dependencies are packaged as a [Lambda Layer](https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html)
+which is essentially equivalent to intermetidate layers of a Docker image. 
 
-config variables, cloudwatch and metrics
+Some of these packages rely on native libraries. which must match the OS and architecture of the Lambda runtime environment.
+Thus, the layer packaging process runs within a matching Docker container with the same image used to locally test Lambda functions.
 
-### Looking at Logs
+The Lambda layer needs to be recreated only when dependencies change.
 
-## Configuration
+To create .zip files for both the lambda layer and the function, run:
+```
+./build-lambda.sh --layer
+```
+This generates `lambda-layes-<commit-hash>.zip` and `lambda-function-<commit-hash>.zip` and reports on the file sizes, 
+which must AWS Lambda's limits.
+
+When the project source code changes, use `./build-lambda.sh` without any flags to only rebuild the function zip file.
+
+### Deploying the Function through the AWS Console UI
+
+#### Creating a New Function
+
+1. Start [creating a new Lambda function](https://console.aws.amazon.com/lambda/home#/create/function).
+1. Under **Basic Information**:
+   1. **Function name:** Use the name 'frocket' by default. 
+      If you choose another name, set the environment variable FROCKET_INVOKER_LAMBDA_NAME to that name on the API Server side.
+   1. **Runtime:** Python 3.8 or later.
+1. **Permissions:** click *Change default exection role*, then choose *Use an existing role* and select the IAM role created above.
+1. Under **Advanced Settings** choose the appropriate VPC and all of its subnets. Choose an appropriate Security Group having access to Redis.
+1. Click *Create function*. This takes a bit.
+
+#### Configuring the Function
+
+1. [Create a new layer](https://console.aws.amazon.com/lambda/home#/layers). Name it however you want, set Python 3.8 
+   as the compatible runtime, and upload the locally packaged lambda-layer-<x>.zip file.
+1. Going back to the Lambda function, add the new layer to the function: assuming you're now in the *Code* tab, 
+    scroll down to the *Layers* section to add a new custom layer.
+1. Scrolling back to the top, in the *Code source* section click on *Upload from* to upload the local lambda-function-<x>.zip file.
+Expand the *Designer* section and click on 'Layers' to add a layer. Choose the custom layer you've created above, at 
+version 1.
+1. One section down in *Runtime settings*, click *Edit* and set the handler function to `frocket.worker.impl.aws_lambda_worker.lambda_handler`.
+1. Switch to the *Configuration* tab:
+   1. Go into *Basic settings*. To get one full vCPU allocated to each function instance set the memory to 1768mb, since [the portion of vCPU you get
+is dependent on allocated memory!](https://epsagon.com/observability/how-to-make-aws-lambda-faster-memory-performance). This also provides enough headroom for loading Parquet files. 
+   1. Set the *timeout* to 30 seconds or more. The default value is super short.
+   1. As the *execution role* choose the role you've created above (the one with S3 and Lambda execution policies).
+   1. Go into *Asynchronous invocation*, and set 'Retry attempts' to zero. The API Server already has worker type-agnostic
+      retry mechanism implemented, and retries at the Lambda service level can only interfere with that. 
+   1. Go to *Environment variables* and add the variable `FROCKET_REDIS_HOST`, setting it to the Redis server full hostname (without port number).
+      With Elasticache, that's the *Primary Endpoint* address.
+   1. The default log level is 'debug', configurable via the environment variable FROCKET_LOG_LEVEL. Standard Python levels apply.
+
+### Running and Looking at Logs
+
+Make sure to have your first dataset ready in S3 - you can use the one from the [example dataset walkthrough](./example-dataset.md)
+for starters.
+
+Start by listing datasets, either by [calling the API Server](./query-spec.md) or using the CLI
+directly (as elaborated in the walkthrough) from a shell on the API Server machine. 
+There should be no datasets yet, but this is a good sanity check to see the Funnel Rocket successfully connects to Redis.
+
+Then, register that dataset through the API or CLI. That will rely on the given permissions and the Lambda function being correctly set.
+
+Closely follow the logs on both the API Server/CLI side and the Lambda Function. **For the Lambda, logs are collected automatically to CloudWatch and 
+are accessible in the AWS Console under the *Monitor* tab in the Lambda's main page.**
+
+List the registered datasets again, to see that yours appears. You can now start querying it - 
+first with an empty query to see that all files were loaded and the expected row count is returned, then with some conditions & aggregations.
+
+### Cost
+
+When using Lambda workers, cost estimation is returned as part of the response for dataset registration and queries as the `stats.cost` attribute.
+
+Estimation is not available with Redis queue-based workers.
+
+## Metrics
+
+Running API Servers expose a `/metrics` endpoint by default, for scraping by Prometheus.
+This can be disabled by setting the variable `FROCKET_METRICS_EXPORT_PROMETHEUS=false` or further configured.
+
+Since serverless workers are ephemeral and anonymous in nature, they are not a good target for Promethus to try scraping directly,
+and do not expose a /metrics endpoint on their own. Instead, the API Server collects all metrics from workers as part of the request/response cycle with workers,
+and exposes these metrics on the workers' behalf, with the proper labels and values per each task that ran.
+
+**TBD:** Allow running this enpoint in a separate port; document main metrics here.
+
+## Configuration Reference Guide
+
+**Funnel Rocket does not use configuration files at all. All needed configuration is done via environment variables.**
+
+This design decision was made in light of variables being the most common, straightforward way to configure components in
+containerized and serverless environments. On the other hand, generating config files for automated deplyoments tends to
+be cumbersome from our experience. This not really about ideaology ("no more headphone jacks!"). Rather, it's an attempt to streamline things.
+
+Hopefully, defaults are generally good enough so you'll only need to set very few variables - mostly around hostnames and keys.
+
+Variable | Default Value | Description
+-------- | ------------- | -----------
+`FROCKET_LOG_FILE`|*None*|If set, logs are written to the specified file. If not set, logs are written to stdout. 
+`FROCKET_LOG_LEVEL`|info|Set to either: debug, info, warning, error.
+`FROCKET_LOG_FORMAT`|%(asctime)s %(name)s %(levelname)s %(message)s|In Python logger format. **NOTE:** In Lambda functions, the log format is fixed and cannot be set (so it doesn't interfere with the Python runtime logging). 
+`FROCKET_DATASTORE`|redis|Implementation of the datastore (datasets metadata and short-lived request/response infomation). Only a Redis implementation is currently implemented.
+`FROCKET_BLOBSTORE`|redis|Implementation of the blobstore (larger short-lived binary objects). By default, both the datastore and blobstore share the same settings. However, they could be configured to use a separate host, port or logical db.
+`FROCKET_REDIS_HOST` `FROCKET_DATASTORE_REDIS_HOST` `FROCKET_BLOBSTORE_REDIS_HOST`|localhost|Set `FROCKET_REDIS_HOST` to configure the hostname for both datastore & blobstore. Alternatively, configure only a specific role with `FROCKET_DATASTORE_REDIS_HOST` or `FROCKET_BLOBSTORE_REDIS_HOST`.
+`FROCKET_REDIS_PORT` `FROCKET_DATASTORE_REDIS_PORT` `FROCKET_BLOBSTORE_REDIS_PORT`|6379|Set the port either for both datastore & blobstore, or specifically per each one.
+`FROCKET_REDIS_DB` `FROCKET_DATASTORE_REDIS_DB` `FROCKET_BLOBSTORE_REDIS_DB`|0|**Not support on clustered Redis**. The Redis [logical DB] to use.
+`FROCKET_DATASTORE_REDIS_PREFIX`|frocket:|All keys written to the Redis datastore have this prefix.
+`FROCKET_BLOBSTORE_DEFAULT_TTL`|600|The default expiry in seconds of blobs written to the blobstore. Should be more than the maximum duration of jobs using blobs.
+`FROCKET_BLOBSTORE_MAX_TTL`|86400|The maximum expiry of blobs, in seconds.
+`FROCKET_AWS_ENDPOINT_URL` `FROCKET_LAMBDA_AWS_ENDPOINT_URL` `FROCKET_S3_AWS_ENDPOINT_URL`|*None*|Leave this empty by default. To connect to services which are compatible or mock AWS services (currently, only S3 and Lambda are used), set the appropriate endpoint.
+`FROCKET_AWS_ACCESS_KEY_ID` `FROCKET_LAMBDA_AWS_ACCESS_KEY_ID` `FROCKET_S3_AWS_ACCESS_KEY_ID` |*None*|If empty, boto3 will [perform its standard lookup of the environment, config files and instance metadata](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials) for AWS credentials. If credentials are not found in either of these locations, or to override them, use this variable. You can also set a per-service (LAMBDA/S3) key, which is useful when connecting to alternative implementations/mocks.
+`FROCKET_AWS_SECRET_ACCESS_KEY` *(or per service)*||See `FROCKET_AWS_ACCESS_KEY_ID` for notes.
+`FROCKET_AWS_NO_SIGNATURE` *(or per service)*|false|Only set to true for some mock service implementations.
+`FROCKET_LAMBDA_AWS_MAX_POOL_CONNECTIONS`|50|Determines the actual concurrency of Lambda function invocations. See [boto3 Config object documentation](boto Config object) for more.
+`FROCKET_LAMBDA_AWS_CONNECT_TIMEOUT`|3|
+`FROCKET_LAMBDA_AWS_READ_TIMEOUT`|3|
+`FROCKET_LAMBDA_AWS_RETRIES_MAX_ATTEMPTS`|3|
+`FROCKET_INVOKER`|work_queue|The method by which the invoker (API Server or CLI) will use to launch tasks: either through a Redis queue (with the default setting of *work_queue*), or by invoking Lambda functions (set to *aws_lambda*).  
+`FROCKET_INVOKER_RUN_TIMEOUT`|60|How long in seconds the invoker will wait to all tasks to complete before failing the job, including all retries.
+`FROCKET_INVOKER_ASYNC_POLL_INTERVAL_MS`|25|How frequently, in milliseconds, the invoker will poll for task updates.
+`FROCKET_INVOKER_ASYNC_LOG_INTERVAL_MS`|1000|How frequently, in milliseconds, the invoker will write tasks progress to log (at *info* log level).
+`FROCKET_INVOKER_LAMBDA_NAME`|frocket|The name of the Lambda function to invoke.
+`FROCKET_INVOKER_LAMBDA_THREADS`|20|How many threads to use for concurrently invoking Lambda function. More threads take considerably more CPU resources, and improve performance but typically only to a point (depending on your machine). The max concurrency limit of calls to AWS is limited at the boto3 level by `FROCKET_LAMBDA_AWS_MAX_POOL_CONNECTIONS` (see above).
+`FROCKET_INVOKER_LAMBDA_DEBUG_PAYLOAD`|false|Whether to log all task request payloads when log level is *debug*.
+`FROCKET_INVOKER_LAMBDA_LEGACY_ASYNC`|true|When *true*, the API Server will use the officially-deprecated `InvokeAsync` AWS API for invoking Lambdas. When *false*, it will use `Invoke` with an *Event* payload type. Currently, the legacy function returns much faster, so it is used by default while it is operational.
+`FROCKET_INVOKER_RETRY_MAX_ATTEMPTS`|3|Maximum attempts the invoker will perform for a specific task index. Retries are perfoemed for tasks that have either reported a failure, or are considered lost/stuck.
+`FROCKET_INVOKER_RETRY_FAILED_INTERVAL`|3|How much time, in seconds, to wait from the time a task has explicitly failed till retrying it.
+`FROCKET_INVOKER_RETRY_LOST_INTERVAL`|20|If a task has not ended (either successfully or not) and has not updated its status for this amount of seconds, it is considered 'lost' and a retry would be attempted. You should set this to a value that is significantly above the duration in which tasks typically complete in your system, but it should be no more than half the value of `FROCKET_INVOKER_RUN_TIMEOUT` so the retried attempt has a fair chance to complete. If a 'lost' task attempt ends up completing ok, its results can be used. If multiple attempts end up completing for the same task index, Funnel Rocket makes sure to use only the results of one of these attempts.
+`FROCKET_WORKER_REJECT_AGE`|60|Workers will reject task requests which are older than this, in seconds. This should be in sync with `FROCKET_INVOKER_RUN_TIMEOUT`.
+`FROCKET_DATASET_CATEGORICAL_POTENTIAL_USE`|true|Whether to load string columns which are found to be good candidates for categorical type, as such. Note that string columns already marked as categoricals in Pandas-created Parquet files are always be loaded as such.
+`FROCKET_DATASET_CATEGORICAL_RATIO`|0.1|String columns where the ratio of *unique values-to-column length* is lower than this value are candidates to be loaded as [categorical type](https://pandas.pydata.org/pandas-docs/stable/user_guide/categorical.html), to conserve memory and make searches faster. Whether such columns are loaded as categoricals is controlled via `FROCKET_DATASET_CATEGORICAL_POTENTIAL_USE`.
+`FROCKET_DATASET_CATEGORICAL_TOP_COUNT`|20|The size of the *top values* list which is stored in the dataset metadata for each categorical column (as part of a dataset's full schema). Set to zero to disable.
+`FROCKET_DATASET_CATEGORICAL_TOP_MINPCT`|0.01|For values to be included in the *top values* list, their frequency of the total should be equal or higher than this value (by default, 1%).
+`FROCKET_VALIDATION_SAMPLE_RATIO`|0.1|When registering datasets in validation mode `sample`, this is the ratio of files to validate (10% of total file count by default, but never less than 2 if the no. of files in the dataset >= 2).
+`FROCKET_VALIDATION_SAMPLE_MAX`|10|The maximum number of files to validate in `sample` mode, regardless of the above ratio setting.
+`FROCKET_WORKER_SELF_SELECT_ENABLED`|true|Whether to let workers select the dataset parts they wish to work on, from a set published by the invoker. This allows workers to select parts already cached locally, if any.
+`FROCKET_PART_SELECTION_PREFLIGHT_MS`|200|In *worker self select* mode, the duration after invocation of the job started in which only workers wishing to select a specific cached part to process can do so. Random selection is only allowed after that time. Set to zero to disable this behavior.
+`FROCKET_WORKER_DISK_CACHE_SIZE_MB`|256|The maximum of size of the local on-disk cache (always under the temp directoru). Note that some local storage space in the temp dir is always needed even if cache size is zero - as remote dataset files are downloaded to disk before loading them. The actual space needed is: cache size + size of last downloaded file.
+`FROCKET_AGGREGATIONS_TOP_DEFAULT_COUNT`|10|For aggregation that return a map of values to number (e.g. *countPerValue*, *groupsPerValue*), a limit on how many values to return.
+`FROCKET_UNREGISTER_LAST_USED_INTERVAL`|30|Attempting to unregister a dataset will fail if this time interval has not yet passed since it was last queried. In seconds. Use zero to disable this protection. If not set, the default is `FROCKET_INVOKER_RUN_TIMEOUT` * 2. Override when unregistering by adding a `force=true` URL parameter.
+`FROCKET_STATS_TIMING_PERCENTILES`|0.25, 0.5, 0.75, 0.95, 0.99|When jobs return, the reponse includes a `stats` object. For stats data returned in percentiles, this is the list of percentiles to return. If the number of samples is low, some percentiles may not be returned.
+`FROCKET_APISERVER_ADMIN_ACTIONS`|true|Whether the API Server should allow registering/un-registering a dataset, and any other actions which modify data or metadata.
+`FROCKET_APISERVER_ERROR_DETAILS`|true|Whether the API Server should return any error detail is has in responses, or only return detailed errors specifically marked as non-sensitive. Any unexpected errors are not returned in the latter mode, but only a generic error text.
+`FROCKET_APISERVER_PRETTYPRINT`|true|Whether to pretty-print JSON responses
+`FROCKET_METRICS_EXPORT_PROMETHEUS`|true|Whether to expose a `/metrics` URL endpoint for Prometheus to scrape
+`FROCKET_METRICS_EXPORT_LASTRUN`|*None*|Set to a filename to have the metrics of the most recent run written. If the file extension is `.parquet`, the file is saved in Parquet format. Otherwise, it is saved as CSV. By default, no file is written to.
+`FROCKET_METRICS_BUCKETS_DEFAULT`|0.1, 0.5, 1, 5, 25, 100, 1000|Which buckets to use for histogram-type metrics if the metric name suffix does not match any of the below variables.
+`FROCKET_METRICS_BUCKETS_SECONDS`|0.05, 0.1, 0.5, 1, 2, 5, 10, 15|Which buckets to use for histogram metrics ending with `_seconds`
+`FROCKET_METRICS_BUCKETS_DOLLARS`|0.01, 0.05, 0.1, 0.5, 1, 2|See above
+`FROCKET_METRICS_BUCKETS_BYTES`|1048576, 16777216, 67108864, 134217728, 268435456|See above. These values represent 1MB, 16MB, etc.
+`FROCKET_METRICS_BUCKETS_GROUPS`|100, 1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 500_000_000|Buckets to use for metrics measuring unique groups
+`FROCKET_METRICS_BUCKETS_ROWS`|100, 1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 500_000_000|Buckets to use for metrics measuring row counts
 
 ## Limitations
 
@@ -197,88 +329,3 @@ you wish to query - as done for the [example dataset](./example-dataset.md).
 1. **Maximum of 1,000 files per dataset** in S3 (TBD: pagination when listing files in S3).
 1. **No support for nested data:** Funnel Rocket currently has no support for nested data, 
    though we're experimenting with how to allow certain nested conditions efficiently.
-
-==============
-
-
-### Running an Invoker
-
-
-
-
-#### Manual Packaging
-
-Since Funnel Rocket depends on a few relatively large packages (notably Pandas, NumPy, PyArrow), code deployment is 
-broken into two parts:
-
-1. **Packaging dependencies** as a [Lambda Layer](https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html),
-which is basically Lambda's equivalent of a base image layer (and multiple ones can be used). This needs to be done only once (or when adding new dependencies).
-
-Since some packages rely on native libraries, the layer packaging process is running in Docker with an Amazon Linux 2 base 
-image, to ensure the appropriate native libraries are used. 
-
-```
-cd layers
-./build-layer.sh
-``` 
-
-This may take a few minutes to run the first time, and produces a file named `frocket-packages-layer.zip`.
-The result file size is currently about 37 MB, so it cannot be uploaded directly from your computer via the AWS console.
-You'll need to upload the .zip file to S3 first, to any bucket that you control, and then point to its S3 path when [creating the layer](https://console.aws.amazon.com/lambda/home#/create/layer).
-The layer name is up to you, and all other fields are optional.
-
-2. On each code change, packaging & deploying the Funnel Rocket source code itself, which is lightweight.
-
-From the repository root, run:
-```
-./layers/build-lambda.sh
-```
-
-This will package sources in `./lambda-package.zip`, a compact file which can be manually uploaded (till we have a deployment method **TBD**)
-
-#### Manual Lambda Configuration through the AWS Console UI
-
-Before you create the Lambda itself:
-
-
-To create the Lambda itself:
-
-1. Start [creating a new Lambda function](https://console.aws.amazon.com/lambda/home#/create/function).
-2. Under 'Basic Information':
-2.1 function name: the invoker will try to call a Lambda named `frocket` by default, and that it the recommended name. 
-If you choose another name for your Lambda, set the environment variable FROCKET_INVOKER_LAMBDA_NAME to that name for the 
-invoker process.
-2.2 Runtime: Python 3.8 or later
-2.3 Permissions: choose 'Use an existing role' and select the role you've created above.
-2.4 Under 'Advanced Settings', choose the appropriate VPC. Choose all subnets and the Security Group to use.
-2.5 Click 'Create'
-3. Expand the 'Designer' section and click on 'Layers' to add a layer. Choose the custom layer you've created above, at 
-version 1.  
-4. Going one section down to 'Function code', click the 'Actions' menu and upload the file `lambda-package.zip` you've 
-created above. Don't worry if it spins forever looking for the handler (entrypoint) function - we will define that now.
-(and the invoker)
-5. One section down in 'Runtime settings':
-5.1 Click 'Edit' and change the handler to: `frocket.worker.impl.aws_lambda_worker.lambda_handler`
-5.2 Add two environment variables:
-5.2.1 Set FROCKET_REDIS_HOST to the Redis hostname, a.k.a 'Primary Endpoint' in Elasticache.
-5.2.2 Optionally, set FROCKET_WORKER_REJECT_AGE to 1000000. This will allow you to test the Lambda from the AWS console 
-with saved test payloads, without the Lambda rejecting the test payload due to its non-recent timestamp.
-5.3 In 'Basic Settings' section, click 'Edit':
-5.3.1 Memory: setting to 2048 MB is recommended. This is not only to allow enough headroom for some big Parquet files to 
-be loaded and queried (remember, Parquet files are heavily compressed on disk), but also since [the portion of vCPU you get
-is dependent on allocated memory](https://epsagon.com/observability/how-to-make-aws-lambda-faster-memory-performance): 
-**only at slightly below 2GB RAM do you get a full vCPU per Lambda invocation**. In general, the Funnel Rocket worker is single-threaded, though
-Apache Arrow's Parquet driver can parallelize loading of multiple columns to some extent. Bottom line, for queries to run
-optimally, you'll want about one full vCPU allocated to you per worker.
-5.3.2 The default timeout is a bit on the short side - set it to 30 seconds.
-5.4 Down below in the 'Asynchronous invocation' section, edit the settings:
-5.4.1 Maximum age of event should be a few minutes at max, since older events are part of queries that have most probably 
-timed-out already.
-5.4.2 Set the no. of retry attempts to zero - Funnel Rocket will handle retries by itself.
-
-Assuming you've already uploaded and registered at least the example Retail Rocket dataset, we can now test a single Lambda
-invocation for a file from this dataset:
-
-## Configuration guide
-
-
