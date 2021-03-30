@@ -226,7 +226,7 @@ is dependent on allocated memory!](https://epsagon.com/observability/how-to-make
 Make sure to have your first dataset ready in S3 - you can use the one from the [example dataset walkthrough](./example-dataset.md)
 for starters.
 
-Start by listing datasets, either by [calling the API Server](./query-spec.md) or using the CLI
+Start by listing datasets, either by [calling the API Server](api.md) or using the CLI
 directly (as elaborated in the walkthrough) from a shell on the API Server machine. 
 There should be no datasets yet, but this is a good sanity check to see the Funnel Rocket successfully connects to Redis.
 

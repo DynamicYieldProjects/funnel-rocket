@@ -641,4 +641,4 @@ In fancier words, this is a predicate that's pushed down to the Parquet driver l
 
 Learn how to deploy & configure serverless (or server-full?) workers in production with the [Operations Guide](./operating.md).
 
-Review the full [query spec](./query-spec.md).
+Review the full [query spec](api.md).
