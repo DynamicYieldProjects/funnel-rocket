@@ -1,3 +1,5 @@
+<img align="left" width="60" height="60" src="./logo-icon-light-blue.svg">
+
 # Funnel Rocket API
 
 ## Register a Dataset
