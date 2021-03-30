@@ -1,4 +1,4 @@
-<img align="left" width="50" height="50" src="./logo-icon-light-blue.svg">
+<img align="left" width="64" height="64" src="./logo-icon-light-blue.svg">
 
 # Funnel Rocket API
 
