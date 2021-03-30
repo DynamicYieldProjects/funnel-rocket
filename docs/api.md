@@ -95,9 +95,9 @@ This ain't no fancy streaming protocol, but for pushing a few updates it's more 
 It's easy to see how this works locally with a browser: register a dataset (such as the [example dataset](./example-dataset.md)) and go to `http://localhost:5000/datasets/<name>/empty-query` 
 
 <p align="center">
-  <img alt="Streaming query in the browser" src="./streaming-query.gif" width="500">
+  <img alt="Streaming query in the browser" src="https://github.com/DynamicYieldProjects/funnel-rocket-oss/blob/assets/assets/streaming-query.gif?raw=true" width="600">
 </p>
-
+![str]
 ## List Datasets
 
 ## Get Dataset Schema
