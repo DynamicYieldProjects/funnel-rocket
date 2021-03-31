@@ -190,7 +190,7 @@ Here's the response for the example dataset:
 * **columns** - a map of all *supported* columns and their type. Currently, one of: `BOOL`, `INT`, `FLOAT`, `STRING`.
 * **minTimestamp, maxTimestamp** - The minimum & maximum values found in the dataset's timestamp column during registration. 
   * **Note: these values are taken from the files sampled for validation** - they do not represent the exact min/max timestamp
-    in the dataset. However, if the dataset is properly partitioned (by gruop, not by time) this should be a good approximation.
+    in the dataset. However, if the dataset is properly partitioned (by group rather than by time) this should be a good approximation.
 * **sourceCategoricals** - If the dataset files were saved with Pandas, and some string columns are of Pandas' categorical type, these columns are listed here and will be loaded as such.
 * **potentialCategoricals** - String columns which were detected during validation to benefit from being loaded as categoricals in queries. 
   This behavior is [configurable](./operating.md).
@@ -638,7 +638,92 @@ unless adding `?force=true` to the request URL. This behavior is controlled by t
 
 ## Stats Response Object
 
-**TODO** from AWS Lambda run... (with cost and warm/cold etc.)
-```json5
+API reuqests which involve invoking tasks via workers also return a `stats` attribute as part of the response JSON.
+Here is the actual `stats` object returned by a no-conditions query run with AWS Lambda-based workers. The dataset contains about 250 million rows of activities by 14.5 million users,
+and is partitioned into 256 Parquet files. The data is highly compressed, so the total dataset size is a bit below 10GB.
 
+To put the numbers below in proper context:
+* This run is a subsequent run over a dataset, so lambdas are warm and most have successfully self-selected a locally-cached part.
+* No conditions or optional aggregations are defined, so only two columns are actually loaded: the group ID and timestamp column. These are always loaded.
+
+Here's the annotated response:
+```json5
+{
+  "totalTime": 2.11058,
+  "invoker": {
+    // Time it took to complete invoking all 256 tasks via a thread pool. This needs further work to improve.
+    "enqueueTime": 0.71042,
+    // Time the invoker spent after enqueing in polling task statuses, till all tasks were done
+    "pollTime": 1.00970,
+    // How many tasks were run by workers - one per each part (file) in the dataset
+    "totalTasks": 256,
+    "failedTasks": 0,
+    // A time series in 0.25-second resolution, showing the count of tasks ended successfully in each time slot.
+    // Non-cumulative, only data points with any tasks completed are included
+    "taskSuccessOverTime": {
+      "0.5": 74, // Represents the '0.25s < time <= 0.5 secs since query run began.
+      "0.75": 62,
+      "1.0": 40,
+      "1.25": 28,
+      "1.5": 36,
+      "1.75": 16
+    }
+  },
+  // The stats below were collected and aggregated from all workers (as part of task results)
+  "worker": {
+    "coldTasks": 0,
+    "warmTasks": 256, // All tasks were run by a warm worker!
+    // Stats for the time it took since invocation of tasks started till a task began processing by the Lambda handler.
+    // This timing is affected by the time it takes the invoker to enqueue all tasks (see above - 0.71 secs.), 
+    // plus the latency of the Lambda system itself (from the API being called to Lambda handler called)
+    // 
+    "invokeLatency": {
+      "mean": 0.59070,
+      "min": 0.16777,
+      "25%": 0.40236,
+      "50%": 0.59363,
+      "75%": 0.74199,
+      "95%": 1.01390,
+      "99%": 1.13268,
+      "max": 1.20589
+    },
+    // Time it took to load the Parquet file (one per task), including download if not locally cached.
+    // About two-thirds of the files were cached on local disk, see below.
+    "loadTime": {
+      "mean": 0.21169,
+      "min": 0.04079,
+      "25%": 0.06028,
+      "50%": 0.07073,
+      "75%": 0.44651,
+      "95%": 0.63991,
+      "99%": 0.77359,
+      "max": 0.90352
+    },
+    // Total time tasks took to run (from the time the handler started till it completed)
+    "totalTime": {
+      "mean": 0.22912,
+      "min": 0.05613,
+      "25%": 0.07623,
+      "50%": 0.08619,
+      "75%": 0.46496,
+      "95%": 0.66509,
+      "99%": 0.79398,
+      "max": 0.92872
+    },
+    "scannedRows": 254110234,
+    "scannedGroups": 14452091,
+    // How many files were loaded from source (S3) vs. from local disk cache. This should be further worked on.
+    "cache": {
+      "source": 84,
+      "diskCache": 172
+    }
+  },
+  "dataset": {
+    "totalSize": 10222623169,
+    "parts": 256
+  },
+  // Dollar cost of the Lambda compute time: 0.175 cents. Per-request costs of AWS Lambda and S3 are not included,
+  // but are generally a very small fraction of the cost in Funnel Rocket's case.
+  "cost": 0.00175
+}
 ```

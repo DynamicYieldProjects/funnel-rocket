@@ -10,7 +10,7 @@ long_description = readme_file.read_text() if readme_file.exists() else ''
 
 setuptools.setup(
     name="funnel-rocket",
-    version="0.1.0",
+    version="0.1.1",
     author="Elad Rosenheim, Avshalom Manevich",
     author_email="elad@dynamicyield.com",
     description="Cloud native distributed funnel queries",
