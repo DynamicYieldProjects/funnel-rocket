@@ -15,7 +15,7 @@ from tests.utils.base_test_utils import assert_metric_value, assert_label_value_
 from tests.utils.dataset_utils import new_test_dataset, str_and_none_column_values, TestDatasetInfo, TestColumn, \
     DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, TIME_SHIFT, \
     datafile_schema
-from tests.utils.mock_s3_utils import SKIP_MOCK_S3_TESTS
+from tests.utils.mock_s3_utils import SKIP_S3_TESTS
 from tests.utils.task_and_job_utils import simple_run_task
 
 # Note: not trying to test the query engine itself here, but that the query task "wraps it" correctly.
@@ -193,7 +193,7 @@ def test_local_invoker_set_part():
         assert_label_value_exists(task_result.metrics, LoadFromLabel.SOURCE)
 
 
-@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_s3_invoker_set_part():
     with new_test_dataset(2) as test_ds:
         def validate_counts_and_source(part: int, source: LoadFromLabel):
@@ -229,7 +229,7 @@ def test_worker_set_part_local():
         validate()
 
 
-@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_worker_set_part_s3():
     with new_test_dataset(1) as test_ds:
         def validate(s3path: str, source: LoadFromLabel, select_method: PartSelectMethodLabel):
@@ -247,7 +247,7 @@ def test_worker_set_part_s3():
         validate(s3path, LoadFromLabel.DISK_CACHE, PartSelectMethodLabel.SPECIFIC_CANDIDATE)
 
 
-@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_self_select_multi_loaders():
     """In worker self-select part mode, validate the expected actual select method:
     Given:

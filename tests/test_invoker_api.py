@@ -14,7 +14,7 @@ from frocket.common.tasks.registration import RegisterArgs, DatasetValidationMod
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker import invoker_api
 from frocket.invoker.stats_builder import TASK_COMPLETION_GRANULARITY_SECONDS
-from tests.utils.base_test_utils import SKIP_LOCAL_LAMBDA_TESTS
+from tests.utils.base_test_utils import SKIP_LAMBDA_TESTS
 from tests.utils.dataset_utils import TestDatasetInfo, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, TestColumn, \
     BASE_TIME, DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT, new_test_dataset
 # noinspection PyUnresolvedReferences
@@ -26,7 +26,7 @@ from tests.utils.redis_fixture import init_test_redis_settings
 
 ORIGINAL_INVOKER_TYPE = config['invoker']
 INVOKER_TYPES = ['work_queue']
-if not SKIP_LOCAL_LAMBDA_TESTS:
+if not SKIP_LAMBDA_TESTS:
     INVOKER_TYPES.append('aws_lambda')
 API_DATASET_NUM_PARTS = 3
 

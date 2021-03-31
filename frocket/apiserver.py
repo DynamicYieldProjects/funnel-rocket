@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 
 ALLOW_ADMIN_ACTIONS = config.bool("apiserver.admin.actions")
 RETURN_ERROR_DETAILS = config.bool("apiserver.error.details")
-STREAM_POLL_INTERVAL = config.int("apiserver.stream.poll.interval.ms") / 1000
-STREAM_WRITE_INTERVAL = config.int("apiserver.stream.write.interval.ms") / 1000
 PRETTY_PRINT = config.bool("apiserver.prettyprint")
 EXPORT_TO_PROMETHEUS = config.bool('metrics.export.prometheus')
 DEFAULT_ERROR = 'Error'

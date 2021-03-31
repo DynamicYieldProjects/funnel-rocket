@@ -14,3 +14,5 @@ sdist/
 *.egg-info/
 *.egg
 venv/
+map/
+reduce/

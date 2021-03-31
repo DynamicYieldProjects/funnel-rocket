@@ -4,7 +4,7 @@ import shutil
 from typing import List, cast
 import pytest
 import pandas as pd
-from tests.utils.mock_s3_utils import SKIP_MOCK_S3_TESTS
+from tests.utils.mock_s3_utils import SKIP_S3_TESTS
 from tests.utils.task_and_job_utils import registration_job_invoker, build_registration_job, registration_job
 from tests.utils.dataset_utils import new_test_dataset, STR_CAT_MANY_WEIGHTS, TestColumn, DEFAULT_GROUP_COUNT
 from tests.utils.base_test_utils import temp_filename, SKIP_SLOW_TESTS
@@ -232,7 +232,7 @@ def test_schemas_differ():
                 assert not result.success
 
 
-@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_s3_paths():
     ignore_this_file = temp_filename()
     with open(ignore_this_file, 'w') as f:
@@ -288,14 +288,14 @@ def test_s3_paths():
         assert not job.parts
 
 
-@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 @pytest.mark.xfail(strict=True)
 def test_s3_missing_bucket_failure():
     job = build_registration_job('s3://whatsthat/', mode=DatasetValidationMode.SAMPLE)
     job.prerun()
 
 
-@pytest.mark.skipif(SKIP_MOCK_S3_TESTS, reason="Skipping mock S3 tests")
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 @pytest.mark.xfail(strict=True)
 def test_s3_missing_key_failure():
     with new_test_dataset(2) as test_ds:

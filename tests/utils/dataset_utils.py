@@ -13,7 +13,7 @@ from frocket.common.dataset import DatasetPartsInfo, DatasetId, DatasetPartId, P
 from frocket.common.serializable import AutoNamedEnum
 from frocket.worker.runners.part_loader import shared_part_loader
 from tests.utils.base_test_utils import temp_filename, TEMP_DIR, DisablePyTestCollectionMixin
-from tests.utils.mock_s3_utils import SKIP_MOCK_S3_TESTS, new_mock_s3_bucket
+from tests.utils.mock_s3_utils import SKIP_S3_TESTS, new_mock_s3_bucket
 
 
 class TestColumn(DisablePyTestCollectionMixin, str, AutoNamedEnum):
@@ -185,7 +185,7 @@ class TestDatasetInfo(DisablePyTestCollectionMixin):
 
     # noinspection PyUnresolvedReferences
     def copy_to_s3(self, path_in_bucket: str = '') -> str:
-        assert not SKIP_MOCK_S3_TESTS
+        assert not SKIP_S3_TESTS
         if not self.bucket:
             self.bucket = new_mock_s3_bucket()
 

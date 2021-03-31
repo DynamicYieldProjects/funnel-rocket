@@ -4,6 +4,7 @@ import time
 from dataclasses import dataclass
 from enum import auto
 from typing import Optional, Union
+import pytest
 import requests
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.common.serializable import AutoNamedEnum
@@ -11,6 +12,7 @@ from tests.utils.dataset_utils import new_test_dataset, DEFAULT_GROUP_COLUMN, DE
     BASE_TIME, TestColumn, BASE_USER_ID, DEFAULT_GROUP_COUNT, datafile_schema
 
 # TODO as part of automated failure/retry tests: test query timeout
+from tests.utils.mock_s3_utils import SKIP_S3_TESTS
 
 TEST_API_SERVER_URL = os.environ.get('TEST_API_SERVER_URL', 'http://127.0.0.1:5000/')
 if not TEST_API_SERVER_URL.endswith('/'):
@@ -144,6 +146,7 @@ def build_register_args(basepath: str, ds_name: str = None):
     }
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_register_unregister_ok():
     with new_test_dataset(4) as test_ds:
         args = build_register_args(basepath=test_ds.copy_to_s3())
@@ -153,12 +156,14 @@ def test_register_unregister_ok():
         URLs.run(url_info=URLs.unregister_url(ds_name=ds_name), expected_dict={'datasetFound': False})
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_register_invalid_path():
     args = build_register_args(basepath="s3://thisisnot/apath/")
     URLs.run(url_info=URLs.register_url(run_async=False), json_body=args,
              expected_success=False, errors_are_json=True)
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_register_invalid_column():
     with new_test_dataset(1) as test_ds:
         args = build_register_args(basepath=test_ds.copy_to_s3())
@@ -167,6 +172,7 @@ def test_register_invalid_column():
                  expected_success=False, errors_are_json=True)
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_register_invalid_args():
     with new_test_dataset(1) as test_ds:
         s3path = test_ds.copy_to_s3()
@@ -181,6 +187,7 @@ def test_register_invalid_args():
                  expected_success=False, errors_are_json=False)
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_register_async():
     with new_test_dataset(2) as test_ds:
         args = build_register_args(test_ds.copy_to_s3())
@@ -189,6 +196,7 @@ def test_register_async():
         URLs.run(url_info=URLs.unregister_url(ds_name=args['name']), expected_dict={'datasetFound': True})
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_list_datasets():
     ds_list = URLs.run(url_info=URLs.list_datasets_url()).json
     assert type(ds_list) is list
@@ -213,6 +221,7 @@ def test_list_datasets():
     assert len(updated_list) == original_count
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_unregister_force():
     with new_test_dataset(1) as test_ds:
         args = build_register_args(test_ds.copy_to_s3())
@@ -232,6 +241,7 @@ def test_unregister_force():
                  expected_success=True, expected_dict={'datasetFound': False})
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_query_ok():
     num_parts = 3
     with new_test_dataset(num_parts) as test_ds:
@@ -266,6 +276,7 @@ def test_query_ok():
                  expected_success=True, expected_dict={'datasetFound': True})
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_query_invalid_args():
     """Errors that should be raise already on invoker side, and result in 'Error: ...' string response"""
     with new_test_dataset(1) as test_ds:
@@ -285,6 +296,7 @@ def test_query_invalid_args():
         URLs.run(url_info=URLs.unregister_url(ds_name, force=True))
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_query_missing_files():
     """Missing files (after registration) should cause workers to fail"""
     with new_test_dataset(2) as test_ds:
@@ -310,6 +322,7 @@ def test_query_missing_files():
         URLs.run(url_info=URLs.unregister_url(ds_name, force=True))
 
 
+@pytest.mark.skipif(SKIP_S3_TESTS, reason="Skipping mock S3 tests")
 def test_dataset_details():
     """A non-exhaustive test of fetching dataset parts and schema info (this was tested in detail elsewhere)"""
     with new_test_dataset(2) as test_ds:

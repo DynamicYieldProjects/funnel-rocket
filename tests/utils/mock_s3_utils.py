@@ -3,8 +3,8 @@ import boto3
 from frocket.common.config import config, ConfigDict
 from frocket.common.helpers.utils import timestamped_uuid, memoize
 
-SKIP_MOCK_S3_TESTS = os.environ.get('SKIP_LOCAL_S3_TESTS', False)
-if not SKIP_MOCK_S3_TESTS:
+SKIP_S3_TESTS = os.environ.get('SKIP_S3_TESTS', "False").lower() == 'true'
+if not SKIP_S3_TESTS:
     MOCK_S3_URL = os.environ.get('MOCK_S3_URL', 'http://127.0.0.1:9000')
     MOCK_S3_USER = os.environ.get('MOCK_S3_USER', 'testonly')
     MOCK_S3_SECRET = os.environ.get('MOCK_S3_SERCET', 'testonly')
@@ -12,7 +12,7 @@ if not SKIP_MOCK_S3_TESTS:
 
 @memoize
 def _init_mock_s3_config():
-    if SKIP_MOCK_S3_TESTS:
+    if SKIP_S3_TESTS:
         print(f"Skipping mock S3 config")
     config['s3.aws.endpoint.url'] = MOCK_S3_URL
     config['s3.aws.access.key.id'] = MOCK_S3_USER
@@ -28,7 +28,7 @@ def mock_s3_env_variables():
 
 
 def new_mock_s3_bucket():
-    if SKIP_MOCK_S3_TESTS:
+    if SKIP_S3_TESTS:
         return None
     _init_mock_s3_config()
 

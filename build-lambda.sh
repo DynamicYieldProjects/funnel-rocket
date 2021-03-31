@@ -10,8 +10,8 @@ GITHASH=`git rev-parse HEAD | cut -c1-8``[[ -z $(git status -s) ]] || echo dirty
 echo "${YELLOW}==> Building layer: ${LAYER}${NC}"
 echo "${YELLOW}==> Git commit hash: ${GITHASH}${NC}"
 echo "${YELLOW}==> Running docker build to install packages in Lambda-like image...${NC}"
-docker build -f docker/local-lambda.Dockerfile . -t frocket:local-lambda
-docker run -d --name lambda-builder frocket:local-lambda
+docker build -f docker/local-lambda.Dockerfile . -t frocket/local-lambda:latest
+docker run -d --name lambda-builder frocket/local-lambda:latest
 
 BUILD_DIR=$(mktemp -d -t build-lambda)
 echo "${YELLOW}==> Copying files from container to build directory: ${BUILD_DIR}...${NC}"
