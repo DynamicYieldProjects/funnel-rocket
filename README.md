@@ -93,8 +93,6 @@ You can combine both deployment modes, using this mode for pre-baking default/co
 Both deployment options push much of the complexity into battle-tested tools. Both depend on Redis as their single stateful component.
 Thus, running a muti-zone Redis setup is recommended in production. In the worst case, you'd need to re-register all active datasets.
 
-For more on the design and components of Funnel Rocket, [click here](./docs/design.md).
-
 ## Preparing Data for Querying
 
 Funnel Rocket currently supports Parquet files only, located under the same base path either on a locally-mounted filesystem
