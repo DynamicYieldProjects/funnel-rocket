@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img alt="Funnel Rocket logo" src="https://github.com/DynamicYieldProjects/funnel-rocket/blob/main/docs/logo-blue.svg" width="350">
+  <img alt="Funnel Rocket logo" src="https://github.com/DynamicYieldProjects/funnel-rocket/blob/main/docs/logo-blue.svg?raw=true" width="350">
 </p>
 
 # Funnel Rocket

@@ -51,7 +51,7 @@ jobs:
           file: ./docker/all-in-one.Dockerfile
           builder: ${{ steps.buildx.outputs.name }}
           load: true
-          tags: frocket/frocket
+          tags: frocket/all-in-one:latest
           cache-from: type=local,src=/tmp/.buildx-cache-all-in-one
           cache-to: type=local,dest=/tmp/.buildx-cache-all-in-one,mode=max
 
@@ -71,7 +71,7 @@ jobs:
           file: ./docker/local-lambda.Dockerfile
           builder: ${{ steps.buildx.outputs.name }}
           load: true
-          tags: frocket/local-lambda
+          tags: frocket/local-lambda:latest
           cache-from: type=local,src=/tmp/.buildx-cache-local-lambda
           cache-to: type=local,dest=/tmp/.buildx-cache-local-lambda,mode=max
 
