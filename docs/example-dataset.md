@@ -65,7 +65,7 @@ Assuming that you're running a local Redis and queue-worker on the host, you can
 To register our dataset, you need to specify *(a)* a logical name, *(b)* the path where the partitioned files are, 
 and *(c)* which columns hold the group ID (user ID) and the timestamp.
 
-Here's the command to run and the output you should get (omitting some of the response metrics):
+Here's the command to run, and the output you should get (omitting some details):
 
 ```
 % python frocket/cli.py register retail reduce visitorid timestamp
@@ -111,7 +111,7 @@ Here's what happened:
 
 1. Registering a dataset requires launching a job (comprised of tasks sent to workers for processing). In this case, the default `WorkQueueInvoker` class is used, which enqueues task requests via a Redis list. 
 1. The default validation mode is `first_last`, meaning that tasks are launched for the first and last files in the dataset, by lexicographic order.
-   1. Each task loads the file, ensure the existence and type required needed columns, builds the schema metadata and returns it.
+   1. Each task loads a single file and validates the existence and type of required columns, returning metadata on the file schema.
    1. Tasks also return a compressed array of unique group IDs, indirectly through the 'blobstore' (also the same Redis, by default).
 1. After tasks were enqueued the invoker goes into polling stage, waiting for all tasks to complete. In our case it should be no more than 1-2 seconds (if not, ensure the queue-based worker is running).
 1. After tasks complete: 
@@ -201,7 +201,7 @@ This number represents the approximate compute-only cost.
 * It is based on the total duration of all tasks run by the Lambda worker,  and the amount of memory allocated to it, in us-east-1 region rates.
 * It does not include storage costs in real S3 (~$300 per TB/year) and per-request Lambda/S3 costs, which are in Funnel Rocket's case miniscule compared to the cost of compute. 
 
-With real-life datasets **expect a cost of 0.5-2 cents per query** depending on its size and complexity.
+With real-life datasets **expect a cost of 0.5-2 cents per each query** depending on its size and complexity.
 
 ## Running Some Basic Queries
 
@@ -348,7 +348,7 @@ the number of all users with one or more purchase, as above.
 
 Here's a small but neat feature of conditions: we can look for all users who **did not** make any transaction. 
 Change the target value to `["count", "==", 0]`, and the result is 1,224,463. 
-Add to that number the 11,569 users with a one or more purchase and you'll get the total number of users again.
+Add to that the 11,569 users having one or more purchases, and you'll get the total number of users again.
 
 The array format used above for the `filter` and `target` attributes is a shorthand notation. The equivalent verbose format is:
 ```
