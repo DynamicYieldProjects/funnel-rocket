@@ -10,11 +10,11 @@ To query a dataset in Funnel Rocket you first need to register it. Registration 
 1. **Discovery:** the API Server (or CLI) will list files in the given base path matching the specified pattern.
 2. **Validation:** the API Server will invoke workers to load a subset of files from the dataset and verify 
    they match the minimum requirements, which includes having proper partitioning (see the [README](../README.md)) and a common schema.
-3. **Storing metadata:** The details of supported columns are stored to the Datastore (currently using Redis).
+3. **Storing metadata:** The details of supported columns are stored in the Datastore (currently using Redis).
 
 Currently, all files should be in Parquet format and must reside in the same directory. 
 
-Locally-mounted directories and AWS S3 are supported. You may also use alternative object stores which are fully S3-comptible, e.g. MinIO.
+Locally-mounted directories and AWS S3 are supported. You may also use alternative object stores which are fully S3-compatible, e.g. MinIO.
 In that case you'll need to configure Funnel Rocket appropriately - see the configuration reference in the [operations guide](./operating.md).
 
 #### Naming Datasets
@@ -109,7 +109,7 @@ Any progress updates before that final JSON are in the following format:
 {"message": "Polling results", "stage": "RUNNING", "tasks": {"ENDED_SUCCESS": 6, "QUEUED": 1, "RUNNING_QUERY": 1}}
 ```
 * `message` is an optional human-friendly description, which might change.
-* `stage` is one of `STARTING`, `RUNNING`, `FINISHING`, `DONE`. Stages can't progress 'in reveres' - only in this order.
+* `stage` is one of `STARTING`, `RUNNING`, `FINISHING`, `DONE`.
 * `tasks` holds a map of task status to count. Internally all tasks start their lifecycle in status QUEUED, and the sum of all counts in a progress message should always
   amount to the expected total number of tasks. 
   * Statuses are: `QUEUED`, `LOADING_DATA`, `RUNNING_QUERY`, `RUNNING`, `ENDED_SUCCESS`, `ENDED_FAILED`.
@@ -449,7 +449,7 @@ in a step-by-step fashion.**
           "column": "device"
         },
         {
-          // An aggretion with an explit type and an optional name (which will appear in the response).
+          // An aggregation with an explicit type and an optional name (which will appear in the response).
           "column": "transactionId",
           "type": "count",
           "name": "purchase count"
@@ -481,7 +481,7 @@ in a step-by-step fashion.**
       /*...*/
     ],
 
-    // OPTIONAL: Aggregations to perform after each step, with the same syntax as query aggreagtion above.
+    // OPTIONAL: Aggregations to perform after each step, with the same syntax as query aggregation above.
     "stepAggregations": {
       "columns": [
         // ...

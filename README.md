@@ -21,10 +21,10 @@ The engine can also perform a full funnel analysis, in which user counts and agg
 
 ### The Challenge
 
-If you're a vendor oferring analytics, personalization, content or product recommendations, etc. you may wish to offer such query capability
+If you're a vendor offering analytics, personalization, content or product recommendations, etc. you may wish to offer such query capability
 to each of your customers, allowing ad-hoc data exploration to better understand user behavior and define audience groups. 
 
-However, such queries are still a challenge to build with existing tools (SQL or NoSQL). The're not only tricky to get right, but are pretty hard to optimize for performance and cost. 
+However, such queries are still a challenge to build with existing tools (SQL or NoSQL). These are not only tricky to get right, but are pretty hard to optimize for performance and cost. 
 Executing such a query requires you to first perform a high cardinality grouping first (100 million users => 100 million groups), 
 then run multiple passes over each of these groups to execute all conditions in the desired order. 
 An alternative method is to "pre-bake" results by batch processing, limiting your users in freely exploring the data.
@@ -42,7 +42,7 @@ For what it does offer, though, we've found it to be very fast to scale, with a 
 Funnel Rocket is essentially bringing together a few excellent, proven components which do most of the heavy lifting.
 
 ### 1. Pandas
-The concept of the *DataFrame* doesn't need much introduction. DataFrames allow runnning complex transformations at ease with
+The concept of the *DataFrame* doesn't need much introduction. DataFrames allow running complex transformations at ease with
 good performance - if you're mindful enough (and *Numba* can help at some performance-critical points). 
 Coupled with *Apache Arrow* (also by the industrious @wesm) you also get great Parquet support. 
 
@@ -77,7 +77,7 @@ Such subsequent queries are significantly faster - down to 2-3 seconds in total,
 You can always 'pre-bake' some default/common queries beforehand using the *non-serverless mode* - see below.
 
 Funnel Rocket uses the *asynchronous* Lambda invocation API, making it easier to launch hundreds of jobs (or more) quickly. 
-At the cloud provider level, async. invocation reqeusts are put into a queueing mechanism which adds no meaningful latency in normal operation, yet prevents most cases of rate limiting.
+At the cloud provider level, async. invocation requests are put into a queueing mechanism which adds no meaningful latency in normal operation, yet prevents most cases of rate limiting.
 
 Of course, having multiple distributed jobs and tasks in flight, handling retries, etc. still takes some management infrastructure. 
 Luckily, there's Redis.
@@ -102,7 +102,7 @@ You can combine both deployment modes, using this mode for pre-baking default/co
 That way, you only utilize lambdas when users start exploring beyond the default view.
 
 Both deployment options push much of the complexity into battle-tested tools. Both depend on Redis as their single stateful component.
-Thus, running a muti-zone Redis setup is recommended in production. In the worst case, you'd need to re-register all active datasets.
+Thus, running a multi-zone Redis setup is recommended in production. In the worst case, you'd need to re-register all active datasets.
 
 ## Preparing Data for Querying
 

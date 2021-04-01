@@ -343,8 +343,8 @@ for which the condition is met **more than once per each user**: 2,528.
 
 When a `target` attribute is not specified, as in the previous query, it is internally set to a default implicit target of `["count", ">=", 1]`
 
-Now, change the the `target` attribute to `["count", "==", 1]`, and you'll get a count of 9041. Together that's 11,569 - 
-the number of all users with one or more purchase, as above.
+Now, change the `target` attribute to `["count", "==", 1]`, and you'll get a count of 9041. Together that's 11,569 - 
+the number of all users with one or more purchases, as above.
 
 Here's a small but neat feature of conditions: we can look for all users who **did not** make any transaction. 
 Change the target value to `["count", "==", 0]`, and the result is 1,224,463. 
@@ -465,8 +465,8 @@ expression can refer to it by name (e.g. `$big_total_purchases AND $no_big_singl
 
 ### Sequences
 
-We've promised you that Funnel Rocket can also check for conditions occuring in a specific order (per each user). Let's start with
-specifying such a sequnece, but we're not interested yet in how many users matched each step - we just want the users matching all of them.
+We've promised you that Funnel Rocket can also check for conditions occurring in a specific order (per each user). Let's start with
+specifying such a sequence, but we're not interested yet in how many users matched each step - we just want the users matching all of them.
 
 Let's specify the most classic of e-commerce sequences: find users who've viewed some products, then added something to cart, then made a purchase:
 ```
@@ -577,7 +577,7 @@ This is a good opportunity to clearly define the execution stages:
 3. **Lastly, an optional funnel** is run, based only on users matching the conditions (or all). 
    * Aggregations can be requested after each step, or only at the end following the last one.
 
-Now, let's use the funnel and its aggregations feature a bit differently. can you tell what the following does?
+Now, let's use the funnel and its aggregations feature a bit differently. Can you tell what the following does?
 ```
 {
     "funnel": {
