@@ -199,7 +199,6 @@ All keys written by Funnel Rocket are prefixed by 'frocket:'. To configure this 
 Funnel Rocket can also be configured to use a non-default logical DB for further namespace separation (meaning, db number > 0) by setting `export FROCKET_REDIS_DB=<logical db number>`. 
 
 #### Running the Worker and API Server
-
 To run a worker waiting on the Redis queue for tasks: `python -m frocket.worker.impl.queue_worker`.
 You should see the following output:
 ```
