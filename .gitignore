@@ -19,3 +19,4 @@ dist
 # Coverage report
 htmlcov
 .coverage
+.vscode
