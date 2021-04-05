@@ -38,9 +38,7 @@ from frocket.common.config import config
 logger = logging.getLogger(__name__)
 
 DEBUG_PRINT_PAYLOADS = config.bool("invoker.lambda.debug.payload")
-LEGACY_INVOKE_ASYNC = config.bool("invoker.lambda.legacy.async")  # See notes at top of module
 LAMBDA_ASYNC_OK_STATUS = 202
-LAMBDA_STATUS_FIELD = 'Status' if LEGACY_INVOKE_ASYNC else 'StatusCode'
 
 
 def _worker_task(req: BaseTaskRequest, client: BaseClient, lambda_name: str) -> BaseApiResult:
@@ -52,12 +50,15 @@ def _worker_task(req: BaseTaskRequest, client: BaseClient, lambda_name: str) -> 
         if DEBUG_PRINT_PAYLOADS:
             logger.debug(json_payload)
 
-        if LEGACY_INVOKE_ASYNC:
+        legacy_invoke_async = config.bool("invoker.lambda.legacy.async")
+        status_field = 'Status' if legacy_invoke_async else 'StatusCode'
+
+        if legacy_invoke_async:
             response = client.invoke_async(FunctionName=lambda_name, InvokeArgs=json_payload)
         else:
             response = client.invoke(FunctionName=lambda_name, InvocationType='Event', Payload=json_payload)
 
-        if response[LAMBDA_STATUS_FIELD] == LAMBDA_ASYNC_OK_STATUS:
+        if response[status_field] == LAMBDA_ASYNC_OK_STATUS:
             result = BaseApiResult(success=True, error_message=None)
         else:
             message = f"Response status differs from expected ({LAMBDA_ASYNC_OK_STATUS}): {response}"

@@ -5,7 +5,7 @@ from frocket.common.helpers.utils import timestamped_uuid, memoize
 
 SKIP_S3_TESTS = os.environ.get('SKIP_S3_TESTS', "False").lower() == 'true'
 if not SKIP_S3_TESTS:
-    MOCK_S3_URL = os.environ.get('MOCK_S3_URL', 'http://127.0.0.1:9000')
+    MOCK_S3_URL = os.environ.get('MOCK_S3_URL', 'http://localhost:9000')
     MOCK_S3_USER = os.environ.get('MOCK_S3_USER', 'testonly')
     MOCK_S3_SECRET = os.environ.get('MOCK_S3_SERCET', 'testonly')
 

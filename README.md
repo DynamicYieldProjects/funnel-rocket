@@ -90,7 +90,7 @@ This use case only requires a modest amount of RAM, meaning that using a managed
 Other than for managing metadata on available datasets, Redis is used in two more ways:
 
 1. As noted above, the invoker (server) does not rely on synchronous responses. 
-   Inteasd, it always uses Redis for tracking the status and outputs of all individual tasks.
+   Instead, it always uses Redis for tracking the status and outputs of all individual tasks.
 1. **To support a non-serverless deployment option where Redis also acts as a work queue** from which 
    long-running worker processes fetch tasks. 
 
@@ -147,7 +147,9 @@ To have the Funnel Rocket image based on the source code in the local repository
 
 Run `docker-compose up`. This will start the following services:
 
-* _Redis_ as the datastore, available to the host at localhost port 6380 (as you may have a local Redis running on default port 6379).
+* _Redis_ as the datastore, available to the host at localhost port 6379.
+  * If you already have Redis running locally on that port, change the port for this Redis container by setting 
+    `export FROCKET_REDIS_PORT=<x>` before running `docker-compose up`.
 
 * _MinIO_ to test S3-based datasets locally. Its admin UI is available to the host at http://localhost:9000.
 
@@ -159,6 +161,9 @@ Run `docker-compose up`. This will start the following services:
   This worker type is not used by default by the API server, but this can be modified by uncommenting `- FROCKET_INVOKER=aws_lambda` in the `docker-compose.yml` file. 
   It is also called directly by unit tests.
 
+The empty local sub-directory `./data` on the host is mapped to Funnel Rocket's containers (the API Server and both worker types) at the same location: as `./data` under the container's `WORKDIR`.
+This allows you to register and query local datasets with the Docker-based setup
+
 To make jobs run faster, you can scale up the number of workers, e.g. `docker-compose up --scale frocket-queue-worker=4`. Workers only take about 50-60mb RAM each.
 
 #### Testing the Setup
@@ -168,7 +173,7 @@ The best way to fully validate your setup is to run automated tests with `pytest
 1. Make sure you have Python 3.8+ as the default python in your environment. Using _virtualenv_ or _conda_, etc. for isolation is of course encouraged.
 1. Install the package from local sources: `pip install -e .`.
 1. Install additional packages required for tests: `pip install -r test-requirements.txt`
-1. Run `./test-docker-compose.sh`. This script takes care to set environment variables for tests to connect to the running docker-compose services.
+1. Run `pytest -vv`.
 
 ### Run on the Host
 
@@ -206,7 +211,7 @@ To run the API server with the Flask built-in webserver: `FLASK_APP=frocket.apis
 
 Most tests require an S3-compatible store for testing. You can start a stand-alone MinIO instance via `docker-compose start mock-s3` (it's pretty lightweight), or other alternatives. 
 
-To set S3 credentials to the local S3 service for tests only, set `MOCK_S3_USER` and `MOCK_S3_SERCET` to the service credentials.
+To set S3 credentials to the local S3 service for tests only, set `MOCK_S3_USER` and `MOCK_S3_SECRET` to the service credentials.
 You may also need to set `MOCK_S3_URL` if the S3 endpoint differs from `http://127.0.0.1:9000`
 
 Finally, run `pytest tests/ -vv`.

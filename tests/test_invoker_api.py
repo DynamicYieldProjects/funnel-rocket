@@ -19,6 +19,8 @@ from tests.utils.dataset_utils import TestDatasetInfo, DEFAULT_GROUP_COLUMN, DEF
     BASE_TIME, DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT, new_test_dataset
 # noinspection PyUnresolvedReferences
 from tests.utils.redis_fixture import init_test_redis_settings
+# noinspection PyUnresolvedReferences
+from tests.utils.lambda_fixture import init_mock_lambda_settings
 
 # TODO skip this whole module if no docker env/processes running - using a class?
 # TODO test query/register timeout (sync/async)
