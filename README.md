@@ -168,12 +168,15 @@ To make jobs run faster, you can scale up the number of workers, e.g. `docker-co
 
 #### Testing the Setup
 
-The best way to fully validate your setup is to run automated tests with `pytest` against it, which requires also installing Funnel Rocket as a package:
+Test files are included in the `frocket/all-in-one` Docker image under `/app/tests`. However, these files are not under `PYTHONPATH`,
+nor are the required packages installed by default.
 
-1. Make sure you have Python 3.8+ as the default python in your environment. Using _virtualenv_ or _conda_, etc. for isolation is of course encouraged.
-1. Install the package from local sources: `pip install -e .`.
-1. Install additional packages required for tests: `pip install -r test-requirements.txt`
-1. Run `pytest -vv`.
+To run tests inside the running API Server container:
+1. Install required packages: `docker exec -it frocket-apiserver pip install -r test-requirements.txt --user`.
+1. Run: `docker exec -it frocket-apiserver /home/frocket/.local/bin/pytest -p no:cacheprovider tests/ -vv`
+
+If you also have Funnel Rocket installed as a package on the host, 
+you can also run `pip install -r test-requirements.txt && pytest` from the repository root dir.
 
 ### Run on the Host
 
@@ -212,7 +215,7 @@ To run the API server with the Flask built-in webserver: `FLASK_APP=frocket.apis
 Most tests require an S3-compatible store for testing. You can start a stand-alone MinIO instance via `docker-compose start mock-s3` (it's pretty lightweight), or other alternatives. 
 
 To set S3 credentials to the local S3 service for tests only, set `MOCK_S3_USER` and `MOCK_S3_SECRET` to the service credentials.
-You may also need to set `MOCK_S3_URL` if the S3 endpoint differs from `http://127.0.0.1:9000`
+You may also need to set `MOCK_S3_URL` if the S3 endpoint differs from `http://localhost:9000`
 
 Finally, run `pytest tests/ -vv`.
 

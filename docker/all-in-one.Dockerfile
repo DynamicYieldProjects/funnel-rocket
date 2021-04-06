@@ -28,8 +28,10 @@ RUN useradd -ms /bin/bash frocket
 COPY --from=package-install /app/packages packages
 # The most frequently-changing file set - the source code itself, is copied last so previous layers are unaffected
 COPY ./requirements.txt .
+COPY ./test-requirements.txt .
 COPY ./setup.py .
 COPY ./frocket frocket
+COPY ./tests tests
 RUN pip install --no-cache-dir --no-compile --no-deps . -t ./packages
 USER frocket
 ENV PYTHONPATH=/app/packages

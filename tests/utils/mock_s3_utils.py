@@ -4,19 +4,18 @@ from frocket.common.config import config, ConfigDict
 from frocket.common.helpers.utils import timestamped_uuid, memoize
 
 SKIP_S3_TESTS = os.environ.get('SKIP_S3_TESTS', "False").lower() == 'true'
-if not SKIP_S3_TESTS:
-    MOCK_S3_URL = os.environ.get('MOCK_S3_URL', 'http://localhost:9000')
-    MOCK_S3_USER = os.environ.get('MOCK_S3_USER', 'testonly')
-    MOCK_S3_SECRET = os.environ.get('MOCK_S3_SERCET', 'testonly')
 
 
 @memoize
 def _init_mock_s3_config():
     if SKIP_S3_TESTS:
         print(f"Skipping mock S3 config")
-    config['s3.aws.endpoint.url'] = MOCK_S3_URL
-    config['s3.aws.access.key.id'] = MOCK_S3_USER
-    config['s3.aws.secret.access.key'] = MOCK_S3_SECRET
+    config['s3.aws.endpoint.url'] = \
+        os.environ.get('MOCK_S3_URL', config.get('s3.aws.endpoint.url', 'http://localhost:9000'))
+    config['s3.aws.access.key.id'] = \
+        os.environ.get('MOCK_S3_USER', config.get('s3.aws.access.key.id', 'testonly'))
+    config['s3.aws.secret.access.key'] = \
+        os.environ.get('MOCK_S3_SERCET', config.get('s3.aws.secret.access.key', 'testonly'))
 
 
 def mock_s3_env_variables():

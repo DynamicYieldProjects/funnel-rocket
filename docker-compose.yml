@@ -58,6 +58,7 @@ services:
 
   frocket-apiserver:
     image: frocket/all-in-one:latest
+    container_name: frocket-apiserver
     ports:
       - 5000:5000
     volumes:
