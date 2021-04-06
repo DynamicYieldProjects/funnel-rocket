@@ -24,7 +24,7 @@ RUN rm /opt/python/pyarrow/*flight*.so* \
 USER ${RUN_USER}
 # Copy package source code, which is frequently changing, only at end of Dockerfile
 COPY ./frocket /var/task/frocket
-WORKDIR /
+WORKDIR /var/task
 # These values are for running tests, not production usage
 ENV DOCKER_LAMBDA_STAY_OPEN=1 \
     AWS_LAMBDA_FUNCTION_NAME=frocket \

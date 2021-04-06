@@ -2,10 +2,9 @@ version: '3.8'
 services:
   redis:
     image: redis:6
-    container_name: redis
     ports:
-      - 6380:6380
-    entrypoint: [ "redis-server", "--port", "6380" ]
+      - ${FROCKET_REDIS_PORT:-6379}:${FROCKET_REDIS_PORT:-6379}
+    entrypoint: [ "redis-server", "--port", "${FROCKET_REDIS_PORT:-6379}" ]
 
   mock-s3:
     image: minio/minio:latest
@@ -22,9 +21,11 @@ services:
       dockerfile: docker/all-in-one.Dockerfile
       context: .
     image: frocket/all-in-one:latest
+    volumes:
+      - ./data:/app/data:ro,cached
     environment:
       - FROCKET_REDIS_HOST=redis
-      - FROCKET_REDIS_PORT=6380
+      - FROCKET_REDIS_PORT=${FROCKET_REDIS_PORT:-6379}
       - FROCKET_S3_AWS_ENDPOINT_URL=http://mock-s3:9000
       - FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
       - FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
@@ -39,9 +40,11 @@ services:
       context: .
     image: frocket/local-lambda:latest
     container_name: mock-lambda
+    volumes:
+      - ./data:/var/task/data:ro,cached
     environment:
       - FROCKET_REDIS_HOST=redis
-      - FROCKET_REDIS_PORT=6380
+      - FROCKET_REDIS_PORT=${FROCKET_REDIS_PORT:-6379}
       - FROCKET_S3_AWS_ENDPOINT_URL=http://mock-s3:9000
       - FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
       - FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
@@ -58,10 +61,12 @@ services:
     container_name: frocket-apiserver
     ports:
       - 5000:5000
+    volumes:
+      - ./data:/app/data:ro,cached
     environment:
       - APISERVER_NUM_WORKERS=2
       - FROCKET_REDIS_HOST=redis
-      - FROCKET_REDIS_PORT=6380
+      - FROCKET_REDIS_PORT=${FROCKET_REDIS_PORT:-6379}
       - FROCKET_S3_AWS_ENDPOINT_URL=http://mock-s3:9000
       - FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
       - FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly

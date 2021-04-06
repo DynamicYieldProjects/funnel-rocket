@@ -84,13 +84,4 @@ jobs:
         run: |
           source venv/bin/activate
           export SKIP_SLOW_TESTS=true
-          export TEST_REDIS_PORT=6380
-          export FROCKET_S3_AWS_ENDPOINT_URL=http://127.0.0.1:9000
-          export FROCKET_S3_AWS_ACCESS_KEY_ID=testonly
-          export FROCKET_S3_AWS_SECRET_ACCESS_KEY=testonly
-          export FROCKET_LAMBDA_AWS_ENDPOINT_URL=http://127.0.0.1:9001
-          export FROCKET_LAMBDA_AWS_NO_SIGNATURE=true
-          export FROCKET_LAMBDA_AWS_REGION=us-east-1
-          export FROCKET_INVOKER_LAMBDA_LEGACY_ASYNC=false
-          export FROCKET_INVOKER_RETRY_FAILED_INTERVAL=0.05
           pytest --cov=frocket --cov-report=html
