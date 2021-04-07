@@ -41,7 +41,7 @@ services:
     image: frocket/local-lambda:latest
     container_name: mock-lambda
     volumes:
-      - ./data:/var/task/data:ro,cached
+      - ./data:/data:ro,cached
     environment:
       - FROCKET_REDIS_HOST=redis
       - FROCKET_REDIS_PORT=${FROCKET_REDIS_PORT:-6379}
