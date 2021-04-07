@@ -12,9 +12,11 @@ the more generic term Funnel Rocket uses is *groups*: any kind of grouping ID co
 
 ### Creating an optimized Parquet file
 
-* Download the [dataset](https://www.kaggle.com/retailrocket/ecommerce-dataset/) from Kaggle and extract the files to a directory of your choosing. 
+* Download the [dataset](https://www.kaggle.com/retailrocket/ecommerce-dataset/) from Kaggle and extract the files to the `data` directory in this repo.
+
   A free registration is required.
-* From the Funnel Rocket repo directory, run `python dataprep_example/ingest_retailrocket_dataset.py <dataset-files-dir>`.
+* From the Funnel Rocket repo directory, run `python dataprep_example/ingest_retailrocket_dataset.py data`.
+  * The `data` directory is mounted as part of the [docker-compose.yml](../docker-compose.yml) so that the Funnel-Rocket containers have access.  
 
 The above script will:
 1. Read the approx. 2.5 million user events in `events.csv`
@@ -36,7 +38,7 @@ or as one part in a much bigger dataset. To experience a bit of parallelism, tho
 
 Here's how to partition on the 'visitorid' column with the supplied utility `repartition.py`
 ```
-% python dataprep_example/repartition.py --input <your-dir>/retailrocket.parquet --parts 8 visitorid
+% python dataprep_example/repartition.py --input data/retailrocket.parquet --parts 8 visitorid
 Input files found: 1, map output dir: map, target partitions: 8, CPUs: 4, pool size: 1
 Map stage done, total of 8 files created
 Reduce stage done, output parts are in directory: reduce
@@ -53,7 +55,7 @@ total 172376
 -rw-r--r--  1 elad  staff    11M Mar 18 12:20 part-00007.parquet
 ```
 
-Another command-line tool which can come in handy with Parquet files is `parquet-tools`. This tool makes it easy to inspect the schema of the result files, along with a few other common actions. It can be installed via `pip`, `brew` or downloading the JAR file.
+Another command-line tool which can come in handy with Parquet files is `parquet-tools`. This tool makes it easy to inspect the schema of the result files, along with a few other common actions. It can be installed via [pip](https://pypi.org/project/parquet-tools/), [brew](https://formulae.brew.sh/formula/parquet-tools) or [downloading the JAR file](https://mvnrepository.com/artifact/org.apache.parquet/parquet-tools).
 
 ### Registering the Dataset
 
@@ -62,6 +64,7 @@ Let's register this fresh new dataset with the Funnel Rocket CLI utility (note: 
 **Before registering, copy the partitioned files** to a directory under `<frocket-repo-dir>/data`. 
 If you're using docker-compose, the `data` directory is also mounted by the running containers under their working directory, 
 so you'll be able to use the same relative path `data/...` when registering.
+(Why not mount the reduce dir then?)
 
 To register our dataset, you need to specify:
 1. A logical name 
@@ -71,7 +74,7 @@ To register our dataset, you need to specify:
 Here's the command to run and the resulting output, omitting some details. 
 I'm assuming here that the data files were copied to `data/retail`.
 ```
-% python frocket/cli.py register data/retail reduce visitorid timestamp
+% python frocket/cli.py register data/retail data/reduce visitorid timestamp
 [Log INFO frocket.invoker.impl.registered_invokers] Creating invoker type: WorkQueueInvoker, for request builder type: <class 'frocket.invoker.jobs.registration_job.RegistrationJob'>
 [Log INFO frocket.datastore.registered_datastores] Initialized RedisStore(role datastore, host localhost:6379, db 0)
 [Log INFO frocket.invoker.jobs.registration_job] Number of part files: 8, total size 84.15mb
@@ -141,7 +144,7 @@ The CLI allows running an "empty" query with no conditions or aggregations, whic
 
 Run:
 ```
-% python frocket/cli.py run retail --empty
+% python frocket/cli.py run data/retail --empty
 [Log INFO frocket.datastore.registered_datastores] Initialized RedisStore(role datastore, host localhost:6379, db 0)
 [Log INFO frocket.invoker.impl.registered_invokers] Creating invoker type: WorkQueueInvoker, for request builder type: <class 'frocket.invoker.jobs.query_job.QueryJob'>
 [Log INFO frocket.invoker.impl.async_invoker] Enqueued 8 tasks
@@ -159,12 +162,12 @@ API Result: {
 ```
 Since no conditions were set, all 1.23 million group IDs are considered a match. The number of rows in these groups is 2.5 million, which is all rows in the dataset.
 
-You can also run an empty query with `python frocket/cli.py run retail --string '{}'`. This would yield the same output.
+You can also run an empty query with `python frocket/cli.py run data/retail --string '{}'`. This would yield the same output.
 
 ### Run with the Mock Lambda container
 
 If you're using docker-compose, you also have a Lambda-like container running. To have the CLI launch tasks using this container,
-here are the varibles to set:
+here are the variables to set:
 ```
 export FROCKET_INVOKER=aws_lambda
 export FROCKET_LAMBDA_AWS_NOSIGN=true
@@ -176,17 +179,17 @@ export FROCKET_INVOKER_LAMBDA_LEGACY_ASYNC=false
 Running the empty query again via the CLI, you should get the same counts as above. 
 However, if you run it once more you'd note a few differences under `stats`:
 
-* Our (single) Lambda instance now has all dataset parts in its local ephemeral cache, so it does not need to download them from S3 again.
+* Our (single) Lambda instance now has all dataset parts in its local ephemeral cache, so it does not need to download them again.
 ```
    "cache": {
       "source": 0,
       "diskCache": 8
    }
 ```      
-* Note the `cost` attribute which should look something like `"cost": 1.8166703e-06`. That's $0.0000018166703 USD. 
+* Note the `cost` attribute which should look something like `"cost": 1.8166703e-06`. That's $0.0000018166703 USD.  -> when using the lambda worker I had cost stay at null
   
 This number represents the approximate compute-only cost. 
-* It is based on the total duration of all tasks run by the Lambda worker,  and the amount of memory allocated to it, in us-east-1 region rates.
+* It is based on the total duration of all tasks run by the Lambda worker,  and the amount of memory allocated to it, in `us-east-1` region rates.
 * It does not include storage costs in real S3 (~$300 per TB/year) and per-request Lambda/S3 costs, which are in Funnel Rocket's case miniscule compared to the cost of compute. 
 
 With real-life datasets **expect a cost of 0.5-2 cents per each query** depending on its size and complexity.
