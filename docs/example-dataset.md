@@ -133,7 +133,7 @@ Run:
 [Log INFO frocket.datastore.registered_datastores] Initialized RedisStore(role datastore, host localhost:6379, db 0)
 name                            registered at              parts  group id       timestamp    path
 ------------------------------  -----------------------  -------  -------------  -----------  --------------------------------------------------
-retail                          2021-03-18...            8        visitorid      timestamp    reduce
+data/retail                          2021-03-18...            8        visitorid      timestamp    reduce
 ```
 
 ## Running Queries
@@ -211,7 +211,7 @@ Save the following query as a file:
     }
 }
 ```
-Then, run the query: `python frocket/cli.py run retail --file <query-file>`.
+Then, run the query: `python frocket/cli.py run data/retail --file <query-file>`.
 The output looks like:
 ```
 {
@@ -364,7 +364,7 @@ The array format used above for the `filter` and `target` attributes is a shorth
 ```
 This is the format that the query engine sees: implicit defaults are made explicit and shorthand notations are 'expanded' during query
 validation. This more elaborate version is safer to use when generating queries by code (which we assume to be the main use case),
-while the shorthand notation allows easier manual composition by hoomans.
+while the shorthand notation allows easier manual composition by [hoomans](https://www.elc.edu/vocabulary-lesson-doggo-vocabulary-for-the-hooman-in-the-know/#:~:text=A%20hooman%20is%20a%20funny,2.).
 
 ### Multi-Filter Conditions
 
@@ -419,7 +419,7 @@ This query captures all users who matched the previous query, *plus* others for 
 Of course, we can also specify multiple conditions - each with their own filter and target. 
 The default logical relation between conditions is `and`, but this can be changed or made arbitrarily more complex. More about that in a minute.
 
-Our functional task now is a tad trickier: we wish to find only users having a total transactions price of >= 50 yet who *did not* have any single purchase
+Our functional task now is a tad trickier: we wish to find only users having a price of total transactions of >= 50 yet who *did not* have any single purchase
 whose price >= 50.
 
 This requires two separate conditions: one looks for users with the desired total transaction price (as in the previous query),
@@ -550,7 +550,7 @@ Here's what we get in return:
 ```
 This means:
 1. After executing the query conditions, there are 1,236,032 matching users - in this case, that's everyone as there are no conditions set.
-1. Then, after each step in the funnel we see the drop in user count. The drop after the first step is only slight, which is a small relief in terms of data quality: it means there are almost no users in the dataset without a single product pageview.
+1. Then, after each step in the funnel we see the drop in user count. The drop after the first step is only slight, which is a small relief in terms of data quality: it means there are almost no users in the dataset without a single product page-view.
 1. We didn't ask for any aggregations, but looking at the above response you can see that aggregations can be requested at three stages:
    1. After query conditions were ran
    1. After each step in the funnel
@@ -601,7 +601,7 @@ who've had 1+ views, then progressively narrow down till we reach only users wit
 so we can check if the average transaction of these 5+ page-viewers is markedly higher than the average. The answer in this dataset is yes.  
 
 It's important to note that these are not distinct user groups: the first step includes everyone in later steps. 
-Assuming we wanted to know the average transaction size for those with exactly one pageview, we'd be better off using a condition to enforce this:
+Assuming we wanted to know the average transaction size for those with exactly one page-view, we'd be better off using a condition to enforce this:
 ```
 {
     "query": {
