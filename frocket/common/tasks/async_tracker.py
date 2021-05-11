@@ -3,6 +3,20 @@ AsyncJobTracker object is handed by invoker_api to clients that launch a job in 
 It enables either periodic polling or blocking on updates. Updates are guaranteed to be atomic - that is,
 there may be further updates, but the status you have in hand is consistent.
 """
+#  Copyright 2021 The Funnel Rocket Maintainers
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 import logging
 import time
 from abc import ABCMeta, abstractmethod
