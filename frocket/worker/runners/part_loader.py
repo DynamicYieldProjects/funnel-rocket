@@ -19,7 +19,7 @@ import logging
 import time
 import os
 from pathlib import Path
-from typing import List, Dict, Optional, Set, NamedTuple
+from typing import List, Dict, Optional, Set, NamedTuple, Union
 from pandas import DataFrame
 import pyarrow.parquet
 from frocket.common.config import config
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 class FilterPredicate(NamedTuple):
     column: str
     op: str
-    value: str
+    value: Union[str, int, float, bool]
 
 
 class CacheEntry:

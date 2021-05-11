@@ -125,10 +125,10 @@ class QueryTaskRunner(BaseTaskRunner):
         if timeframe:
             fromtime = timeframe.get('from', None)
             if fromtime is not None:
-                filters.append(FilterPredicate(column=self._req.dataset.timestamp_column, op='>=', value=str(fromtime)))
+                filters.append(FilterPredicate(column=self._req.dataset.timestamp_column, op='>=', value=fromtime))
             totime = timeframe.get('to', None)
             if totime is not None:
-                filters.append(FilterPredicate(column=self._req.dataset.timestamp_column, op='<', value=str(totime)))
+                filters.append(FilterPredicate(column=self._req.dataset.timestamp_column, op='<', value=totime))
 
         return filters if len(filters) > 0 else None
 

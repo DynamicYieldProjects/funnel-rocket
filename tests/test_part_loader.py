@@ -80,14 +80,14 @@ def test_filters():
 
             # All rows should return
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            filters = [FilterPredicate(TestColumn.int_64_ts.value, '>=', str(BASE_TIME)),
-                       FilterPredicate(TestColumn.int_64_ts.value, '<=', str(BASE_TIME + TIME_SHIFT))]
+            filters = [FilterPredicate(TestColumn.int_64_ts.value, '>=', BASE_TIME),
+                       FilterPredicate(TestColumn.int_64_ts.value, '<=', BASE_TIME + TIME_SHIFT)]
             loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
             assert are_test_dfs_equal(original_df, loaded_df)
 
             # Only rows with exact match should return
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            filters = [FilterPredicate(TestColumn.int_64_ts.value, '==', str(BASE_TIME))]
+            filters = [FilterPredicate(TestColumn.int_64_ts.value, '==', BASE_TIME)]
             loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
             assert are_test_dfs_equal(original_df.loc[original_df[TestColumn.int_64_ts] == BASE_TIME], loaded_df)
 
@@ -104,7 +104,7 @@ def test_filters():
 
             # No rows match
             metrics = MetricsBag(component=ComponentLabel.WORKER)
-            filters = [FilterPredicate(TestColumn.int_64_ts.value, '<', str(BASE_TIME))]
+            filters = [FilterPredicate(TestColumn.int_64_ts.value, '<', BASE_TIME)]
             loaded_df = shared_part_loader().load_dataframe(file_id, metrics=metrics, filters=filters)
             assert len(loaded_df) == 0
 
