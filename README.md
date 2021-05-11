@@ -227,6 +227,10 @@ You're strongly encouraged to follow [this guide](./docs/example-dataset.md) to 
 
 For detailed instructions on how to configure, deploy and monitor Funnel Rocket in a production AWS environment, see the [Operations Guide](./docs/operating.md).
 
+## Benchmarks
+
+See [this blog post](https://elad-rosenheim.medium.com/funnel-rocket-a-cloud-native-query-engine-30bc142163b1).
+
 ## High Level Roadmap
 
 * **Functionality**: Extend support for column types: datetime, lists of primitives, lookup in delimited string fields.
