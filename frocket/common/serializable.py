@@ -5,6 +5,20 @@ between invoker and workers, and for request/response handling in the API server
 I've chosen the package dataclasses-json as a basis, as it's playing nice with Python dataclasses and type hints,
 instead of requiring special model classes. On top of that, a few extra capabilities and safeguards are introduced.
 """
+#  Copyright 2021 The Funnel Rocket Maintainers
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 import dataclasses
 from collections import Counter
 from dataclasses import dataclass, fields

@@ -13,6 +13,20 @@ The CLI does provide a few optional flags which make it also suitable for automa
 * --notrim and --nocolor prevents data from bein shortened or surrounded by ANSI color codes
 * The log level is controllbable, and all log lines have a prefix making them easy to ignore.
 """
+#  Copyright 2021 The Funnel Rocket Maintainers
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 import argparse
 # TODO backlog don't import any frocket modules but a carefully selected set which does not then import heavy packages
 #  or initialize mechanisms. This is only partially done now (see import at end of file).
