@@ -45,7 +45,7 @@ jobs:
 
       - name: Docker build all-in-one
         id: docker_build_all_in_one
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v2.4.0
         with:
           context: .
           file: ./docker/all-in-one.Dockerfile
@@ -65,7 +65,7 @@ jobs:
 
       - name: Docker build local-lambda
         id: docker_build_all_local_lambda
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v2.4.0
         with:
           context: .
           file: ./docker/local-lambda.Dockerfile
