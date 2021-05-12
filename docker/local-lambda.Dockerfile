@@ -4,7 +4,7 @@ ARG PYTHON_VERSION=3.8
 # Since we're switching to root during build,
 # need to return to default Lambda user afterwards (as defined in base image)
 ARG RUN_USER=sbx_user1051
-FROM lambci/lambda:python${PYTHON_VERSION}
+FROM lambci/lambda:python3.8
 # Lambda function code should be in /var/task
 WORKDIR /var/task
 COPY ./setup.py .
