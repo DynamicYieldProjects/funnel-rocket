@@ -10,7 +10,7 @@ long_description = readme_file.read_text() if readme_file.exists() else ''
 
 setuptools.setup(
     name="funnel-rocket",
-    version="0.5.2",
+    version="0.5.3",
     author="Elad Rosenheim, Avshalom Manevich",
     author_email="elad@dynamicyield.com",
     description="Cloud native distributed funnel queries",
@@ -24,7 +24,7 @@ setuptools.setup(
     classifiers=[
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
-        # "License :: OSI Approved :: Apache Software License",  # TODO Pending approval!
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.8',
