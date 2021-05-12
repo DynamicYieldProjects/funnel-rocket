@@ -4,7 +4,7 @@ services:
     image: redis:6
     ports:
       - ${FROCKET_REDIS_PORT:-6379}:${FROCKET_REDIS_PORT:-6379}
-    entrypoint: [ "redis-server", "--port", "${FROCKET_REDIS_PORT:-6379}" ]
+    entrypoint: [redis-server, --port, '${FROCKET_REDIS_PORT:-6379}']
 
   mock-s3:
     image: minio/minio:latest

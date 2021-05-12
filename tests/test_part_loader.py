@@ -15,14 +15,18 @@
 import datetime
 import os
 from typing import Dict, List
+
 import pandas
 import pytest
-from frocket.common.dataset import DatasetPartId, DatasetId
+
+from frocket.common.dataset import DatasetId, DatasetPartId
 from frocket.common.helpers.utils import timestamped_uuid
-from frocket.common.metrics import MetricsBag, ComponentLabel, LoadFromLabel
-from tests.utils.dataset_utils import new_test_dataset, are_test_dfs_equal, clean_loader_cache, TestColumn, BASE_TIME, \
-    TIME_SHIFT
-from frocket.worker.runners.part_loader import shared_part_loader, FilterPredicate
+from frocket.common.metrics import ComponentLabel, LoadFromLabel, MetricsBag
+from frocket.worker.runners.part_loader import (FilterPredicate,
+                                                shared_part_loader)
+from tests.utils.dataset_utils import (BASE_TIME, TIME_SHIFT, TestColumn,
+                                       are_test_dfs_equal, clean_loader_cache,
+                                       new_test_dataset)
 from tests.utils.mock_s3_utils import SKIP_S3_TESTS
 
 

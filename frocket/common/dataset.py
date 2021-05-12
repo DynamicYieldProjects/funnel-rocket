@@ -14,11 +14,12 @@
 #  limitations under the License.
 
 import logging
-from enum import auto
-from datetime import datetime, timezone
-from typing import Optional, List, Dict
 from dataclasses import dataclass, field
-from frocket.common.serializable import SerializableDataClass, AutoNamedEnum
+from datetime import datetime, timezone
+from enum import auto
+from typing import Dict, List, Optional
+
+from frocket.common.serializable import AutoNamedEnum, SerializableDataClass
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,7 @@
 # Base Python image with up-to-date OS packages & pip
 ARG PYTHON_VERSION=3.8
 FROM python:${PYTHON_VERSION}-slim as base
+# hadolint ignore=DL3013,DL3009,DL3042
 RUN apt-get update && apt-get clean && \
     python -m pip install --upgrade pip
 
@@ -11,6 +12,7 @@ COPY ./requirements.txt .
 RUN pip install --no-cache-dir --no-compile -r requirements.txt -t ./packages
 # Delete un-needed big files in pyarrow, tests & include dirs,
 # and all directories in botocore/data except for services actually used by frocket
+# hadolint ignore=DL4006,SC2038
 RUN rm ./packages/pyarrow/*flight*.so* \
     ./packages/pyarrow/*plasma*.so* \
     ./packages/pyarrow/plasma-store-server && \
@@ -23,8 +25,9 @@ RUN rm ./packages/pyarrow/*flight*.so* \
 FROM base
 WORKDIR /app
 COPY ./docker/entrypoint.sh .
-RUN chmod +x ./entrypoint.sh
-RUN useradd -ms /bin/bash frocket
+
+RUN chmod +x ./entrypoint.sh \
+    && useradd -ms /bin/bash frocket
 COPY --from=package-install /app/packages packages
 # The most frequently-changing file set - the source code itself, is copied last so previous layers are unaffected
 COPY ./requirements.txt .

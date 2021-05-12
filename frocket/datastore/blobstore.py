@@ -14,6 +14,7 @@
 
 from abc import abstractmethod
 from typing import Optional
+
 from frocket.common.config import config
 from frocket.common.tasks.base import BlobId
 

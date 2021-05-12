@@ -12,12 +12,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from abc import abstractmethod, ABCMeta
+from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import List, Dict, Set, Optional, Union
-from frocket.common.tasks.base import TaskStatus, BaseTaskResult, TaskAttemptId, TaskStatusUpdate, BaseTaskRequest
-from frocket.common.dataset import DatasetInfo, DatasetPartsInfo, DatasetPartId, DatasetShortSchema, DatasetSchema
+from typing import Dict, List, Optional, Set, Union
+
+from frocket.common.dataset import (DatasetInfo, DatasetPartId,
+                                    DatasetPartsInfo, DatasetSchema,
+                                    DatasetShortSchema)
 from frocket.common.serializable import SerializableDataClass
+from frocket.common.tasks.base import (BaseTaskRequest, BaseTaskResult,
+                                       TaskAttemptId, TaskStatus,
+                                       TaskStatusUpdate)
 
 DEFAULT_QUEUE = 'default'
 DEFAULT_DEQUEUE_WAIT_TIME = 60

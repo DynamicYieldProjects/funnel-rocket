@@ -27,15 +27,21 @@ import json
 import logging
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Callable, Any, Union, Optional, cast
+from typing import Any, Callable, Dict, List, Optional, Union, cast
+
 import numpy as np
 import pandas as pd
-from pandas import DataFrame, Series, Index
+from pandas import DataFrame, Index, Series
+
 from frocket.common.config import config
-from frocket.common.helpers.pandas import filter_by_isin, add_column_by_value_map
-from frocket.common.tasks.query import AggregationResult, QueryConditionsResult, FunnelResult, \
-    QueryResult, AggregationType
-from frocket.common.validation.consts import CONDITION_COLUMN_PREFIX, TARGET_TYPES_WITH_INCLUDE_ZERO, NUMERIC_OPERATORS
+from frocket.common.helpers.pandas import (add_column_by_value_map,
+                                           filter_by_isin)
+from frocket.common.tasks.query import (AggregationResult, AggregationType,
+                                        FunnelResult, QueryConditionsResult,
+                                        QueryResult)
+from frocket.common.validation.consts import (CONDITION_COLUMN_PREFIX,
+                                              NUMERIC_OPERATORS,
+                                              TARGET_TYPES_WITH_INCLUDE_ZERO)
 from frocket.common.validation.path_visitor import PathVisitor
 from frocket.common.validation.relation_parser import RelationParser
 from frocket.engine.relation_to_pandas import relation_to_pandas_query

@@ -22,12 +22,13 @@ instead of requiring special model classes. On top of that, a few extra capabili
 import dataclasses
 from collections import Counter
 from dataclasses import dataclass, fields
-from enum import Enum
-from typing import List, Type, Dict, Any, Union, Optional
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Type, Union
+
 import dataclasses_json
 import marshmallow
-from dataclasses_json import dataclass_json, LetterCase
+from dataclasses_json import LetterCase, dataclass_json
 
 # As suggested in dataclasses_json's docs, store datetime objects in ISO format to ensure timezone consistency (UTC)
 dataclasses_json.global_config.encoders[datetime] = datetime.isoformat
@@ -201,7 +202,7 @@ class EnumSerializableByName(Enum):
 
 
 """
-Envelope - holds a SerializableDataClass and its type for later de-serializing the correct concrete type, 
+Envelope - holds a SerializableDataClass and its type for later de-serializing the correct concrete type,
 similar to https://awslabs.github.io/aws-lambda-powertools-python/utilities/parser/#envelopes
 
 Currently, only classes decorated with @enveloped (see below) are allowed, to prevent misuse.

@@ -14,14 +14,16 @@
 
 import logging
 import time
-from time import sleep
-from typing import List
 from abc import abstractmethod
 from collections import Counter
+from time import sleep
+from typing import List
+
 from frocket.common.config import config
 from frocket.common.metrics import MetricName
-from frocket.common.tasks.base import BaseTaskRequest, TaskStatus, TaskAttemptsInfo
 from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater
+from frocket.common.tasks.base import (BaseTaskRequest, TaskAttemptsInfo,
+                                       TaskStatus)
 from frocket.invoker.base_invoker import BaseInvoker, JobStatus
 from frocket.invoker.jobs.job import Job
 

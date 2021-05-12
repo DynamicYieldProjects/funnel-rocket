@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from typing import Callable, Any, Optional
+from typing import Any, Callable, Optional
 
 PathVisitorCallback = Callable[[Any], Optional[Any]]
 

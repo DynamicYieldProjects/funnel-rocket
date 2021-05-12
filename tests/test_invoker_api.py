@@ -15,26 +15,31 @@
 import math
 import time
 from dataclasses import dataclass, field
-from typing import cast, List
+from typing import List, cast
+
 import pytest
+
 from frocket.common.config import config
 from frocket.common.dataset import DatasetInfo
 from frocket.common.helpers.utils import timestamped_uuid
-from frocket.common.tasks.async_tracker import AsyncJobTracker, AsyncJobStage
-from frocket.common.tasks.base import BaseJobResult, TaskStatus, JobStats
+from frocket.common.tasks.async_tracker import AsyncJobStage, AsyncJobTracker
+from frocket.common.tasks.base import BaseJobResult, JobStats, TaskStatus
 from frocket.common.tasks.query import QueryJobResult
-from frocket.common.tasks.registration import RegisterArgs, DatasetValidationMode, REGISTER_DEFAULT_VALIDATION_MODE, \
-    REGISTER_DEFAULT_VALIDATE_UNIQUES, RegistrationJobResult
+from frocket.common.tasks.registration import (
+    REGISTER_DEFAULT_VALIDATE_UNIQUES, REGISTER_DEFAULT_VALIDATION_MODE,
+    DatasetValidationMode, RegisterArgs, RegistrationJobResult)
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker import invoker_api
 from frocket.invoker.stats_builder import TASK_COMPLETION_GRANULARITY_SECONDS
 from tests.utils.base_test_utils import SKIP_LAMBDA_TESTS
-from tests.utils.dataset_utils import TestDatasetInfo, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, TestColumn, \
-    BASE_TIME, DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT, new_test_dataset
-# noinspection PyUnresolvedReferences
-from tests.utils.redis_fixture import init_test_redis_settings
+from tests.utils.dataset_utils import (BASE_TIME, DEFAULT_GROUP_COLUMN,
+                                       DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT,
+                                       DEFAULT_TIMESTAMP_COLUMN, TestColumn,
+                                       TestDatasetInfo, new_test_dataset)
 # noinspection PyUnresolvedReferences
 from tests.utils.lambda_fixture import init_mock_lambda_settings
+# noinspection PyUnresolvedReferences
+from tests.utils.redis_fixture import init_test_redis_settings
 
 # TODO skip this whole module if no docker env/processes running - using a class?
 # TODO test query/register timeout (sync/async)

@@ -18,9 +18,12 @@ Task request/response classes for the registration job (discovering, validating 
 from dataclasses import dataclass
 from enum import auto
 from typing import Optional
+
 from frocket.common.dataset import DatasetInfo, DatasetPartId, DatasetSchema
-from frocket.common.serializable import SerializableDataClass, AutoNamedEnum, enveloped
-from frocket.common.tasks.base import BaseTaskRequest, BaseTaskResult, BlobId, BaseJobResult, BaseApiResult
+from frocket.common.serializable import (AutoNamedEnum, SerializableDataClass,
+                                         enveloped)
+from frocket.common.tasks.base import (BaseApiResult, BaseJobResult,
+                                       BaseTaskRequest, BaseTaskResult, BlobId)
 
 
 class DatasetValidationMode(AutoNamedEnum):

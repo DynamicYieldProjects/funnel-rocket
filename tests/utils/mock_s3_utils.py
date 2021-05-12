@@ -13,9 +13,11 @@
 #  limitations under the License.
 
 import os
+
 import boto3
-from frocket.common.config import config, ConfigDict
-from frocket.common.helpers.utils import timestamped_uuid, memoize
+
+from frocket.common.config import ConfigDict, config
+from frocket.common.helpers.utils import memoize, timestamped_uuid
 
 SKIP_S3_TESTS = os.environ.get('SKIP_S3_TESTS', "False").lower() == 'true'
 

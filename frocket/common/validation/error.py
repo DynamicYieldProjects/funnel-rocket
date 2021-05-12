@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 from enum import auto
+
 from frocket.common.serializable import AutoNamedEnum
 
 

@@ -18,13 +18,18 @@ import time
 from dataclasses import dataclass
 from enum import auto
 from typing import Optional, Union
+
 import pytest
 import requests
+
 from frocket.common.helpers.utils import timestamped_uuid
 from frocket.common.serializable import AutoNamedEnum
-from tests.utils.dataset_utils import new_test_dataset, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, TIME_SHIFT, \
-    BASE_TIME, TestColumn, BASE_USER_ID, DEFAULT_GROUP_COUNT, datafile_schema
-
+from tests.utils.dataset_utils import (BASE_TIME, BASE_USER_ID,
+                                       DEFAULT_GROUP_COLUMN,
+                                       DEFAULT_GROUP_COUNT,
+                                       DEFAULT_TIMESTAMP_COLUMN, TIME_SHIFT,
+                                       TestColumn, datafile_schema,
+                                       new_test_dataset)
 # TODO as part of automated failure/retry tests: test query timeout
 from tests.utils.mock_s3_utils import SKIP_S3_TESTS
 

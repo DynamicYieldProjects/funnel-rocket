@@ -1,8 +1,9 @@
+import argparse
 import sys
 import time
-import argparse
-from pathlib import Path
 from contextlib import contextmanager
+from pathlib import Path
+
 import pandas as pd
 from pandas import DataFrame
 

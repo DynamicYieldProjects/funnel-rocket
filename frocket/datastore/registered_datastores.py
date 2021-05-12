@@ -13,10 +13,11 @@
 #  limitations under the License.
 
 import logging
+
 from frocket.common.config import config
 from frocket.common.helpers.utils import memoize
-from frocket.datastore.datastore import Datastore
 from frocket.datastore.blobstore import Blobstore
+from frocket.datastore.datastore import Datastore
 from frocket.datastore.redis_store import RedisStore
 
 logger = logging.getLogger(__name__)

@@ -16,17 +16,19 @@ Load and cache parts (data files).
 #  limitations under the License.
 
 import logging
-import time
 import os
+import time
 from pathlib import Path
-from typing import List, Dict, Optional, Set, NamedTuple, Union
-from pandas import DataFrame
+from typing import Dict, List, NamedTuple, Optional, Set, Union
+
 import pyarrow.parquet
+from pandas import DataFrame
+
 from frocket.common.config import config
+from frocket.common.dataset import DatasetId, DatasetPartId
 from frocket.common.helpers.storage import storage_handler_for
 from frocket.common.helpers.utils import memoize
-from frocket.common.metrics import MetricName, LoadFromLabel, MetricsBag
-from frocket.common.dataset import DatasetPartId, DatasetId
+from frocket.common.metrics import LoadFromLabel, MetricName, MetricsBag
 
 logger = logging.getLogger(__name__)
 

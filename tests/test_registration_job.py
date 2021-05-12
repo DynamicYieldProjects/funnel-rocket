@@ -16,20 +16,29 @@ import math
 import os
 import shutil
 from typing import List, cast
-import pytest
+
 import pandas as pd
-from tests.utils.mock_s3_utils import SKIP_S3_TESTS
-from tests.utils.task_and_job_utils import registration_job_invoker, build_registration_job, registration_job
-from tests.utils.dataset_utils import new_test_dataset, STR_CAT_MANY_WEIGHTS, TestColumn, DEFAULT_GROUP_COUNT
-from tests.utils.base_test_utils import temp_filename, SKIP_SLOW_TESTS
+import pytest
+
 from frocket.common.helpers.utils import bytes_to_ndarray
-from frocket.common.tasks.registration import DatasetValidationMode,  \
-    RegistrationTaskResult, RegistrationJobResult
-from frocket.datastore.registered_datastores import get_datastore, get_blobstore
-from frocket.invoker.jobs.registration_job import VALIDATION_MAX_SAMPLES, \
-    VALIDATION_SAMPLE_RATIO, CATEGORICAL_TOP_COUNT
+from frocket.common.tasks.registration import (DatasetValidationMode,
+                                               RegistrationJobResult,
+                                               RegistrationTaskResult)
+from frocket.datastore.registered_datastores import (get_blobstore,
+                                                     get_datastore)
+from frocket.invoker.jobs.registration_job import (CATEGORICAL_TOP_COUNT,
+                                                   VALIDATION_MAX_SAMPLES,
+                                                   VALIDATION_SAMPLE_RATIO)
+from tests.utils.base_test_utils import SKIP_SLOW_TESTS, temp_filename
+from tests.utils.dataset_utils import (DEFAULT_GROUP_COUNT,
+                                       STR_CAT_MANY_WEIGHTS, TestColumn,
+                                       new_test_dataset)
+from tests.utils.mock_s3_utils import SKIP_S3_TESTS
 # noinspection PyUnresolvedReferences
 from tests.utils.redis_fixture import init_test_redis_settings
+from tests.utils.task_and_job_utils import (build_registration_job,
+                                            registration_job,
+                                            registration_job_invoker)
 
 
 # TODO create dataset and tear it down nicer

@@ -2,34 +2,36 @@
 
 ## Running in Production
 
-The most important operational decision to make is how to run workers: either serverless with AWS Lambda, 
+The most important operational decision to make is how to run workers: either serverless with AWS Lambda,
 or with 'classic' worker processes taking work from a Redis queue.
 
 This is mostly a question of your usage pattern:
 
-* If queries run *en masse* as part of a big batch process, and per-query latency is less an issue than total capacity, 
+* If queries run *en masse* as part of a big batch process, and per-query latency is less an issue than total capacity,
   then running Redis-based workers makes more sense. This is especially true when using cheap spot instances. Since these workers
-  need no centralized master or load balancer, and don't have any complex retry logic/state of their own, then it's ok for workers to simply 
+  need no centralized master or load balancer, and don't have any complex retry logic/state of their own, then it's ok for workers to simply
   disappear in a puff of smoke from time to time. You can scale up and down the amount of workers throughout the day depending on need.
 
-* In a typical on-demand workload where queries should run fast but don't need a ton of resources up all the time (or for hours on end), 
-  then serverless can be the cheapest and best performing option - scaling up quickly to serve requests, 
+* In a typical on-demand workload where queries should run fast but don't need a ton of resources up all the time (or for hours on end),
+  then serverless can be the cheapest and best performing option - scaling up quickly to serve requests,
   without paying for any long-running infra.
 
 Whichever one you use, you will also need to have:
+
 1. **A Redis database**.
 1. **An API Server**, preferably more than one for high availability.
 
 Both API Servers and Workers must have access to Redis and access to the dataset files, either on S3 or a shared filesystem.
-There is no direct communication between the two components: requests and responses are mediated via Redis, and in the case of using Lambdas 
+There is no direct communication between the two components: requests and responses are mediated via Redis, and in the case of using Lambdas
 also via the AWS API.
 
 ### Running Redis
 
-Running Redis in production can be done in multiple ways. In AWS, one of the easiest ways is to use Elasticache. 
-* It's recommended to have about at least 500 MB of available RAM in Redis. 
-* Any of the *cache.t3* instance types on offer should suffice, but having at least one replica is recommended in a multi-AZ setup. 
-* In general, avoid using previous-generation *cache.t2* instances due to their weak network performance. 
+Running Redis in production can be done in multiple ways. In AWS, one of the easiest ways is to use Elasticache.
+
+* It's recommended to have about at least 500 MB of available RAM in Redis.
+* Any of the *cache.t3* instance types on offer should suffice, but having at least one replica is recommended in a multi-AZ setup.
+* In general, avoid using previous-generation *cache.t2* instances due to their weak network performance.
 
 The Redis port (6379 by default) should be accessible to (a) the Lambda function (if you're using Lambdas), (b) the API server,
 and (c) any Redis-based workers.
@@ -43,7 +45,7 @@ The port, host and logical DB of the Redis server are configured via the environ
 
 ##### 1. Redis
 
-Make sure the node has network access to your Redis instance on port 6379, whether both are in the same VPC and Security 
+Make sure the node has network access to your Redis instance on port 6379, whether both are in the same VPC and Security
 Group or not (using `telnet <redis-host> 6379` is a simple way to check access).
 
 ##### 2. Remote Storage
@@ -51,22 +53,23 @@ Group or not (using `telnet <redis-host> 6379` is a simple way to check access).
 The API Server nodes should have a `s3:ListBucket` IAM permission to the bucket/s where datasets reside.
 
 Generally, there are two ways to grant service access permissions in AWS:
+
 1. Using an IAM role.
-1. Using the access key & secret of an IAM user. Since Funnel Rocket uses the standard boto3 package3, 
+1. Using the access key & secret of an IAM user. Since Funnel Rocket uses the standard boto3 package3,
    [any credentials setup that is respected by boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html) would work. However,
-   you can set or override credentials by using Funnel Rocket-specific configuration variables (see reference below). 
+   you can set or override credentials by using Funnel Rocket-specific configuration variables (see reference below).
    This allows you to specify different keys for specific AWS services, and make sure no other component inadvertently uses them.
-   
+
 You are encouraged to limit IAM permissions as much as possible. The API Server does *not* need read permissions (`s3:GetObject`),
 and certainly not any permission to modify objects or buckets. It does not need permission to access irrelevant buckets.
 
-In future releases, we plan to delegate dataset file listing to workers as well - meaning that the API Server itself will not need any 
+In future releases, we plan to delegate dataset file listing to workers as well - meaning that the API Server itself will not need any
 permissions to remote storage. Any future features for transforming datasets would necessitate giving limited write permissions
 to workers (but not the API Server) to write a modified copy of the data but not replace it.
 
 ##### 3. Invoking Lambdas
 
-To use Lambda-based workers, grant the API Server the `lambda:InvokeFunction` IAM permission  
+To use Lambda-based workers, grant the API Server the `lambda:InvokeFunction` IAM permission
 (preferably, limit the IAM policy to only that function's ARN rather than being able to run any Lambda function in the account).
 
 Two other things you'll need to do is grant the Lambda function itself the needed permissions, and set `FROCKET_INVOKER=aws_lambda` for the API Server.
@@ -76,34 +79,36 @@ Both are covered further down this guide.
 
 This is the simplest option (though providing k8s templates is still TBD). Take a look at `docker-compose.yml` as an example.
 
-Use the image **frocket/all-in-one:latest** which can run either as an API Server or a Redis-based Worker, 
+Use the image **frocket/all-in-one:latest** which can run either as an API Server or a Redis-based Worker,
 depending on the given command: `apiserver` or `worker`.
 
-When running as an API Server, the container runs a Flask application with a [gunicorn](https://gunicorn.org/) server. 
-1. **Port:** The default port is **5000**. 
+When running as an API Server, the container runs a Flask application with a [gunicorn](https://gunicorn.org/) server.
+
+1. **Port:** The default port is **5000**.
    * This is configurable by setting the env. variable `APISERVER_PORT` for the container.
 1. **Number of webserver workers:** gunicorn is currently configured to use multiple processes - **8 by default**.
-   * This is configurable with the variable `APISERVER_NUM_WORKERS`. 
+   * This is configurable with the variable `APISERVER_NUM_WORKERS`.
 1. **Memory:** Each worker uses about 50-70mb of RAM, so you can comfortably fit a default 8-process API server in 1 GB of RAM
 1. **CPU**:
    * If you're going the serverless path for workers, the API Server should be allocated *at least* 2 CPUs with a higher maximum limit (4+).
-     This is because invoking a mass of Lambda function via the AWS API on each query is executed in parallel through a thread-pool, and is quite resource-hungry 
+     This is because invoking a mass of Lambda function via the AWS API on each query is executed in parallel through a thread-pool, and is quite resource-hungry
      (TBD: improve this mechanism).
    * When using Redis-based workers, a single CPU is enough for the API Server.
-1. **High availability:** Have at least 2 API Servers running. There is nothing you need to do for orchestrating these: 
+1. **High availability:** Have at least 2 API Servers running. There is nothing you need to do for orchestrating these:
    Each will launch its own requests with unique identifiers, while dataset registration/unregistration in Redis is atomic.
 
 #### Via PyPI
 
 If you'd like to install & run Funnel Rocket yourself:
+
 1. Ensure you have Python 3.8+ installed.
-1. Install the code & all dependencies via `pip install funnel-rocket`. 
-   * Note that since some dependencies include binary libraries (e.g. NumPy), 
+1. Install the code & all dependencies via `pip install funnel-rocket`.
+   * Note that since some dependencies include binary libraries (e.g. NumPy),
      so using dependencies that were installed in a different OS and copied over as-is to another target machine may cause processes to crash.
-1. To run the API Server: `python -m gunicorn.app.wsgiapp frocket.apiserver:app --bind=0.0.0.0:<port> --workers=<num-processes>`. 
-   * You can use other WSGI servers, but note that not all necessarily support *HTTP streaming (chunked transfer encoding)* 
+1. To run the API Server: `python -m gunicorn.app.wsgiapp frocket.apiserver:app --bind=0.0.0.0:<port> --workers=<num-processes>`.
+   * You can use other WSGI servers, but note that not all necessarily support *HTTP streaming (chunked transfer encoding)*
      which is an optional feature the API Server can use to send progress updates.
-   
+
 See below for all configuration options.
 
 ### Running Redis-Based Workers
@@ -113,34 +118,37 @@ This is quite similar to running an API Server:
 Using the **frocket/all-in-one:latest** Docker image, run the container with the `worker` command.
 
 To run as a regular process, `pip install funnel-rocket` in a Python 3.8+ environment (as above) and run:
-```
+
+```shell
 python -m frocket.worker.impl.queue_worker.py
 ```
+
 The process will connect to the configured Redis server and start taking on tasks.
 
 #### Compute requirements
 
 1. **CPU:** Allow each worker one full CPU, or you'll get decreased performance.
-   * Workers are essentially single-threaded, so you won't generally get improved performance from having multiple CPUs. 
+   * Workers are essentially single-threaded, so you won't generally get improved performance from having multiple CPUs.
    * However, the Parquet driver can make use of multiple threads when loading files, so limiting the container's CPU at a bit more than one CPU does make sense.
 1. **Memory:** The amount of RAM allocated should be 10x (or more) than the typical size of a single Parquet file in your dataset. This
-   is because Parquet files are usually well compressed while the in-memory data layout can get quite large. 
+   is because Parquet files are usually well compressed while the in-memory data layout can get quite large.
    The actual amount needed varies greatly by the number of columns used in a query and their types.
-1. **Local storage:** Have at least 0.5 GB of storage available in the tmp directory. The minimal amount should cover downloads of Parquet files 
+1. **Local storage:** Have at least 0.5 GB of storage available in the tmp directory. The minimal amount should cover downloads of Parquet files
    from remote storage. Extra space would be used for locally caching files with a simple LRU mechanism.
 
 ## Running AWS Lambda-Based Workers
 
 ### On the Invoker Side
 
-The default invoker implementation is through Redis queues. 
+The default invoker implementation is through Redis queues.
 To switch to Lambda, set the environment variable `FROCKET_INVOKER=aws_lambda` for the API Server.
 
 ### No Automation Yet
+
 Currently, we do not offer an automated method for deploying Funnel Rocket as a Lambda function, but only the packaging of files.
 
 This is because in production there are various things to get right (Redis, networking, security) which are outside the scope of
-the function itself and need to be handled with care. Terraform is not a great tool for deploying Lambdas at this time, 
+the function itself and need to be handled with care. Terraform is not a great tool for deploying Lambdas at this time,
 and serverless frameworks solve for some of that yet mostly assume admin-level permissions (i.e. not a good fit for your production).
 
 We'll continue to look at options, including AWS Serverless Application Repository/AWS SAM/The Serverless Framework, at least for development & staging environments.
@@ -153,27 +161,27 @@ Here's what to prepare in terms of networking & security *before* you actually c
 
 #### VPC Assignment
 
-Determine the **VPC and Security Group** to assign to the Lambda. Since your Redis instance is most probably only visible within a VPC 
-(and it really ought to be), the Lambda needs to be in a VPC as well. 
+Determine the **VPC and Security Group** to assign to the Lambda. Since your Redis instance is most probably only visible within a VPC
+(and it really ought to be), the Lambda needs to be in a VPC as well.
 
-In the past, instantiation of Lambda functions within a VPC incurred a heavy performance penalty on cold starts, 
-but this is no longer the case. The network setup only runs once, and you pay no penalty later. 
+In the past, instantiation of Lambda functions within a VPC incurred a heavy performance penalty on cold starts,
+but this is no longer the case. The network setup only runs once, and you pay no penalty later.
 It is highly recommended assigning all available subnets in the VPC to the Lambda (typically in multiple AZ's), thus allowing it to
 run as many instances as it needs with minimal latency.
-   
+
 #### S3 Access
 
 1. Unlike VMs, **Lambda functions running inside a VPC need a special gateway for routing requests to S3**. In the VPC defined for the Lambda,
 create a new [Endpoint Gateway](https://console.aws.amazon.com/vpc/home#Endpoints:sort=vpcEndpointId) for S3.
-   
+
 2. Create an IAM Role for the Lambda function, holding two policies:
    1. The AWS-managed policy `AWSLambdaVPCAccessExecutionRole` which any Lambda requires for running in a VPC.
-   1. A policy allowing read-only access to the bucket/s holding the dataset. 
+   1. A policy allowing read-only access to the bucket/s holding the dataset.
       Generally, avoid using AWS-managed policies for S3 access as-is without further limiting access to only the needed buckets.
 
 ### Packaging the Lambda Layer and Function
 
-[Packages required by Funnel Rocket](../requirements.txt) far outweigh the size of the project codebase, and that list changes only infrequently. 
+[Packages required by Funnel Rocket](../requirements.txt) far outweigh the size of the project codebase, and that list changes only infrequently.
 For that reason, dependencies are packaged as a [Lambda Layer](https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html)
 which is essentially equivalent to intermediate layers of a Docker image. The Lambda layer needs to be recreated only when dependencies change.
 
@@ -181,9 +189,11 @@ Some of these packages rely on native libraries. which must match the OS and arc
 Thus, the layer packaging process runs within a Docker container with the same base image used to locally test Lambda functions.
 
 To create .zip files for both the lambda layer and the function, run:
-```
+
+```shell
 ./build-lambda.sh --layer
 ```
+
 This script builds `lambda-layer-<commit-hash>.zip` and `lambda-function-<commit-hash>.zip`, and reports on the file sizes -
 which must AWS Lambda's limits.
 
@@ -195,7 +205,7 @@ When the project source code changes, use `./build-lambda.sh` without any flags 
 
 1. Start [creating a new Lambda function](https://console.aws.amazon.com/lambda/home#/create/function).
 1. Under **Basic Information**:
-   1. **Function name:** Use the name 'frocket' by default. 
+   1. **Function name:** Use the name 'frocket' by default.
       If you choose another name, set the environment variable `FROCKET_INVOKER_LAMBDA_NAME` to that name on the API Server side.
    1. **Runtime:** Python 3.8 or later.
 1. **Permissions:** click *Change default execution role*, then choose *Use an existing role* and select the IAM role created above.
@@ -204,19 +214,19 @@ When the project source code changes, use `./build-lambda.sh` without any flags 
 
 #### Configuring the Function
 
-1. [Create a new layer](https://console.aws.amazon.com/lambda/home#/layers). Name it however you want, set Python 3.8 
+1. [Create a new layer](https://console.aws.amazon.com/lambda/home#/layers). Name it however you want, set Python 3.8
    as the compatible runtime, and upload the locally packaged `lambda-layer-<x>.zip` file.
-1. Going back to the Lambda function, add the new layer to the function. Assuming you're now in the *Code* tab, 
+1. Going back to the Lambda function, add the new layer to the function. Assuming you're now in the *Code* tab,
     scroll down to the *Layers* section to add a new custom layer, choosing the one you've just created.
 1. Scrolling back to the top, in the *Code source* section click on *Upload from* to upload the local `lambda-function-<x>.zip` file.
 1. One section down in *Runtime settings*, click *Edit* and set the handler function to `frocket.worker.impl.aws_lambda_worker.lambda_handler`.
 1. Switch to the *Configuration* tab:
    1. Go into *Basic settings*. To get one full vCPU allocated to each function instance set the memory to 1768mb, since [the portion of vCPU you get
-is dependent on allocated memory](https://epsagon.com/observability/how-to-make-aws-lambda-faster-memory-performance). This also provides enough headroom for loading Parquet files. 
+is dependent on allocated memory](https://epsagon.com/observability/how-to-make-aws-lambda-faster-memory-performance). This also provides enough headroom for loading Parquet files.
    1. Set the *timeout* to 30 seconds or more. The default value is super short.
    1. As the *execution role* choose the role you've created above (the one with S3 and Lambda execution policies).
    1. Go into *Asynchronous invocation*, and set 'Retry attempts' to zero. The API Server already has worker type-agnostic
-      retry mechanism implemented, and retries at the Lambda service level can only interfere with that. 
+      retry mechanism implemented, and retries at the Lambda service level can only interfere with that.
    1. Go to *Environment variables* and add the variable `FROCKET_REDIS_HOST`, setting it to the Redis server full hostname (without port number).
       With Elasticache, that's the *Primary Endpoint* address.
    1. The default log level is `info`, configurable via the environment variable `FROCKET_LOG_LEVEL`. Standard Python levels apply.
@@ -225,15 +235,16 @@ is dependent on allocated memory](https://epsagon.com/observability/how-to-make-
 
 Make sure to have your first dataset ready in S3. You can use the one from the [example dataset walkthrough](./example-dataset.md) for starters.
 
-Start by listing datasets, either by [calling the API Server](api.md) or using the CLI directly (as elaborated in the walkthrough) 
+Start by listing datasets, either by [calling the API Server](api.md) or using the CLI directly (as elaborated in the walkthrough)
 from a shell on the API Server machine. There should be no datasets yet, but this is a good sanity check to see the Funnel Rocket successfully connects to Redis.
 
 Then, register that dataset through the API or CLI. That depends on permissions and configuration being correctly set.
 
-Closely follow the logs of both the API Server and the Lambda Function. For the Lambda, logs are automatically collected into CloudWatch and 
+Closely follow the logs of both the API Server and the Lambda Function. For the Lambda, logs are automatically collected into CloudWatch and
 are accessible in the AWS Console under the *Monitor* tab in the Lambda's main page.
 
 List the registered datasets again, to see that yours appears. You can now start querying it, perhaps first with an empty query for sanity to see that all files are loaded ok.
+
 ### Cost
 
 When using Lambda workers, cost estimation is returned as part of the response for queries, as the `stats.cost` attribute.
@@ -246,7 +257,7 @@ Running API Servers expose a `/metrics` endpoint by default, for scraping by Pro
 This can be disabled by setting the variable `FROCKET_METRICS_EXPORT_PROMETHEUS=false`.
 
 Since serverless workers are ephemeral and anonymous in nature, they are not a good scrape target for Prometheus,
-and thus do not expose a `/metrics` endpoint of their own. 
+and thus do not expose a `/metrics` endpoint of their own.
 Instead, the API Server collects all metrics from workers as part of the request/response cycle with workers,
 and exposes these metrics on the workers' behalf, with the proper labels and values per each task that has run.
 
@@ -264,9 +275,9 @@ Hopefully, defaults are generally good enough that you'll only need to set very 
 
 Variable | Default Value | Description
 -------- | ------------- | -----------
-`FROCKET_LOG_FILE`|*None*|If set, logs are written to the specified file. If not, logs are written to stdout. 
+`FROCKET_LOG_FILE`|*None*|If set, logs are written to the specified file. If not, logs are written to stdout.
 `FROCKET_LOG_LEVEL`|info|Set to either: debug, info, warning, error.
-`FROCKET_LOG_FORMAT`|%(asctime)s %(name)s %(levelname)s %(message)s|In Python logger format. **NOTE:** In Lambda functions, the log format is fixed and cannot be set (so it doesn't interfere with the Python runtime logging). 
+`FROCKET_LOG_FORMAT`|%(asctime)s %(name)s %(levelname)s %(message)s|In Python logger format. **NOTE:** In Lambda functions, the log format is fixed and cannot be set (so it doesn't interfere with the Python runtime logging).
 `FROCKET_DATASTORE`|redis|Implementation of the datastore (datasets metadata and short-lived request/response information). Only a Redis implementation is currently implemented.
 `FROCKET_BLOBSTORE`|redis|Implementation of the blobstore (larger short-lived binary objects). By default, both the datastore and blobstore share the same settings. However, they could be configured to use a separate host, port or logical db.
 `FROCKET_REDIS_HOST` `FROCKET_DATASTORE_REDIS_HOST` `FROCKET_BLOBSTORE_REDIS_HOST`|localhost|Set `FROCKET_REDIS_HOST` to configure the hostname for both datastore & blobstore. Alternatively, configure only a specific role with `FROCKET_DATASTORE_REDIS_HOST` or `FROCKET_BLOBSTORE_REDIS_HOST`.
@@ -283,7 +294,7 @@ Variable | Default Value | Description
 `FROCKET_LAMBDA_AWS_CONNECT_TIMEOUT`|3|
 `FROCKET_LAMBDA_AWS_READ_TIMEOUT`|3|
 `FROCKET_LAMBDA_AWS_RETRIES_MAX_ATTEMPTS`|3|
-`FROCKET_INVOKER`|work_queue|The method which the invoker (API Server or CLI) will use to launch tasks: either through a Redis queue (with the default setting of *work_queue*), or by invoking Lambda functions (set to *aws_lambda*).  
+`FROCKET_INVOKER`|work_queue|The method which the invoker (API Server or CLI) will use to launch tasks: either through a Redis queue (with the default setting of *work_queue*), or by invoking Lambda functions (set to*aws_lambda*).
 `FROCKET_INVOKER_RUN_TIMEOUT`|60|How long in seconds the invoker will wait for all tasks to complete before failing the job, including any retries.
 `FROCKET_INVOKER_ASYNC_POLL_INTERVAL_MS`|25|How frequently, in milliseconds, the invoker will poll Redis for task updates.
 `FROCKET_INVOKER_ASYNC_LOG_INTERVAL_MS`|1000|How frequently, in milliseconds, the invoker will write tasks progress to log (at *info* log level).
@@ -321,8 +332,8 @@ Variable | Default Value | Description
 
 ## Limitations
 
-1. Funnel Rocket **does not support joins** between datasets. De-normalize your datasets to include any relevant fields 
+1. Funnel Rocket **does not support joins** between datasets. De-normalize your datasets to include any relevant fields
 you wish to query - as done for the [example dataset](./example-dataset.md).
 1. **A maximum of 1,000 files per each dataset** in S3 (TBD: pagination when listing files in S3).
-1. **No support for nested data:** Funnel Rocket currently has no support for nested data, 
+1. **No support for nested data:** Funnel Rocket currently has no support for nested data,
    though we're experimenting with how to allow certain nested conditions efficiently.

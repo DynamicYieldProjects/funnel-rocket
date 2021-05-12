@@ -18,12 +18,15 @@ There's minimal code here that's Lambda-specific (== a good thing).
 
 import logging
 from typing import cast
+
+from frocket.common.config import config
+from frocket.common.metrics import (ComponentLabel, MetricsBag,
+                                    WorkerStartupLabel)
 from frocket.common.serializable import Envelope
 from frocket.common.tasks.base import BaseTaskRequest
-from frocket.common.metrics import MetricsBag, WorkerStartupLabel, ComponentLabel
 from frocket.worker.impl.aws_lambda_metrics import AwsLambdaMetricsProvider
-from frocket.worker.runners.base_task_runner import BaseTaskRunner, TaskRunnerContext
-from frocket.common.config import config
+from frocket.worker.runners.base_task_runner import (BaseTaskRunner,
+                                                     TaskRunnerContext)
 from frocket.worker.runners.registered_runners import REGISTERED_RUNNERS
 
 config.init_lambda_logging()  # Adapted to the logger being already-inited by the Lambda runtime
@@ -70,7 +73,7 @@ def lambda_handler(event, context):
     """
     A note about the Lambda response: unlike most request/response Lambdas, Funnel Rocket's invoker does not rely on the
     function's result coming from the Lambda directly (as it's invoked async.) but rather always through the datastore.
-    The retry mechanism is also based on polling the tasks' status and result payload in the datastore, hence the 
+    The retry mechanism is also based on polling the tasks' status and result payload in the datastore, hence the
     Lambda itself should not normally return a non-200 status (unless it crashed unexpectedly), and the Lambda should
     be configured to have no retries at the AWS level.
     """

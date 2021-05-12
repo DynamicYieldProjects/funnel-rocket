@@ -22,8 +22,9 @@ import time
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from enum import auto
-from queue import Queue, Empty
-from typing import Optional, Dict, Generator
+from queue import Empty, Queue
+from typing import Dict, Generator, Optional
+
 from frocket.common.serializable import AutoNamedEnum
 from frocket.common.tasks.base import BaseJobResult, TaskStatus
 

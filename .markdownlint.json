@@ -1,0 +1,16 @@
+{
+  "default": true,
+  "MD013": {
+    "line_length": 700
+  },
+  "MD033": {
+    "allowed_elements": [
+      "a",
+      "p",
+      "img"
+    ]
+  },
+  "MD001": false,
+  "MD036": false,
+  "MD024": false
+}

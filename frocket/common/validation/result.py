@@ -13,9 +13,11 @@
 #  limitations under the License.
 
 from dataclasses import dataclass
-from typing import Optional, List, cast, Dict
+from typing import Dict, List, Optional, cast
+
 from frocket.common.serializable import SerializableDataClass
-from frocket.common.validation.error import ValidationErrorKind, QueryValidationError
+from frocket.common.validation.error import (QueryValidationError,
+                                             ValidationErrorKind)
 from frocket.common.validation.relation_parser import RBaseElement
 
 
