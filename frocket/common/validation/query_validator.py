@@ -13,25 +13,39 @@
 #  limitations under the License.
 
 import argparse
+import difflib
 import json
 import logging
 import sys
 from typing import List, Union
-import difflib
+
 import jsonschema
+
+from frocket.common.dataset import (DatasetColumnType, DatasetInfo,
+                                    DatasetShortSchema)
 from frocket.common.helpers.utils import terminal_green, terminal_red
-from frocket.common.validation.result import QueryValidationResult
-from frocket.common.validation.error import ValidationErrorKind, QueryValidationError
-from frocket.datastore.registered_datastores import get_datastore
-from frocket.common.dataset import DatasetColumnType, DatasetInfo, DatasetShortSchema
-from frocket.common.validation.consts import QUERY_SCHEMA, AGGREGATIONS_PATHS, SINGLE_FILTER_PATHS, \
-    FILTER_ARRAY_PATHS, VALID_IDENTIFIER_PATTERN, UNIQUE_IDENTIFIER_SCOPES, OPERATORS_BY_COLTYPE, \
-    VALUE_TYPES_BY_COLTYPE, NUMERIC_COLTYPES, RELATION_OPS, DEFAULT_RELATION_OP, CONDITION_COLUMN_PREFIX, \
-    map_condition_names
+from frocket.common.validation.consts import (AGGREGATIONS_PATHS,
+                                              CONDITION_COLUMN_PREFIX,
+                                              DEFAULT_RELATION_OP,
+                                              FILTER_ARRAY_PATHS,
+                                              NUMERIC_COLTYPES,
+                                              OPERATORS_BY_COLTYPE,
+                                              QUERY_SCHEMA, RELATION_OPS,
+                                              SINGLE_FILTER_PATHS,
+                                              UNIQUE_IDENTIFIER_SCOPES,
+                                              VALID_IDENTIFIER_PATTERN,
+                                              VALUE_TYPES_BY_COLTYPE,
+                                              map_condition_names)
+from frocket.common.validation.error import (QueryValidationError,
+                                             ValidationErrorKind)
+from frocket.common.validation.path_visitor import (PathVisitor,
+                                                    PathVisitorCallback)
 from frocket.common.validation.relation_parser import RelationParser
-from frocket.common.validation.visitor_functions import _to_verbose_filter, _to_verbose_target, _add_default_target, \
-    _validate_aggregation, _expand_aggregations, _validate_or_set_include_zero
-from frocket.common.validation.path_visitor import PathVisitor, PathVisitorCallback
+from frocket.common.validation.result import QueryValidationResult
+from frocket.common.validation.visitor_functions import (
+    _add_default_target, _expand_aggregations, _to_verbose_filter,
+    _to_verbose_target, _validate_aggregation, _validate_or_set_include_zero)
+from frocket.datastore.registered_datastores import get_datastore
 from frocket.engine.relation_to_pandas import relation_to_pandas_query
 
 logger = logging.getLogger(__name__)

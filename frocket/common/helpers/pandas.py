@@ -13,8 +13,9 @@
 #  limitations under the License.
 
 from typing import Iterable
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
 
 def filter_by_isin(df: pd.DataFrame, column: str, values: Iterable) -> pd.DataFrame:

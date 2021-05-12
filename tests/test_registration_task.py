@@ -15,23 +15,32 @@
 import math
 import time
 from typing import cast
+
 import numpy as np
+
 from frocket.common.config import config
-from frocket.common.dataset import DatasetInfo, DatasetId, DatasetPartId, DatasetColumnType
-from frocket.common.helpers.utils import timestamped_uuid, bytes_to_ndarray
+from frocket.common.dataset import (DatasetColumnType, DatasetId, DatasetInfo,
+                                    DatasetPartId)
+from frocket.common.helpers.utils import bytes_to_ndarray, timestamped_uuid
 from frocket.common.tasks.base import TaskStatus
-from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationTaskResult
-from frocket.datastore.registered_datastores import get_blobstore, get_datastore
+from frocket.common.tasks.registration import (RegistrationTaskRequest,
+                                               RegistrationTaskResult)
+from frocket.datastore.registered_datastores import (get_blobstore,
+                                                     get_datastore)
 from frocket.worker.runners.registration_task_runner import TOP_GRACE_FACTOR
-from tests.utils.task_and_job_utils import simple_run_task
-from tests.utils.dataset_utils import str_and_none_column_values, STR_CAT_FEW_WEIGHTS, STR_CAT_MANY_WEIGHTS, \
-    TestColumn, DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, \
-    TIME_SHIFT, UNSUPPORTED_COLUMN_DTYPES, datafile_schema
 from tests.utils.base_test_utils import TEMP_DIR, temp_filename
 # noinspection PyUnresolvedReferences
-from tests.utils.dataset_utils import datafile
+from tests.utils.dataset_utils import (BASE_TIME, DEFAULT_GROUP_COLUMN,
+                                       DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT,
+                                       DEFAULT_TIMESTAMP_COLUMN,
+                                       STR_CAT_FEW_WEIGHTS,
+                                       STR_CAT_MANY_WEIGHTS, TIME_SHIFT,
+                                       UNSUPPORTED_COLUMN_DTYPES, TestColumn,
+                                       datafile, datafile_schema,
+                                       str_and_none_column_values)
 # noinspection PyUnresolvedReferences
 from tests.utils.redis_fixture import init_test_redis_settings
+from tests.utils.task_and_job_utils import simple_run_task
 
 
 def run_task(datafile: str,

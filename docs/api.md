@@ -1,31 +1,33 @@
-<img align="left" width="64" height="64" src="./logo-icon-light-blue.svg">
-
 # Funnel Rocket API
+
+<img align="left" width="64" height="64" src="./logo-icon-light-blue.svg">
 
 ## Register a Dataset
 
 URL: `POST http://<apiserver-hostname>:5000/datasets/register[?stream=true|false]`
 
 To query a dataset in Funnel Rocket you first need to register it. Registration involves three steps:
+
 1. **Discovery:** the API Server (or CLI) will list files in the given base path matching the specified pattern.
-2. **Validation:** the API Server will invoke workers to load a subset of files from the dataset and verify 
+2. **Validation:** the API Server will invoke workers to load a subset of files from the dataset and verify
    they match the minimum requirements, which includes having proper partitioning (see the [README](../README.md)) and a common schema.
 3. **Storing metadata:** The details of supported columns are stored in the Datastore (currently using Redis).
 
-Currently, all files should be in Parquet format and must reside in the same directory. 
+Currently, all files should be in Parquet format and must reside in the same directory.
 
 Locally-mounted directories and AWS S3 are supported. You may also use alternative object stores which are fully S3-compatible, e.g. MinIO.
 In that case you'll need to configure Funnel Rocket appropriately - see the configuration reference in the [operations guide](./operating.md).
 
 #### Naming Datasets
 
-The same set of files may be registered under multiple dataset names, so you get creative with names and aliases. 
+The same set of files may be registered under multiple dataset names, so you get creative with names and aliases.
 
 For example, assuming you want to keep multiple revisions of a dataset created over time but also keep track of the latest one:
+
 * Register multiple revisions of a dataset with a naming convention such as `"<customerX>-<date/revision>"`
 * Each time a new revision is made ready, register that latest one also as `<customerX>-current` - re-registering over an existing name is ok.
   In such a case, Funnel Rocket will invalidate any cached files from earlier registrations of that dataset.
-  
+
 ### Request Body
 
 ```json5
@@ -41,23 +43,23 @@ For example, assuming you want to keep multiple revisions of a dataset created o
 ```
 
 * **name** - A name to later identify the dataset with. It may include spaces and special characters, but be sure to properly encode the name when used in a JSON request body or in URL parameters.
-* **basepath** - The directory under which all dataset files reside. 
-  * For local directories, simply provide the path or prefix with `file://`. 
+* **basepath** - The directory under which all dataset files reside.
+  * For local directories, simply provide the path or prefix with `file://`.
   * For S3, prefix the bucket name with `s3://` (not an HTTPS URL).
 * **groupIdColumn** - The column name holding the group ID (e.g. User ID) - see the README for more.
 * **timestampColumn** - The column name holding the timestamp when the event detailed in each row took place.
 * **pattern** (optional, default is `*.parquet`) - Pattern of file names to look for, directly under the given basepath.
-* **validationMode** (optional, default is `SAMPLE`) - Determines which selection of files to validate. 
-  Available choices are: `SINGLE`, `FIRST_LAST` and `SAMPLE`. 
-  * In `SINGLE` mode, only the first file in the dataset (in lexicographic order) is loaded, meaning that this file's schema is not compared to any other file, and proper partitioning is also not validated. 
-  * In `FIRST_LAST` mode, the first and last part are loaded, their schema compared and uniqueness of group IDs in each of them validated. 
+* **validationMode** (optional, default is `SAMPLE`) - Determines which selection of files to validate.
+  Available choices are: `SINGLE`, `FIRST_LAST` and `SAMPLE`.
+  * In `SINGLE` mode, only the first file in the dataset (in lexicographic order) is loaded, meaning that this file's schema is not compared to any other file, and proper partitioning is also not validated.
+  * In `FIRST_LAST` mode, the first and last part are loaded, their schema compared and uniqueness of group IDs in each of them validated.
   * In `SAMPLE` mode, the number of files to load is relative to the total number of files in the dataset. This ratio is configurable, along with a hard limit on the number of files to sample per each dataset.
     The first and last files are always loaded, plus the appropriate number of other random files.
-* **validateUniques** (optional, default `true`) - Allows disabling the test of group ID set uniqueness between sampled files. 
-  This check requires a chunk of memory in workers and the API server, plus some temporary storage in the blobstore. 
+* **validateUniques** (optional, default `true`) - Allows disabling the test of group ID set uniqueness between sampled files.
+  This check requires a chunk of memory in workers and the API server, plus some temporary storage in the blobstore.
   If it fails due to a resource issue you may disable this check if you're certain that files are properly partitioned by group ID.
   Alternatively, you may configure a reduced number of files to sample.
-  
+
 ### Response
 
 Status code `200` on success, `500` on error.
@@ -76,7 +78,7 @@ Status code `200` on success, `500` on error.
     },
     "timestampColumn": "timestamp",
     "totalParts": 8
-  }, 
+  },
   "stats": {
     "dataset": {
       "parts": 8,
@@ -87,7 +89,7 @@ Status code `200` on success, `500` on error.
 }
 ```
 
-The response includes a few general-purpose attributes: `success`, `errorMessage`, `requestId` and `stats`. 
+The response includes a few general-purpose attributes: `success`, `errorMessage`, `requestId` and `stats`.
 Here we've only included a few attributes showing the total count of files (a.k.a. *parts*) and the total size in bytes.
 
 ### Streaming Updates
@@ -96,7 +98,7 @@ The `/register`, `/query` and `/empty-query` endpoints all involve running jobs 
 Thus, you have the option to receive status updates on the request progress via *HTTP chunked encoding* (a.k.a. HTTP streaming, as seen in the Twitter API). To enable, add `?stream=true` to the endpoint URL.
 
 This is a simple mechanism supported by many client libraries.
-To test locally how this works, register a dataset (such as the [example dataset](./example-dataset.md)) 
+To test locally how this works, register a dataset (such as the [example dataset](./example-dataset.md))
 and open the URL `http://localhost:5000/datasets/<dataset name>/empty-query?stream=true` in your browser.
 
 <p align="center">
@@ -105,15 +107,17 @@ and open the URL `http://localhost:5000/datasets/<dataset name>/empty-query?stre
 
 In this mode, the last chunk is the response JSON as you'd receive with the non-streaming default mode.
 Any progress updates before that final JSON are in the following format:
+
 ```json
 {"message": "Polling results", "stage": "RUNNING", "tasks": {"ENDED_SUCCESS": 6, "QUEUED": 1, "RUNNING_QUERY": 1}}
 ```
+
 * `message` is an optional human-friendly description, which might change.
 * `stage` is one of `STARTING`, `RUNNING`, `FINISHING`, `DONE`.
 * `tasks` holds a map of task status to count. Internally all tasks start their lifecycle in status QUEUED, and the sum of all counts in a progress message should always
-  amount to the expected total number of tasks. 
+  amount to the expected total number of tasks.
   * Statuses are: `QUEUED`, `LOADING_DATA`, `RUNNING_QUERY`, `RUNNING`, `ENDED_SUCCESS`, `ENDED_FAILED`.
-  * When a task is considered failed or lost and re-attempted, the new attempt will begin its lifecycle as 'QUEUED' and proceed from there. 
+  * When a task is considered failed or lost and re-attempted, the new attempt will begin its lifecycle as 'QUEUED' and proceed from there.
     Subsequent updates will not include previous attempts in the counts, as they are a point-in time snapshot of current state.
 
 You may receive any number of updates (zero or more) based on the pace of the job. For example, the first update to receive may already be in `RUNNING` stage.
@@ -122,7 +126,7 @@ btw, if you're using Postman note that it doesn't support chunked encoding. It w
 
 #### Status code in streaming mode
 
-In streaming mode, the HTTP response is sent over with the first update with status code `200`. 
+In streaming mode, the HTTP response is sent over with the first update with status code `200`.
 The true status of the request is returned with the last chunk as the `success` attribute.
 
 Only if the request fails before tasks are actually launched (e.g. when validating the request body) will you get a `500` HTTP response.
@@ -159,7 +163,7 @@ Returns a JSON array with each element describing a registered dataset, or an em
 
 URL: `GET http://<apiserver-hostname>:5000/datasets/<dataset-name>/schema[?full=true|false]`
 
-Returns the stored schema for a registered dataset. 
+Returns the stored schema for a registered dataset.
 
 By default, the *short schema* is returned. It is more concise and is typically all you'll need. Use `?full=true` to get more detailed data.
 
@@ -191,26 +195,29 @@ Here's the response for the example dataset:
     "potentialCategoricals": []
 }
 ```
+
 * **columns** - a map of all *supported* columns and their type. Currently, one of: `BOOL`, `INT`, `FLOAT`, `STRING`.
-* **minTimestamp, maxTimestamp** - The minimum & maximum values found in the dataset's timestamp column during registration. 
+* **minTimestamp, maxTimestamp** - The minimum & maximum values found in the dataset's timestamp column during registration.
   * Note: these values are taken from the files sampled for validation - they do not represent the exact min/max timestamp
     in the dataset. However, if the dataset is properly partitioned this should be a good approximation.
 * **sourceCategoricals** - If the dataset files were saved by Pandas with some string columns being in Pandas' categorical type, these columns are listed here and will be loaded as such.
-* **potentialCategoricals** - String columns which were detected during registration to benefit from being loaded as categoricals during= queries. 
+* **potentialCategoricals** - String columns which were detected during registration to benefit from being loaded as categoricals during= queries.
   This behavior is [configurable](./operating.md).
 
 #### Full Schema Details
 
 If `?full=true` is added to the URL, more details are returned:
+
 * The *dtype* (Pandas data type) of each column
 * For numeric columns, the min & max values observed in the sampled files during registration.
 * For string columns detected as categoricals, a mapping of top values to their frequency in the dataset as a relative number (0-1).
   * The frequency is **an approximation** based on merging the top values' frequencies in files sampled during registration.
   * The length of the list, and the minimum frequency threshold to be included in it, are configurable.
-* For categoricals, **catUniqueRatio** is the ratio of unique value count (`series.nunique()`) to the row count (`len(series)`). 
+* For categoricals, **catUniqueRatio** is the ratio of unique value count (`series.nunique()`) to the row count (`len(series)`).
   * The smaller this number, more memory is saved in the categorical representation, and `contains` operators are made faster.
-  
+
 Here's an excerpt from the full schema, based on the example dataset:
+
 ```json5
 {
   "columns": {
@@ -263,8 +270,8 @@ URL: `GET http://<apiserver-hostname>:5000/datasets/<dataset-name>/parts`
 
 Returns information on files in the dataset: all file names (relative to the basepath), total parts and total size in bytes.
 
-The attribute `namingMethod` is currently always set to `LIST`, 
-meaning that all files names are stored in the metadata rather than a pattern template. 
+The attribute `namingMethod` is currently always set to `LIST`,
+meaning that all files names are stored in the metadata rather than a pattern template.
 
 ### Response
 
@@ -290,10 +297,10 @@ meaning that all files names are stored in the metadata rather than a pattern te
 
 URL: `GET http://<apiserver-hostname>:5000/datasets/<dataset-name>/empty-query[?stream=true|false]`
 
-Runs the *empty query* on a registered dataset, meaning: a query with no conditions and no aggregations. 
-It is similar to running a query with the string `{}`, with the only difference being one of convenience: this is a `GET` request without a request body. 
+Runs the *empty query* on a registered dataset, meaning: a query with no conditions and no aggregations.
+It is similar to running a query with the string `{}`, with the only difference being one of convenience: this is a `GET` request without a request body.
 
-This endpoint is useful as a sanity test to ensure that all files in the dataset are successfully downloaded & loaded by workers. 
+This endpoint is useful as a sanity test to ensure that all files in the dataset are successfully downloaded & loaded by workers.
 The response includes the total count of rows and unique groups in the dataset as `matchingGroupRows` and `matchingGroups`, respectively.
 
 ### Response
@@ -322,9 +329,9 @@ URL: `POST http://<apiserver-hostname>:5000/datasets/<dataset-name>/query[?strea
 
 ### Request Body
 
-Here's an annotated version of the full query spec. 
+Here's an annotated version of the full query spec.
 
-**It is strongly encouraged to go through the [example dataset guide](./example-dataset.md) which covers most features 
+**It is strongly encouraged to go through the [example dataset guide](./example-dataset.md) which covers most features
 in a step-by-step fashion.**
 
 *(annotated in JSON5 format, but actual queries are always in JSON)*
@@ -337,7 +344,7 @@ in a step-by-step fashion.**
     "from": 156587800,
     "to": 158345260
   },
-  
+
   // OPTIONAL. If omitted, a default query is run with no conditions. Only total group and row counts will be returned.
   "query": {
     // OPTIONAL
@@ -360,7 +367,7 @@ in a step-by-step fashion.**
           "==",
           280953
         ],
-        
+
         // OPTIONAL:
         // Shorthand notation of a "count"-type target. Equals to specifying an object with keys: type, op, value.
         // If omitted, default target is ["count", ">", 0], meaning the filter should match one or more rows in a group.
@@ -372,13 +379,13 @@ in a step-by-step fashion.**
         ],
 
         // OPTIONAL
-        // Relevant only for a count-type target: whether to treat a group with ZERO MATCHING ROWS as a match, 
+        // Relevant only for a count-type target: whether to treat a group with ZERO MATCHING ROWS as a match,
         // i.e. being able to define "find users who have purchased one or zero times" via a single condition.
         // includeZero is FALSE by default UNLESS the target is ["count", "==", 0], in which case it cannot be false.
         // If includeZero is explicitly set to an invalid value for the given target, a validation error is returned.
         "includeZero": true
       },
-      
+
       // Another condition, this time with the verbose notation
       {
         "filter": {
@@ -393,8 +400,8 @@ in a step-by-step fashion.**
           "value": 350
         }
       },
-      
-      // A multi-filter condition: all filters must match IN THE SAME ROW. 
+
+      // A multi-filter condition: all filters must match IN THE SAME ROW.
       // The relation between filters in the array is always AND.
       // Filters in the array must be in verbose notation.
       {
@@ -410,7 +417,7 @@ in a step-by-step fashion.**
             "value": 3
           },
         ],
-                    
+
         // Target is optional and defined the same way as with single-filter conditions.
         "target": [
           /**/
@@ -418,7 +425,7 @@ in a step-by-step fashion.**
       },
 
       // Sequence-type condition (not broken down like a funnel: all steps much match).
-      // Each item holds a filter or filters attribute, in verbose notation. 
+      // Each item holds a filter or filters attribute, in verbose notation.
       // There is no target definition: each step should match at least once prior to the next step.
       {
         "sequence": [
@@ -439,7 +446,7 @@ in a step-by-step fashion.**
         ]
       }
     ],
-    
+
     // OPTIONAL:
     // Aggregations to run AFTER filtering groups to only those matching the above conditions (if any).
     "aggregations": {
@@ -464,7 +471,7 @@ in a step-by-step fashion.**
       ],
     }
   },
-  
+
   // OPTIONAL:
   // After filtering by the query conditions and running query aggregations, run the given sequence and return the count
   // of groups and rows after EACH step, optionally with additional aggregations after each step or the final one only.
@@ -487,7 +494,7 @@ in a step-by-step fashion.**
         // ...
       ]
     },
-    
+
     // OPTIONAL: Aggregations to perform after the final step.
     "endAggregations": {
       "columns": [
@@ -501,7 +508,7 @@ in a step-by-step fashion.**
 #### Supported Operators
 
 * Numeric columns: `==`, `!=`, `>`, `>=`, `<`, `<=`
-* Boolean columns: `==`, `!=` 
+* Boolean columns: `==`, `!=`
 * String columns: `==`, `!=`, `>`, `<`, `contains` (**TBD:** more to come)
 
 ### Response
@@ -622,7 +629,7 @@ URL: `POST http://<apiserver-hostname>:5000/datasets/<dataset-name>/unregister[?
 Unregister a dataset. This only removes the metadata in the datastore, but does not touch any files.
 
 By default, trying to unregister a dataset that was just queried will fail with status `500` for a short interval of time,
-to ensure that any inflight jobs complete first. To override this behavior, add `?force=true` to the request URL, 
+to ensure that any inflight jobs complete first. To override this behavior, add `?force=true` to the request URL,
 or control via configuration with the `FROCKET_UNREGISTER_LAST_USED_INTERVAL` variable.
 
 ### Request Body
@@ -638,23 +645,26 @@ or control via configuration with the `FROCKET_UNREGISTER_LAST_USED_INTERVAL` va
   "datasetLastUsed": 1615203035
 }
 ```
+
 * If the dataset name is not found, the request **will not fail**, but will return with `"datasetFound": false`.
-* **datasetLastUsed** is set to the UNIX timestamp (in seconds) of when the dataset was last queried. 
+* **datasetLastUsed** is set to the UNIX timestamp (in seconds) of when the dataset was last queried.
   This is the timestamp that Funnel Rocket uses to determine if the dataset can be safely unregistered.
 
 ## Stats Object
 
 API requests which involve invoking tasks via workers also return a `stats` attribute as part of the response JSON.
 
-Below is an actual `stats` object, returned by a no-conditions query run with AWS Lambda-based workers. 
+Below is an actual `stats` object, returned by a no-conditions query run with AWS Lambda-based workers.
 The dataset contains about 250 million rows of activities by 14.5 million users, partitioned into 256 Parquet files.
 
 To put the numbers below in proper context:
+
 * This is a subsequent run over a dataset so Lambda function instances are warm, and most have successfully self-selected a locally-cached part.
-* No conditions or optional aggregations are defined, so only two columns are actually loaded: the group ID and timestamp column. 
+* No conditions or optional aggregations are defined, so only two columns are actually loaded: the group ID and timestamp column.
   These two are always loaded.
 
 Here's the annotated response:
+
 ```json5
 {
   "totalTime": 2.11058,
@@ -682,7 +692,7 @@ Here's the annotated response:
     "coldTasks": 0,
     "warmTasks": 256, // All tasks were run by a warm worker!
     // Stats for the time it took since invocation of tasks started till a task began processing by the Lambda handler.
-    // This timing is affected by the time it takes the invoker to enqueue all tasks (see above - 0.71 secs.), 
+    // This timing is affected by the time it takes the invoker to enqueue all tasks (see above - 0.71 secs.),
     // plus the latency of the Lambda system itself from the API being called to the Lambda handler starting.
     "invokeLatency": {
       "mean": 0.59070,

@@ -19,12 +19,15 @@ import logging
 import time
 from abc import abstractmethod
 from typing import Optional
+
 from frocket.common.config import config
 from frocket.common.metrics import MetricName, MetricsBag
-from frocket.common.tasks.base import TaskStatus, BaseTaskRequest, BaseTaskResult, TaskAttemptId
-from frocket.datastore.datastore import Datastore
+from frocket.common.tasks.base import (BaseTaskRequest, BaseTaskResult,
+                                       TaskAttemptId, TaskStatus)
 from frocket.datastore.blobstore import Blobstore
-from frocket.datastore.registered_datastores import get_datastore, get_blobstore
+from frocket.datastore.datastore import Datastore
+from frocket.datastore.registered_datastores import (get_blobstore,
+                                                     get_datastore)
 from frocket.worker.runners.part_loader import PartLoader, shared_part_loader
 
 logger = logging.getLogger(__name__)

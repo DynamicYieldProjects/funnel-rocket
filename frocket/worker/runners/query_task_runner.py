@@ -17,14 +17,19 @@ Execute a single query task.
 
 import logging
 import time
-from typing import List, cast, Optional
+from typing import List, Optional, cast
+
 from pandas import DataFrame
+
 from frocket.common.dataset import DatasetPartId
 from frocket.common.metrics import MetricName, PartSelectMethodLabel
-from frocket.common.tasks.base import TaskStatus, TaskAttemptId, BaseTaskRequest
-from frocket.common.tasks.query import PartSelectionMode, QueryTaskRequest, QueryResult, QueryTaskResult
+from frocket.common.tasks.base import (BaseTaskRequest, TaskAttemptId,
+                                       TaskStatus)
+from frocket.common.tasks.query import (PartSelectionMode, QueryResult,
+                                        QueryTaskRequest, QueryTaskResult)
 from frocket.engine.query_engine import QueryEngine
-from frocket.worker.runners.base_task_runner import BaseTaskRunner, TaskRunnerContext
+from frocket.worker.runners.base_task_runner import (BaseTaskRunner,
+                                                     TaskRunnerContext)
 from frocket.worker.runners.part_loader import FilterPredicate
 
 logger = logging.getLogger(__name__)

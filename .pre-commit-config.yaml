@@ -1,0 +1,118 @@
+minimum_pre_commit_version: 2.12.1
+fail_fast: false
+default_stages:
+  - commit
+repos:
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.1.0
+    hooks:
+      - id: detect-secrets
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.4.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: detect-private-key
+      - id: no-commit-to-branch
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: check-json
+      - id: check-xml
+      - id: pretty-format-json
+        args:
+          - --autofix
+          - --no-sort-keys
+  - repo: https://github.com/jumanjihouse/pre-commit-hooks
+    rev: 2.1.5
+    hooks:
+      - id: forbid-binary
+      - id: git-check
+  - repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
+    rev: 0.1.0
+    hooks:
+      - id: yamlfmt
+        args:
+          - --mapping
+          - '2'
+          - --sequence
+          - '4'
+          - --offset
+          - '2'
+          - --implicit_start
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.26.1
+    hooks:
+      - id: yamllint
+        name: Lint YAML files
+        args:
+          - --format
+          - parsable
+          - --strict
+  - repo: https://github.com/sirosen/check-jsonschema
+    rev: 0.3.0
+    hooks:
+      - id: check-github-workflows
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v2.17.4
+    hooks:
+      - id: commitizen
+        name: Lint commit message
+        stages:
+          - commit-msg
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.7.2.1
+    hooks:
+      - id: shellcheck
+        name: Check sh files
+        entry: bash -c 'shellcheck $@ -f diff | patch -p 1' --
+  - repo: local
+    hooks:
+      - id: shfmt
+        name: Format sh files
+        language: docker_image
+        entry: mvdan/shfmt:v3.2.4
+        args:
+          - -w
+        types:
+          - shell
+      - id: markdownlint
+        name: Lint Markdown files
+        language: docker_image
+        entry: 06kellyjac/markdownlint-cli:0.27.1
+        args:
+          - --fix
+        types:
+          - markdown
+      - id: hadolint
+        name: Lint Dockerfiles
+        language: docker_image
+        entry: hadolint/hadolint:v2.3.0 hadolint
+        types:
+          - dockerfile
+      - id: safety
+        name: Vulnerability Check
+        language: docker_image
+        entry: pyupio/safety:latest
+        files: test-requirements
+        args:
+          - safety
+          - check
+          - -r
+      # - id: flake8
+      #   name: Flake8 Linter
+      #   language: docker_image
+      #   entry: alpine/flake8:3.9.1
+      #   args:
+      #     - --max-line-length=120
+      #   types:
+      #     - python
+      - id: isort
+        name: Sort Imports
+        language: docker_image
+        entry: xcgd/isort:latest isort
+        types:
+          - python

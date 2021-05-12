@@ -18,17 +18,21 @@ import os
 import subprocess
 from pathlib import Path
 from typing import List, Union, cast
+
 from frocket.cli import LOG_LINE_PREFIX
 from frocket.common.config import config
-from frocket.common.helpers.utils import timestamped_uuid, memoize
+from frocket.common.helpers.utils import memoize, timestamped_uuid
 from frocket.invoker import invoker_api
 from tests.utils.base_test_utils import temp_filename
-from tests.utils.dataset_utils import new_test_dataset, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, \
-    DEFAULT_GROUP_COUNT, TestColumn, datafile_schema
+from tests.utils.dataset_utils import (DEFAULT_GROUP_COLUMN,
+                                       DEFAULT_GROUP_COUNT,
+                                       DEFAULT_TIMESTAMP_COLUMN, TestColumn,
+                                       datafile_schema, new_test_dataset)
 # noinspection PyUnresolvedReferences
 from tests.utils.mock_s3_utils import mock_s3_env_variables
 # noinspection PyUnresolvedReferences
-from tests.utils.redis_fixture import init_test_redis_settings, get_test_redis_env_variables
+from tests.utils.redis_fixture import (get_test_redis_env_variables,
+                                       init_test_redis_settings)
 
 CLI_MAIN = 'frocket.cli'
 

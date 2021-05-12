@@ -13,13 +13,18 @@
 #  limitations under the License.
 
 import logging
-from abc import abstractmethod, ABCMeta
-from typing import Dict, Counter, List, NamedTuple, Optional
-from frocket.common.metrics import MetricsBag, ComponentLabel, MetricName, MetricData, SourceAndMetricTuple, LabelsDict
-from frocket.common.tasks.base import TaskAttemptId, TaskStatus, BaseTaskResult, \
-    BaseTaskRequest, BaseJobResult, JobStatus, JobStats
-from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater, AsyncJobStage
+from abc import ABCMeta, abstractmethod
+from typing import Counter, Dict, List, NamedTuple, Optional
+
 from frocket.common.helpers.utils import timestamped_uuid
+from frocket.common.metrics import (ComponentLabel, LabelsDict, MetricData,
+                                    MetricName, MetricsBag,
+                                    SourceAndMetricTuple)
+from frocket.common.tasks.async_tracker import (AsyncJobStage,
+                                                AsyncJobStatusUpdater)
+from frocket.common.tasks.base import (BaseJobResult, BaseTaskRequest,
+                                       BaseTaskResult, JobStats, JobStatus,
+                                       TaskAttemptId, TaskStatus)
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker.jobs.job import Job
 from frocket.invoker.metrics_frame import MetricsFrame

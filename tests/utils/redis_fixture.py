@@ -13,9 +13,12 @@
 #  limitations under the License.
 
 import os
+
 import pytest
-from frocket.common.config import config, ConfigDict
-from frocket.datastore.registered_datastores import get_datastore, get_blobstore
+
+from frocket.common.config import ConfigDict, config
+from frocket.datastore.registered_datastores import (get_blobstore,
+                                                     get_datastore)
 
 
 @pytest.fixture(scope="session", autouse=True)

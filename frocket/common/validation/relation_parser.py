@@ -23,16 +23,21 @@ Note that conditions may be represented either by index ($0, $3, etc.) or by nam
 #  limitations under the License.
 
 import logging
-from typing import Type, List, Optional
+from abc import ABCMeta
+from dataclasses import dataclass
+from typing import List, Optional, Type
+
+from parsimonious.exceptions import ParseError, VisitationError
 from parsimonious.grammar import Grammar, NodeVisitor
 from parsimonious.nodes import Node
-from dataclasses import dataclass
-from parsimonious.exceptions import ParseError, VisitationError
-from abc import ABCMeta
-from frocket.common.validation.consts import RELATION_OPS, map_condition_names, CONDITION_COLUMN_PREFIX
-from frocket.common.validation.path_visitor import PathVisitor
-from frocket.common.validation.error import ValidationErrorKind, QueryValidationError
+
 from frocket.common.tasks.base import ErrorMessage
+from frocket.common.validation.consts import (CONDITION_COLUMN_PREFIX,
+                                              RELATION_OPS,
+                                              map_condition_names)
+from frocket.common.validation.error import (QueryValidationError,
+                                             ValidationErrorKind)
+from frocket.common.validation.path_visitor import PathVisitor
 
 logger = logging.getLogger(__name__)
 

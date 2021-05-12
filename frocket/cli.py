@@ -28,11 +28,13 @@ The CLI does provide a few optional flags which make it also suitable for automa
 #  limitations under the License.
 
 import argparse
+
 # TODO backlog don't import any frocket modules but a carefully selected set which does not then import heavy packages
 #  or initialize mechanisms. This is only partially done now (see import at end of file).
 from frocket.common.config import config
-from frocket.common.tasks.registration import DatasetValidationMode, REGISTER_DEFAULT_VALIDATION_MODE, \
-    REGISTER_DEFAULT_FILENAME_PATTERN, REGISTER_DEFAULT_VALIDATE_UNIQUES
+from frocket.common.tasks.registration import (
+    REGISTER_DEFAULT_FILENAME_PATTERN, REGISTER_DEFAULT_VALIDATE_UNIQUES,
+    REGISTER_DEFAULT_VALIDATION_MODE, DatasetValidationMode)
 
 REGISTER_VALIDATION_MODE_CHOICES = [e.value.lower() for e in DatasetValidationMode]
 LOG_LEVEL_CHOICES = ['debug', 'info', 'warning', 'error', 'critical']

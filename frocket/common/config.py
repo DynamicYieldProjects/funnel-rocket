@@ -24,10 +24,11 @@ TODO backlog switch to a "real" config package OR polish the API and None/empty 
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import os
 import logging
+import os
 import sys
 from typing import Dict
+
 import boto3
 import botocore
 
@@ -146,7 +147,7 @@ class ConfigDict(Dict[str, str]):
             'region_name': 'aws.region',
             'endpoint_url': 'aws.endpoint.url',
             'aws_access_key_id': 'aws.access.key.id',
-            'aws_secret_access_key': 'aws.secret.access.key'}
+            'aws_secret_access_key': 'aws.secret.access.key'}  # pragma: allowlist secret
         settings = {aws_key: self._get_for_service(config_key, service)
                     for aws_key, config_key in aws_to_config_keys.items()}
         return settings

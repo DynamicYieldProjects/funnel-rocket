@@ -17,11 +17,12 @@ Base types for all concrete task and job classes
 
 import logging
 import time
-from enum import auto
-from typing import Optional, Dict, List, NamedTuple
 from dataclasses import dataclass, field
+from enum import auto
+from typing import Dict, List, NamedTuple, Optional
+
 from frocket.common.metrics import MetricData
-from frocket.common.serializable import SerializableDataClass, AutoNamedEnum
+from frocket.common.serializable import AutoNamedEnum, SerializableDataClass
 
 logger = logging.getLogger(__name__)
 

@@ -31,8 +31,10 @@ from abc import abstractmethod
 from enum import Enum, auto
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import NamedTuple, Optional, List
+from typing import List, NamedTuple, Optional
+
 import boto3
+
 from frocket.common.config import config
 from frocket.common.dataset import DatasetPartsInfo, PartNamingMethod
 

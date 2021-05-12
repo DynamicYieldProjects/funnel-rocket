@@ -12,11 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import pandas as pd
 from pandas import DataFrame
+
 from frocket.common.tasks.query import QueryResult
 from frocket.common.validation.query_validator import QueryValidator
 from frocket.engine.query_engine import QueryEngine
-import pandas as pd
 
 CATEGORIES = ['fishing', 'running', 'climbing', 'snorkeling']
 TYPES = ['view', 'click', 'purchase', 'a2c']
@@ -495,4 +496,3 @@ def test_sequence_condition():
     # this time it's user c
     assert engine_result.query.matching_groups == 1
     assert '3' in engine_result.query.aggregations[-1].value
-

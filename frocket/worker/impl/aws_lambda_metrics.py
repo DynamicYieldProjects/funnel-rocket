@@ -23,7 +23,9 @@ won't inflate cost to a similar degree. This is in line with how the task durati
 import logging
 import math
 import re
-from frocket.common.metrics import MetricName, EnvironmentMetricsProvider, MetricData
+
+from frocket.common.metrics import (EnvironmentMetricsProvider, MetricData,
+                                    MetricName)
 
 logger = logging.getLogger(__name__)
 

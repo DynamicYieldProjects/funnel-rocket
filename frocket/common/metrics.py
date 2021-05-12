@@ -24,12 +24,14 @@ cardinality of label values, etc.
 import logging
 import time
 from abc import ABCMeta, abstractmethod
-from enum import auto
-from typing import Union, Dict, Optional, List, NamedTuple, Type, Set
 from dataclasses import dataclass
+from enum import auto
+from typing import Dict, List, NamedTuple, Optional, Set, Type, Union
+
 from inflection import underscore
-from frocket.common.serializable import AutoNamedEnum, EnumSerializableByName
+
 from frocket.common.helpers.utils import memoize
+from frocket.common.serializable import AutoNamedEnum, EnumSerializableByName
 
 logger = logging.getLogger(__name__)
 

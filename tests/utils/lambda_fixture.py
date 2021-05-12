@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 import pytest
+
 from frocket.common.config import config
 
 

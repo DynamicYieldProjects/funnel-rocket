@@ -16,13 +16,14 @@
 import functools
 import math
 import random
-import uuid
 import time
+import uuid
 from io import BytesIO
-from typing import Optional, List
+from typing import List, Optional
+
+import numpy as np
 import pandas as pd
 import pyarrow.feather as feather
-import numpy as np
 
 
 def terminal_red(message: str) -> str:

@@ -14,9 +14,9 @@ COPY ./requirements.txt .
 # Don't install boto3/botocore, which is vendored by AWS in its most appropriate version
 USER root
 RUN grep -v boto requirements.txt > lambda_requirements.txt
-RUN mkdir /opt/python && pip install --no-compile --no-cache-dir -r lambda_requirements.txt -t /opt/python
 # Clean-up some big files
-RUN rm /opt/python/pyarrow/*flight*.so* \
+RUN mkdir /opt/python && pip install --no-compile --no-cache-dir -r lambda_requirements.txt -t /opt/python \
+    && rm /opt/python/pyarrow/*flight*.so* \
     /opt/python/pyarrow/*plasma*.so* \
     /opt/python/pyarrow/plasma-store-server \
     setup.py requirements.txt lambda_requirements.txt

@@ -21,19 +21,26 @@ the sampled files.
 
 import logging
 import math
-from typing import cast, Optional
+from typing import Optional, cast
+
 import numpy as np
-from pandas import DataFrame, Series, CategoricalDtype
-from pandas.core.dtypes.common import is_numeric_dtype, is_bool_dtype, is_integer_dtype, \
-    is_float_dtype, is_string_dtype, is_categorical_dtype
+from pandas import CategoricalDtype, DataFrame, Series
+from pandas.core.dtypes.common import (is_bool_dtype, is_categorical_dtype,
+                                       is_float_dtype, is_integer_dtype,
+                                       is_numeric_dtype, is_string_dtype)
+
 from frocket.common.config import config
-from frocket.common.dataset import DatasetSchema, DatasetColumn, DatasetColumnType, DatasetColumnAttributes
-from frocket.common.metrics import MetricName
-from frocket.common.tasks.base import TaskStatus, BaseTaskRequest, TaskAttemptId, BlobId
-from frocket.common.tasks.registration import RegistrationTaskResult, RegistrationTaskRequest
+from frocket.common.dataset import (DatasetColumn, DatasetColumnAttributes,
+                                    DatasetColumnType, DatasetSchema)
 from frocket.common.helpers.utils import ndarray_to_bytes
+from frocket.common.metrics import MetricName
+from frocket.common.tasks.base import (BaseTaskRequest, BlobId, TaskAttemptId,
+                                       TaskStatus)
+from frocket.common.tasks.registration import (RegistrationTaskRequest,
+                                               RegistrationTaskResult)
 from frocket.common.validation.consts import CONDITION_COLUMN_PREFIX
-from frocket.worker.runners.base_task_runner import BaseTaskRunner, TaskRunnerContext
+from frocket.worker.runners.base_task_runner import (BaseTaskRunner,
+                                                     TaskRunnerContext)
 
 logger = logging.getLogger(__name__)
 # The top values for categoricals as recorded in the schema are approximate, as we're not reading all dataset files

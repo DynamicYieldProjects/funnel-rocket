@@ -14,11 +14,12 @@
 
 import logging
 from enum import Enum, auto
+
 from frocket.common.config import config
 from frocket.invoker.base_invoker import BaseInvoker
-from frocket.invoker.jobs.job import Job
 from frocket.invoker.impl.aws_lambda_invoker import AwsLambdaInvoker
 from frocket.invoker.impl.work_queue_invoker import WorkQueueInvoker
+from frocket.invoker.jobs.job import Job
 
 logger = logging.getLogger(__name__)
 

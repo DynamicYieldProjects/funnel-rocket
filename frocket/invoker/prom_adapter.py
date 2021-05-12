@@ -18,12 +18,15 @@ TODO backlog support help string (documentation) per each member in MetricName e
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from typing import List, Dict, Type
+from typing import Dict, List, Type
+
 from prometheus_client import Counter, Histogram
 from prometheus_client.metrics import MetricWrapperBase
+
 from frocket.common.config import config
 from frocket.common.helpers.utils import memoize
-from frocket.common.metrics import MetricName, MeasuredUnit, supported_label_names, MetricData, empty_label_names
+from frocket.common.metrics import (MeasuredUnit, MetricData, MetricName,
+                                    empty_label_names, supported_label_names)
 
 prom_counters: Dict[MetricName, Counter] = {}
 prom_histograms: Dict[MetricName, Histogram] = {}

@@ -15,18 +15,26 @@
 import logging
 import time
 from collections import Counter
+from typing import Dict, List, Optional, cast
+
 import numpy as np
-from typing import List, Optional, cast, Dict
+
 from frocket.common.config import config
-from frocket.common.dataset import DatasetInfo, DatasetPartId, DatasetPartsInfo, \
-    DatasetSchema, DatasetColumnType, DatasetColumnAttributes, DatasetColumn, DatasetId
+from frocket.common.dataset import (DatasetColumn, DatasetColumnAttributes,
+                                    DatasetColumnType, DatasetId, DatasetInfo,
+                                    DatasetPartId, DatasetPartsInfo,
+                                    DatasetSchema)
 from frocket.common.helpers.storage import storage_handler_for
-from frocket.common.metrics import JobTypeLabel, DATASET_LABEL
+from frocket.common.helpers.utils import bytes_to_ndarray, sample_from_range
+from frocket.common.metrics import DATASET_LABEL, JobTypeLabel
 from frocket.common.tasks.base import ErrorMessage
-from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationJobResult, \
-    RegistrationTaskResult, DatasetValidationMode, RegisterArgs
-from frocket.common.helpers.utils import sample_from_range, bytes_to_ndarray
-from frocket.datastore.registered_datastores import get_blobstore, get_datastore
+from frocket.common.tasks.registration import (DatasetValidationMode,
+                                               RegisterArgs,
+                                               RegistrationJobResult,
+                                               RegistrationTaskRequest,
+                                               RegistrationTaskResult)
+from frocket.datastore.registered_datastores import (get_blobstore,
+                                                     get_datastore)
 from frocket.invoker.jobs.job import Job
 
 logger = logging.getLogger(__name__)

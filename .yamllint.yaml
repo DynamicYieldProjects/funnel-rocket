@@ -1,0 +1,10 @@
+extends: default
+
+rules:
+  line-length:
+    max: 120
+    ignore: |
+      .github/settings.yml
+  document-start: disable
+  truthy:
+    check-keys: false

@@ -17,11 +17,15 @@ Query job's task classes
 
 from dataclasses import dataclass
 from enum import auto
-from typing import Optional, List, Dict, Union, cast
+from typing import Dict, List, Optional, Union, cast
+
 import inflection
+
 from frocket.common.dataset import DatasetInfo, DatasetPartId
-from frocket.common.serializable import AutoNamedEnum, enveloped, SerializableDataClass, reducable
-from frocket.common.tasks.base import BaseTaskRequest, BaseTaskResult, BaseJobResult
+from frocket.common.serializable import (AutoNamedEnum, SerializableDataClass,
+                                         enveloped, reducable)
+from frocket.common.tasks.base import (BaseJobResult, BaseTaskRequest,
+                                       BaseTaskResult)
 
 
 class PartSelectionMode(AutoNamedEnum):

@@ -17,11 +17,13 @@ Export the data into file and/or Prometheus, by configuration.
 #  limitations under the License.
 
 import logging
-from typing import List, Dict, Union
+from typing import Dict, List, Union
+
 import pandas as pd
 from pandas import DataFrame
+
 from frocket.common.config import config
-from frocket.common.metrics import SourceAndMetricTuple, ALL_LABEL_NAMES
+from frocket.common.metrics import ALL_LABEL_NAMES, SourceAndMetricTuple
 from frocket.invoker import prom_adapter
 
 logger = logging.getLogger(__name__)

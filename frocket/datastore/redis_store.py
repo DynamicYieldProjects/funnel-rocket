@@ -16,17 +16,25 @@ import logging
 import math
 import time
 from enum import Enum, auto
-from typing import Callable, Any, Dict, cast, Union, Type, Optional
+from typing import Any, Callable, Dict, Optional, Type, Union, cast
+
 import redis
 from redis import Redis
+
 from frocket.common.config import config
-from frocket.common.serializable import Envelope, SerializableDataClass
-from frocket.common.tasks.base import TaskStatus, BaseTaskResult, TaskAttemptId, TaskStatusUpdate, \
-    BaseTaskRequest, BlobId
-from frocket.common.dataset import DatasetInfo, DatasetPartsInfo, DatasetPartId, DatasetShortSchema, DatasetSchema
+from frocket.common.dataset import (DatasetInfo, DatasetPartId,
+                                    DatasetPartsInfo, DatasetSchema,
+                                    DatasetShortSchema)
 from frocket.common.helpers.utils import timestamped_uuid
-from frocket.datastore.datastore import Datastore, WorkerSelectedPart, DEFAULT_QUEUE, DEFAULT_DEQUEUE_WAIT_TIME
-from frocket.datastore.blobstore import Blobstore, BLOB_DEFAULT_TTL, BLOB_MAX_TTL
+from frocket.common.serializable import Envelope, SerializableDataClass
+from frocket.common.tasks.base import (BaseTaskRequest, BaseTaskResult, BlobId,
+                                       TaskAttemptId, TaskStatus,
+                                       TaskStatusUpdate)
+from frocket.datastore.blobstore import (BLOB_DEFAULT_TTL, BLOB_MAX_TTL,
+                                         Blobstore)
+from frocket.datastore.datastore import (DEFAULT_DEQUEUE_WAIT_TIME,
+                                         DEFAULT_QUEUE, Datastore,
+                                         WorkerSelectedPart)
 
 logger = logging.getLogger(__name__)
 

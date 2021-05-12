@@ -25,9 +25,12 @@ asserts are used where processing elements which should be already validated (so
 #  limitations under the License.
 
 from typing import Optional
-from frocket.common.validation.consts import DEFAULT_TARGET, AGGR_TYPES_WITH_OTHER_COLUMN, \
-    DEFAULT_AGGREGATIONS, TARGET_TYPES_WITH_INCLUDE_ZERO, TARGET_OPS_SUPPORTING_INCLUDE_ZERO
-from frocket.common.validation.error import ValidationErrorKind, QueryValidationError
+
+from frocket.common.validation.consts import (
+    AGGR_TYPES_WITH_OTHER_COLUMN, DEFAULT_AGGREGATIONS, DEFAULT_TARGET,
+    TARGET_OPS_SUPPORTING_INCLUDE_ZERO, TARGET_TYPES_WITH_INCLUDE_ZERO)
+from frocket.common.validation.error import (QueryValidationError,
+                                             ValidationErrorKind)
 
 
 def _to_verbose_filter(fltr) -> Optional[dict]:

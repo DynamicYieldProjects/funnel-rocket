@@ -19,14 +19,19 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import auto
 from typing import List
+
 import numpy as np
 import pytest
-from pandas import RangeIndex, Series, DataFrame
-from frocket.common.dataset import DatasetPartsInfo, DatasetId, DatasetPartId, PartNamingMethod, DatasetInfo, \
-    DatasetColumnType, DatasetShortSchema
+from pandas import DataFrame, RangeIndex, Series
+
+from frocket.common.dataset import (DatasetColumnType, DatasetId, DatasetInfo,
+                                    DatasetPartId, DatasetPartsInfo,
+                                    DatasetShortSchema, PartNamingMethod)
 from frocket.common.serializable import AutoNamedEnum
 from frocket.worker.runners.part_loader import shared_part_loader
-from tests.utils.base_test_utils import temp_filename, TEMP_DIR, DisablePyTestCollectionMixin
+from tests.utils.base_test_utils import (TEMP_DIR,
+                                         DisablePyTestCollectionMixin,
+                                         temp_filename)
 from tests.utils.mock_s3_utils import SKIP_S3_TESTS, new_mock_s3_bucket
 
 

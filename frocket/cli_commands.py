@@ -21,11 +21,14 @@ import sys
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from typing import Any
+
 from tabulate import tabulate
+
 from frocket.common.config import config
 from frocket.common.serializable import SerializableDataClass
 from frocket.common.tasks.base import BaseApiResult
-from frocket.common.tasks.registration import DatasetValidationMode, RegisterArgs
+from frocket.common.tasks.registration import (DatasetValidationMode,
+                                               RegisterArgs)
 from frocket.invoker import invoker_api
 
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S %Z'

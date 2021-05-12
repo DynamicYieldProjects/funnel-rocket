@@ -17,16 +17,19 @@ For long-running operations, the server supports streaming updates with HTTP chu
 #  limitations under the License.
 
 import logging
-from typing import Type, Callable, cast
+from typing import Callable, Type, cast
+
 import flask
-from flask import Flask, request, jsonify, Response, stream_with_context, json, make_response
+from flask import (Flask, Response, json, jsonify, make_response, request,
+                   stream_with_context)
 from prometheus_client.exposition import make_wsgi_app
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+
 from frocket.common.config import config
 from frocket.common.dataset import DatasetInfo
 from frocket.common.serializable import SerializableDataClass
-from frocket.common.tasks.registration import RegisterArgs, BaseApiResult
 from frocket.common.tasks.async_tracker import AsyncJobTracker
+from frocket.common.tasks.registration import BaseApiResult, RegisterArgs
 from frocket.common.validation.error import ValidationErrorKind
 from frocket.invoker import invoker_api
 

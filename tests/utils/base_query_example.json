@@ -1,171 +1,171 @@
 {
-    "timeframe": {
-        "from": 1590918400516,
-        "to": 1618918400516
-    },
-    "query": {
-        "relation": "( $1 and $2) || $seq || ((  $made_multiple_purchases )  ) ",
-        "conditions": [
-            {
-                "name": "made_multiple_purchases",
-                "filter": [
-                    "eventId",
-                    "==",
-                    18765
-                ],
-                "target": [
-                    "count",
-                    ">=",
-                    0
-                ],
-                "includeZero": true
-            },
-            {
-                "name": "made_multiple_purchases2",
-                "filter": [
-                    "eventId",
-                    "==",
-                    18766
-                ],
-                "includeZero": false
-            },
-            {
-                "filter": {
-                    "column": "eventId",
-                    "op": "==",
-                    "value": 18767
-                },
-                "target": {
-                    "type": "sum",
-                    "column": "eventValue",
-                    "op": "<",
-                    "value": 350
-                }
-            },
-            {
-                "filter": {
-                    "column": "eventId",
-                    "op": "==",
-                    "value": 18768
-                },
-                "target": [
-                    "sum",
-                    "eventValue",
-                    "<",
-                    350
-                ]
-            },
-            {
-                "filters": [
-                    {
-                        "column": "eventType",
-                        "op": "==",
-                        "value": "purchase"
-                    },
-                    {
-                        "column": "goalValue",
-                        "op": ">=",
-                        "value": 3
-                    }
-                ],
-                "target": [
-                    "sum",
-                    "eventValue",
-                    "<",
-                    350
-                ],
-                "includeZero": false
-            },
-            {
-                "name": "seq",
-                "sequence": [
-                    {
-                        "filter": [
-                            "eventType",
-                            "==",
-                            "addToCart"
-                        ]
-                    },
-                    {
-                        "filters": [
-                            {
-                                "column": "eventType",
-                                "op": "==",
-                                "value": "purchase"
-                            },
-                            {
-                                "column": "goalValue",
-                                "op": ">=",
-                                "value": 3
-                            }
-                        ]
-                    },
-                    {
-                        "rowFound": false,
-                        "filter": {
-                            "column": "eventType",
-                            "op": "==",
-                            "value": "signToClub"
-                        }
-                    }
-                ],
-                "maxDuration": 23443
-            }
+  "timeframe": {
+    "from": 1590918400516,
+    "to": 1618918400516
+  },
+  "query": {
+    "relation": "( $1 and $2) || $seq || ((  $made_multiple_purchases )  ) ",
+    "conditions": [
+      {
+        "name": "made_multiple_purchases",
+        "filter": [
+          "eventId",
+          "==",
+          18765
         ],
-        "aggregations": [
-            {
-                "column": "device"
-            },
-            {
-                "column": "transactionId",
-                "type": "count",
-                "name": "purchase_count"
-            },
-            {
-                "column": "goalId"
-            },
-            {
-                "column": "goalId",
-                "type": "sumPerValue",
-                "otherColumn": "goalValue",
-                "name": "hoola"
-            }
+        "target": [
+          "count",
+          ">=",
+          0
+        ],
+        "includeZero": true
+      },
+      {
+        "name": "made_multiple_purchases2",
+        "filter": [
+          "eventId",
+          "==",
+          18766
+        ],
+        "includeZero": false
+      },
+      {
+        "filter": {
+          "column": "eventId",
+          "op": "==",
+          "value": 18767
+        },
+        "target": {
+          "type": "sum",
+          "column": "eventValue",
+          "op": "<",
+          "value": 350
+        }
+      },
+      {
+        "filter": {
+          "column": "eventId",
+          "op": "==",
+          "value": 18768
+        },
+        "target": [
+          "sum",
+          "eventValue",
+          "<",
+          350
         ]
-    },
-    "funnel": {
+      },
+      {
+        "filters": [
+          {
+            "column": "eventType",
+            "op": "==",
+            "value": "purchase"
+          },
+          {
+            "column": "goalValue",
+            "op": ">=",
+            "value": 3
+          }
+        ],
+        "target": [
+          "sum",
+          "eventValue",
+          "<",
+          350
+        ],
+        "includeZero": false
+      },
+      {
+        "name": "seq",
         "sequence": [
-            {
-                "filter": [
-                    "eventType",
-                    "==",
-                    "addToCart"
-                ]
-            },
-            {
-                "filter": {
-                    "column": "eventId",
-                    "op": "==",
-                    "value": 18765
-                }
+          {
+            "filter": [
+              "eventType",
+              "==",
+              "addToCart"
+            ]
+          },
+          {
+            "filters": [
+              {
+                "column": "eventType",
+                "op": "==",
+                "value": "purchase"
+              },
+              {
+                "column": "goalValue",
+                "op": ">=",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "rowFound": false,
+            "filter": {
+              "column": "eventType",
+              "op": "==",
+              "value": "signToClub"
             }
+          }
         ],
-        "maxDuration": 23443,
-        "stepAggregations": [
-            {
-                "column": "goalId",
-                "type": "count",
-                "name": "mosh"
-            },
-            {
-                "column": "eventId",
-                "type": "groupsPerValue",
-                "name": "mosh2"
-            }
-        ],
-        "endAggregations": [
-            {
-                "column": "goalId"
-            }
+        "maxDuration": 23443
+      }
+    ],
+    "aggregations": [
+      {
+        "column": "device"
+      },
+      {
+        "column": "transactionId",
+        "type": "count",
+        "name": "purchase_count"
+      },
+      {
+        "column": "goalId"
+      },
+      {
+        "column": "goalId",
+        "type": "sumPerValue",
+        "otherColumn": "goalValue",
+        "name": "hoola"
+      }
+    ]
+  },
+  "funnel": {
+    "sequence": [
+      {
+        "filter": [
+          "eventType",
+          "==",
+          "addToCart"
         ]
-    }
+      },
+      {
+        "filter": {
+          "column": "eventId",
+          "op": "==",
+          "value": 18765
+        }
+      }
+    ],
+    "maxDuration": 23443,
+    "stepAggregations": [
+      {
+        "column": "goalId",
+        "type": "count",
+        "name": "mosh"
+      },
+      {
+        "column": "eventId",
+        "type": "groupsPerValue",
+        "name": "mosh2"
+      }
+    ],
+    "endAggregations": [
+      {
+        "column": "goalId"
+      }
+    ]
+  }
 }

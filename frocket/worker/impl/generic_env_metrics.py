@@ -19,7 +19,9 @@ and getting physical memory size should generally work on Linux variants and OS 
 
 import logging
 import os
-from frocket.common.metrics import EnvironmentMetricsProvider, MetricData, MetricName
+
+from frocket.common.metrics import (EnvironmentMetricsProvider, MetricData,
+                                    MetricName)
 
 logger = logging.getLogger(__name__)
 

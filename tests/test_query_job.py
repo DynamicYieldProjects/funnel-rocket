@@ -14,23 +14,30 @@
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import cast, List
+from typing import List, cast
+
 import pytest
 
 from frocket.common.config import config
-from frocket.common.dataset import DatasetInfo, DatasetPartsInfo, DatasetShortSchema
+from frocket.common.dataset import (DatasetInfo, DatasetPartsInfo,
+                                    DatasetShortSchema)
 from frocket.common.tasks.base import BaseTaskResult
-from frocket.common.tasks.query import QueryJobResult, PartSelectionMode, AggregationResult, FunnelResult, \
-    QueryConditionsResult
-from frocket.common.tasks.registration import DatasetValidationMode, RegistrationJobResult
+from frocket.common.tasks.query import (AggregationResult, FunnelResult,
+                                        PartSelectionMode,
+                                        QueryConditionsResult, QueryJobResult)
+from frocket.common.tasks.registration import (DatasetValidationMode,
+                                               RegistrationJobResult)
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker import invoker_api
 from frocket.invoker.jobs.query_job import QueryJob
-from tests.utils.dataset_utils import TestDatasetInfo, str_and_none_column_values, TestColumn, DEFAULT_ROW_COUNT, \
-    DEFAULT_GROUP_COUNT
-from tests.utils.task_and_job_utils import build_registration_job, query_job_invoker, registration_job_invoker, \
-    build_query_job
-from tests.test_query_task import run_query_task, TEST_QUERY_WITH_AGGRS
+from tests.test_query_task import TEST_QUERY_WITH_AGGRS, run_query_task
+from tests.utils.dataset_utils import (DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT,
+                                       TestColumn, TestDatasetInfo,
+                                       str_and_none_column_values)
+from tests.utils.task_and_job_utils import (build_query_job,
+                                            build_registration_job,
+                                            query_job_invoker,
+                                            registration_job_invoker)
 
 QUERY_DATASET_NUM_PARTS = 4
 

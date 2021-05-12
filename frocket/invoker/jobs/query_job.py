@@ -14,10 +14,14 @@
 
 import time
 from typing import List, cast
+
 from frocket.common.config import config
-from frocket.common.dataset import DatasetInfo, DatasetPartId, DatasetPartsInfo, DatasetShortSchema
-from frocket.common.metrics import JobTypeLabel, DATASET_LABEL
-from frocket.common.tasks.query import PartSelectionMode, QueryTaskRequest, QueryTaskResult, QueryJobResult, QueryResult
+from frocket.common.dataset import (DatasetInfo, DatasetPartId,
+                                    DatasetPartsInfo, DatasetShortSchema)
+from frocket.common.metrics import DATASET_LABEL, JobTypeLabel
+from frocket.common.tasks.query import (PartSelectionMode, QueryJobResult,
+                                        QueryResult, QueryTaskRequest,
+                                        QueryTaskResult)
 from frocket.invoker.jobs.job import Job
 
 

@@ -13,22 +13,32 @@
 #  limitations under the License.
 
 import time
-from typing import cast, List, Union, Tuple
+from typing import List, Tuple, Union, cast
+
 import pytest
+
 from frocket.common.dataset import DatasetPartId
 from frocket.common.helpers.utils import timestamped_uuid
-from frocket.common.metrics import MetricName, LoadFromLabel, PartSelectMethodLabel, MetricsBag, ComponentLabel
+from frocket.common.metrics import (ComponentLabel, LoadFromLabel, MetricName,
+                                    MetricsBag, PartSelectMethodLabel)
 from frocket.common.tasks.base import TaskStatus
-from frocket.common.tasks.query import QueryTaskRequest, PartSelectionMode, QueryTaskResult, AggregationResult
+from frocket.common.tasks.query import (AggregationResult, PartSelectionMode,
+                                        QueryTaskRequest, QueryTaskResult)
 from frocket.common.validation.query_validator import QueryValidator
 from frocket.datastore.registered_datastores import get_datastore
-from frocket.worker.runners.base_task_runner import DEFAULT_PREFLIGHT_DURATION_MS
+from frocket.worker.runners.base_task_runner import \
+    DEFAULT_PREFLIGHT_DURATION_MS
 from frocket.worker.runners.part_loader import PartLoader
-from tests.utils.base_test_utils import assert_metric_value, assert_label_value_exists, find_first_label_value, \
-    get_metric_value
-from tests.utils.dataset_utils import new_test_dataset, str_and_none_column_values, TestDatasetInfo, TestColumn, \
-    DEFAULT_ROW_COUNT, DEFAULT_GROUP_COUNT, DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, BASE_TIME, TIME_SHIFT, \
-    datafile_schema
+from tests.utils.base_test_utils import (assert_label_value_exists,
+                                         assert_metric_value,
+                                         find_first_label_value,
+                                         get_metric_value)
+from tests.utils.dataset_utils import (BASE_TIME, DEFAULT_GROUP_COLUMN,
+                                       DEFAULT_GROUP_COUNT, DEFAULT_ROW_COUNT,
+                                       DEFAULT_TIMESTAMP_COLUMN, TIME_SHIFT,
+                                       TestColumn, TestDatasetInfo,
+                                       datafile_schema, new_test_dataset,
+                                       str_and_none_column_values)
 from tests.utils.mock_s3_utils import SKIP_S3_TESTS
 from tests.utils.task_and_job_utils import simple_run_task
 

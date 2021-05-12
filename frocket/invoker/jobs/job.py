@@ -12,12 +12,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from abc import abstractmethod, ABCMeta
+from abc import ABCMeta, abstractmethod
 from typing import List, Optional, Set
+
 from frocket.common.dataset import DatasetPartId, DatasetPartsInfo
 from frocket.common.metrics import LabelsDict
-from frocket.common.tasks.base import BaseTaskRequest, BaseTaskResult, BaseJobResult, JobStatus, ErrorMessage
 from frocket.common.tasks.async_tracker import AsyncJobStatusUpdater
+from frocket.common.tasks.base import (BaseJobResult, BaseTaskRequest,
+                                       BaseTaskResult, ErrorMessage, JobStatus)
 
 
 class Job(metaclass=ABCMeta):

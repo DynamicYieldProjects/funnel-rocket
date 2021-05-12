@@ -12,15 +12,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import os
 import json
+import os
 import time
+
 import pytest
-from frocket.common.validation.consts import RELATION_OPS, DEFAULT_AGGREGATIONS
-from frocket.common.validation.query_validator import QueryValidator
-from frocket.common.dataset import DatasetInfo, DatasetId, DatasetColumnType
-from frocket.common.dataset import DatasetShortSchema
+
+from frocket.common.dataset import (DatasetColumnType, DatasetId, DatasetInfo,
+                                    DatasetShortSchema)
+from frocket.common.validation.consts import DEFAULT_AGGREGATIONS, RELATION_OPS
 from frocket.common.validation.error import ValidationErrorKind
+from frocket.common.validation.query_validator import QueryValidator
 from frocket.engine.relation_to_pandas import relation_to_pandas_query
 from tests.utils.base_test_utils import SKIP_SLOW_TESTS
 

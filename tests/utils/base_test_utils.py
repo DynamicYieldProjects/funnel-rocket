@@ -15,7 +15,8 @@
 import os
 import tempfile
 from typing import List, Type
-from frocket.common.metrics import MetricName, MetricData, MetricLabelEnum
+
+from frocket.common.metrics import MetricData, MetricLabelEnum, MetricName
 
 SKIP_SLOW_TESTS = os.environ.get('SKIP_SLOW_TESTS', "False").lower() == 'true'
 SKIP_LAMBDA_TESTS = os.environ.get('SKIP_LAMBDA_TESTS', "False").lower() == 'true'

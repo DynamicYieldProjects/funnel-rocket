@@ -15,16 +15,17 @@ larger jobs. For a robust & scalable solution, using PySpark or the like is advi
 
 TODO consider a distributed re-partitioning feature in Funnel Rocket (atm it's a read-only tool)
 """
-import pyarrow as pa
-import pyarrow.parquet as pq
-import pyarrow.dataset as ds
-import glob
 import argparse
-import sys
-import pathlib
+import glob
 import math
+import pathlib
 import shutil
+import sys
 from multiprocessing import Pool, cpu_count
+
+import pyarrow as pa
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
 
 MAX_PART_NUMBER_DIGITS = 5
 

@@ -14,15 +14,21 @@
 
 import time
 from contextlib import contextmanager
-from typing import Type, List, cast, Optional
-from frocket.common.dataset import DatasetInfo, DatasetPartsInfo, DatasetShortSchema
+from typing import List, Optional, Type, cast
+
+from frocket.common.dataset import (DatasetInfo, DatasetPartsInfo,
+                                    DatasetShortSchema)
 from frocket.common.helpers.utils import timestamped_uuid
-from frocket.common.metrics import MetricsBag, ComponentLabel
-from frocket.common.tasks.base import BaseTaskRequest, BaseTaskResult, BaseJobResult, TaskStatus, TaskAttemptsInfo, \
-    JobStatus, TaskAttemptId, JobStats
-from frocket.common.tasks.query import QueryTaskResult, QueryTaskRequest, QueryJobResult
-from frocket.common.tasks.registration import RegistrationTaskRequest, RegistrationTaskResult, RegistrationJobResult, \
-    DatasetValidationMode, REGISTER_DEFAULT_FILENAME_PATTERN, RegisterArgs
+from frocket.common.metrics import ComponentLabel, MetricsBag
+from frocket.common.tasks.base import (BaseJobResult, BaseTaskRequest,
+                                       BaseTaskResult, JobStats, JobStatus,
+                                       TaskAttemptId, TaskAttemptsInfo,
+                                       TaskStatus)
+from frocket.common.tasks.query import (QueryJobResult, QueryTaskRequest,
+                                        QueryTaskResult)
+from frocket.common.tasks.registration import (
+    REGISTER_DEFAULT_FILENAME_PATTERN, DatasetValidationMode, RegisterArgs,
+    RegistrationJobResult, RegistrationTaskRequest, RegistrationTaskResult)
 from frocket.common.validation.query_validator import QueryValidator
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.invoker.base_invoker import BaseInvoker
@@ -33,7 +39,9 @@ from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
 from frocket.worker.runners.base_task_runner import TaskRunnerContext
 from frocket.worker.runners.part_loader import PartLoader
 from frocket.worker.runners.registered_runners import REGISTERED_RUNNERS
-from tests.utils.dataset_utils import DEFAULT_GROUP_COLUMN, DEFAULT_TIMESTAMP_COLUMN, TestDatasetInfo
+from tests.utils.dataset_utils import (DEFAULT_GROUP_COLUMN,
+                                       DEFAULT_TIMESTAMP_COLUMN,
+                                       TestDatasetInfo)
 # noinspection PyUnresolvedReferences
 from tests.utils.redis_fixture import init_test_redis_settings
 

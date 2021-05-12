@@ -12,8 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from typing import Dict, Type, Callable, List, cast
-from frocket.common.validation.relation_parser import RBaseElement, RTextElement, RConditionBaseElement, ROperator
+from typing import Callable, Dict, List, Type, cast
+
+from frocket.common.validation.relation_parser import (RBaseElement,
+                                                       RConditionBaseElement,
+                                                       ROperator, RTextElement)
 
 
 def relation_to_pandas_query(elements: List[RBaseElement], column_prefix: str) -> str:

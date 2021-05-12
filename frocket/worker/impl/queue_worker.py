@@ -19,12 +19,15 @@ TODO backlog having a cache-friendly task assignment would require more work, if
 #  limitations under the License.
 
 import logging
-from frocket.common.metrics import MetricsBag, WorkerStartupLabel, ComponentLabel
+
+from frocket.common.config import config
+from frocket.common.metrics import (ComponentLabel, MetricsBag,
+                                    WorkerStartupLabel)
 from frocket.common.tasks.base import BaseTaskRequest
 from frocket.datastore.registered_datastores import get_datastore
 from frocket.worker.impl.generic_env_metrics import GenericEnvMetricsProvider
-from frocket.worker.runners.base_task_runner import BaseTaskRunner, TaskRunnerContext
-from frocket.common.config import config
+from frocket.worker.runners.base_task_runner import (BaseTaskRunner,
+                                                     TaskRunnerContext)
 from frocket.worker.runners.registered_runners import REGISTERED_RUNNERS
 
 config.init_logging()
