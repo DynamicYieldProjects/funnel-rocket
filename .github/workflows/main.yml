@@ -16,7 +16,7 @@ jobs:
           architecture: 'x64'
 
       - name: Cache dependencies
-        uses: actions/cache@v2.1.4
+        uses: actions/cache@v3.0.3
         id: cache-venv
         with:
           path: ./venv/
@@ -36,7 +36,7 @@ jobs:
         uses: docker/setup-buildx-action@master
 
       - name: Cache Docker layers for all-in-one
-        uses: actions/cache@v2.1.4
+        uses: actions/cache@v3.0.3
         with:
           path: /tmp/.buildx-cache-all-in-one
           key: ${{ runner.os }}-buildx-all-in-one-${{ github.sha }}
@@ -56,7 +56,7 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache-all-in-one,mode=max
 
       - name: Cache Docker layers for local-lambda
-        uses: actions/cache@v2.1.4
+        uses: actions/cache@v3.0.3
         with:
           path: /tmp/.buildx-cache-local-lambda
           key: ${{ runner.os }}-buildx-local-lambda-${{ github.sha }}
