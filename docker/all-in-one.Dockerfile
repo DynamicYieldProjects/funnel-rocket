@@ -1,5 +1,5 @@
 # Base Python image with up-to-date OS packages & pip
-FROM python:3.8-slim as base
+FROM python:3.11.0-slim as base
 RUN apt-get update && apt-get clean && \
     python -m pip install --upgrade pip
 
